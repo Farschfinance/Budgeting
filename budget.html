@@ -18,7 +18,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .nav-link:hover{color:var(--text);background:var(--s2);}
 .nav-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
 .nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;}
+.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .nav-sync{font-size:11px;border-radius:20px;padding:3px 10px;}
 .nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
 .nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
@@ -128,7 +128,32 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 </style>
 </head>
 <body>
+
+<!-- SIDEBAR OVERLAY + PANEL -->
+<div class="sidebar-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a class="sidebar-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+    <button class="sidebar-close" onclick="closeSidebar()">&#215;</button>
+  </div>
+  <div class="sidebar-user" id="sb-user">👤 …</div>
+  <div class="sidebar-links">
+    <a class="sidebar-link" data-page="index" href="index.html">🏠&#8202; Dashboard</a>
+    <a class="sidebar-link" data-page="budget" href="budget.html">💸&#8202; Budget</a>
+    <a class="sidebar-link" data-page="spartoepfe" href="spartoepfe.html">🪙&#8202; Spartöpfe</a>
+    <a class="sidebar-link" data-page="sinking" href="sinking.html">🎯&#8202; Sinking Funds</a>
+    <a class="sidebar-link" data-page="kalender" href="kalender.html">📅&#8202; Kalender</a>
+    <a class="sidebar-link" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
+    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
+    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
+  </div>
+  <div class="sidebar-footer">
+    <button class="sidebar-out" onclick="doLogout()">← Abmelden</button>
+  </div>
+</div>
+
 <nav class="nav">
+  <button class="hamburger" onclick="openSidebar()">&#9776;</button>
   <a class="nav-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
   <div class="nav-links">
     <a class="nav-link" href="index.html">Dashboard</a>
@@ -140,7 +165,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="schulden.html">Schulden</a>
       <a class="nav-link" href="einstellungen.html">⚙️</a>
   </div>
-  <button class="hamburger" onclick="openSidebar()">&#9776;</button>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
     <div class="nav-sync ok" id="sync-badge">● Live</div>
@@ -270,12 +294,13 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
       <div id="cat-list"></div>
     </div>
     <div class="card">
-      <div class="section-hdr">
-        <div class="lbl" style="margin:0;">Alle Ausgaben</div>
-        <div class="monat-sel">
-          <select id="filter-monat" onchange="loadAusgaben()"></select>
-          <select id="filter-jahr" onchange="loadAusgaben()"></select>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="changeMonat(-1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8592;</button>
+          <div id="ausgaben-monat-title" style="font-size:18px;font-weight:600;color:var(--pl);min-width:160px;text-align:center;"></div>
+          <button onclick="changeMonat(1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8594;</button>
         </div>
+        <div id="ausgaben-monat-sum" style="font-size:13px;color:var(--amber);font-weight:500;"></div>
       </div>
       <div id="ausgaben-list"></div>
     </div>
@@ -295,12 +320,13 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
       <button class="btn-green" onclick="addEinnahme()">+ Einnahme erfassen</button>
     </div>
     <div class="card">
-      <div class="section-hdr">
-        <div class="lbl" style="margin:0;">Alle Einnahmen</div>
-        <div class="monat-sel">
-          <select id="ein-filter-monat" onchange="loadEinnahmen()"></select>
-          <select id="ein-filter-jahr" onchange="loadEinnahmen()"></select>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="changeEinMonat(-1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8592;</button>
+          <div id="ein-monat-title" style="font-size:16px;font-weight:600;color:var(--green);min-width:140px;text-align:center;"></div>
+          <button onclick="changeEinMonat(1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8594;</button>
         </div>
+        <div id="ein-monat-sum" style="font-size:13px;color:var(--green);font-weight:500;"></div>
       </div>
       <div id="einnahmen-list"></div>
     </div>
@@ -349,6 +375,9 @@ const SUPABASE_URL='https://qhflajqbrzuxxxiqzlyi.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let currentUser=null,cats=[],fixItems=[],bargeldItems=[],einnahmenItems=[],currentAusgaben=[];
+let ausMonat=new Date().getMonth()+1, ausJahr=new Date().getFullYear();
+let einMonat=new Date().getMonth()+1, einJahr=new Date().getFullYear();
+const MONATE_LANG=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
 function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});}
@@ -365,13 +394,27 @@ function todayISO(){return new Date().toISOString().split('T')[0];}
 function fmtDate(iso){if(!iso)return'';const d=new Date(iso+'T12:00:00');return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
 function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
-const MONATE=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+// MONATE already declared above
 
-function fillMonatFilter(sId,yId){
-  const s=document.getElementById(sId),now=new Date();
-  MONATE.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=m;if(i+1===now.getMonth()+1)o.selected=true;s.appendChild(o);});
-  const sy=document.getElementById(yId);
-  for(let y=now.getFullYear();y>=now.getFullYear()-3;y--){const o=document.createElement('option');o.value=y;o.textContent=y;if(y===now.getFullYear())o.selected=true;sy.appendChild(o);}
+function updateAusgabenTitle(){
+  const el=document.getElementById('ausgaben-monat-title');
+  if(el)el.textContent=MONATE_LANG[ausMonat-1]+' '+ausJahr;
+}
+function updateEinTitle(){
+  const el=document.getElementById('ein-monat-title');
+  if(el)el.textContent=MONATE_LANG[einMonat-1]+' '+einJahr;
+}
+function changeMonat(dir){
+  ausMonat+=dir;
+  if(ausMonat>12){ausMonat=1;ausJahr++;}
+  else if(ausMonat<1){ausMonat=12;ausJahr--;}
+  updateAusgabenTitle();loadAusgaben();
+}
+function changeEinMonat(dir){
+  einMonat+=dir;
+  if(einMonat>12){einMonat=1;einJahr++;}
+  else if(einMonat<1){einMonat=12;einJahr--;}
+  updateEinTitle();loadEinnahmen();
 }
 function showTab(name,el){
   document.querySelectorAll('.sp').forEach(p=>p.classList.remove('on'));
@@ -474,12 +517,14 @@ async function delCat(id){
 
 // ── AUSGABEN ────────────────────────────────────────────────
 async function loadAusgaben(){
-  const monat=parseInt(document.getElementById('filter-monat').value);
-  const jahr=parseInt(document.getElementById('filter-jahr').value);
-  const s=`${jahr}-${String(monat).padStart(2,'0')}-01`;
-  const e=new Date(jahr,monat,0).toISOString().split('T')[0];
+  const s=`${ausJahr}-${String(ausMonat).padStart(2,'0')}-01`;
+  const e=new Date(ausJahr,ausMonat,0).toISOString().split('T')[0];
   const{data}=await sb.from('ausgaben').select('*').gte('created_at',s+'T00:00:00').lte('created_at',e+'T23:59:59').order('created_at',{ascending:false});
-  currentAusgaben=data||[];renderAusgaben();
+  currentAusgaben=data||[];
+  const sum=currentAusgaben.reduce((a,x)=>a+Number(x.betrag),0);
+  const sumEl=document.getElementById('ausgaben-monat-sum');
+  if(sumEl)sumEl.textContent=currentAusgaben.length+' Buchungen · gesamt − € '+(Math.round(sum*100)/100).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  renderAusgaben();
 }
 function renderAusgaben(){
   const el=document.getElementById('ausgaben-list');
@@ -709,11 +754,12 @@ async function addEinnahme(){
   renderEinnahmen();updateOverview();setSyncOk();
 }
 async function loadEinnahmen(){
-  const monat=parseInt(document.getElementById('ein-filter-monat').value);
-  const jahr=parseInt(document.getElementById('ein-filter-jahr').value);
-  const{data}=await sb.from('einnahmen').select('*').eq('monat',monat).eq('jahr',jahr).order('datum',{ascending:false});
+  const{data}=await sb.from('einnahmen').select('*').eq('monat',einMonat).eq('jahr',einJahr).order('datum',{ascending:false});
   einnahmenItems=data||[];renderEinnahmen();
-  const etEl=document.getElementById('ein-total');if(etEl)etEl.textContent=fmtEur(einnahmenItems.reduce((a,e)=>a+Number(e.betrag),0));
+  const sum=einnahmenItems.reduce((a,e)=>a+Number(e.betrag),0);
+  const etEl=document.getElementById('ein-total');if(etEl)etEl.textContent=fmtEur(sum);
+  const sumEl=document.getElementById('ein-monat-sum');
+  if(sumEl)sumEl.textContent=einnahmenItems.length+' Buchungen · gesamt + € '+(Math.round(sum*100)/100).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 async function delEinnahme(id){
   if(!confirm('Einnahme löschen?'))return;
@@ -728,12 +774,13 @@ function onLogin(user){
   const nb=document.getElementById('nav-user');if(nb)nb.textContent='👤 '+getDisplayName(user);
   const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
   setSidebarPage('budget');
+  
   document.getElementById('e-date').value=todayISO();
   document.getElementById('cash-datum').value=todayISO();
   document.getElementById('ein-datum').value=todayISO();
-  fillMonatFilter('filter-monat','filter-jahr');
-  fillMonatFilter('ein-filter-monat','ein-filter-jahr');
-  loadAll();loadAusgaben();
+  updateAusgabenTitle();
+  updateEinTitle();
+  loadAll();loadAusgaben();loadEinnahmen();
 }
 document.addEventListener('DOMContentLoaded',async()=>{
   const res=await sb.auth.getSession();

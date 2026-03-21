@@ -9,95 +9,29 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{--bg:#0E0B16;--s1:#16121F;--s2:#1E1929;--s3:#261F35;--border:rgba(140,100,200,0.18);--border2:rgba(140,100,200,0.35);--purple:#9B5FD4;--pl:#C490F0;--cyan:#3DD9C5;--green:#3DD98A;--red:#E05577;--amber:#E0A830;--text:#EDE8F5;--muted:#8878A8;--muted2:#5C5075;}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;min-height:100vh;}
-.nav{background:var(--s1);border-bottom:1px solid var(--border2);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100;}
-.nav-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
+
+/* NAV */
+.nav{background:var(--s1);border-bottom:1px solid var(--border2);padding:0 14px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100;gap:8px;}
+.nav-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;flex-shrink:0;}
 .nav-logo span{color:var(--cyan);}
-.nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;}
 .nav-links::-webkit-scrollbar{display:none;}
 .nav-link{color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;}
 .nav-link:hover{color:var(--text);background:var(--s2);}
 .nav-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
-.nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;}
+.nav-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .nav-sync{font-size:11px;border-radius:20px;padding:3px 10px;}
 .nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
 .nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
 .nav-out{font-size:11px;color:var(--muted2);background:transparent;border:1px solid var(--border);border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .nav-out:hover{color:var(--red);border-color:rgba(224,85,119,0.4);}
-.page{max-width:900px;margin:0 auto;padding:16px;}
-.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
-.lbl{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;font-weight:500;}
-.rb{display:flex;justify-content:space-between;align-items:center;}
-.ci{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
-.ci:focus{border-color:var(--purple);}
-.ci::placeholder{color:var(--muted2);}
-.cs{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
-.ir{display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;}
-.ferr{font-size:12px;color:var(--red);margin-top:-4px;margin-bottom:8px;display:none;}
-.btn{background:rgba(155,95,212,0.2);border:1px solid var(--purple);border-radius:8px;color:var(--pl);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
-.btn:hover{background:rgba(155,95,212,0.35);}
-.btn-del{background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1;border-radius:4px;flex-shrink:0;}
-.btn-del:hover{color:var(--red);}
-.add-form{background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-top:10px;display:none;}
-.add-form.show{display:block;}
-.section-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
-.toggle-btn{background:rgba(155,95,212,0.15);border:1px solid var(--border2);border-radius:6px;color:var(--pl);padding:5px 12px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;}
-.toggle-btn:hover{background:rgba(155,95,212,0.25);}
-
-/* KALENDER */
-.cal-nav{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
-.cal-nav button{background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;}
-.cal-nav button:hover{border-color:var(--purple);}
-.cal-title{font-size:16px;font-weight:600;flex:1;text-align:center;}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
-.cal-day-header{text-align:center;font-size:11px;color:var(--muted);padding:6px 0;font-weight:500;}
-.cal-day{min-height:70px;background:var(--s2);border-radius:6px;padding:5px;cursor:pointer;position:relative;border:1px solid transparent;}
-.cal-day:hover{border-color:var(--border2);}
-.cal-day.today{border-color:var(--purple);}
-.cal-day.other-month{opacity:.35;}
-.cal-day.selected{border-color:var(--cyan);background:var(--s3);}
-.cal-day-num{font-size:12px;font-weight:500;margin-bottom:3px;}
-.cal-day.today .cal-day-num{color:var(--pl);}
-.cal-event{font-size:9px;border-radius:3px;padding:1px 4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ev-ausgabe{background:rgba(224,85,119,0.25);color:var(--red);}
-.ev-einnahme{background:rgba(61,217,138,0.2);color:var(--green);}
-.ev-neutral{background:rgba(140,100,200,0.2);color:var(--pl);}
-.ev-sf{background:rgba(61,217,197,0.15);color:var(--cyan);}
-
-/* DAY DETAIL */
-.day-detail{background:var(--s1);border:1px solid var(--border2);border-radius:12px;padding:16px;margin-top:12px;display:none;}
-.day-detail.show{display:block;}
-.ev-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
-.ev-row:last-child{border-bottom:none;}
-.ev-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-
-/* CHAT */
-.chat-box{max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding-right:4px;}
-.chat-box::-webkit-scrollbar{width:4px;}
-.chat-box::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
-.msg{background:var(--s2);border-radius:10px;padding:10px 14px;max-width:80%;}
-.msg.mine{background:rgba(155,95,212,0.2);border:1px solid var(--border2);align-self:flex-end;}
-.msg.theirs{align-self:flex-start;}
-.msg-author{font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:500;}
-.msg-text{font-size:13px;line-height:1.5;}
-.msg-time{font-size:10px;color:var(--muted2);margin-top:3px;}
-.chat-input-row{display:flex;gap:8px;}
-
-.btn-edit{background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:14px;padding:2px 5px;line-height:1;border-radius:4px;flex-shrink:0;}
-.btn-edit:hover{color:var(--pl);}
-.edit-row{background:rgba(155,95,212,0.08);border:1px solid rgba(155,95,212,0.4);border-radius:8px;padding:12px;margin:4px 0 6px;display:none;}
-.edit-row.show{display:block;}
-.edit-actions{display:flex;gap:8px;margin-top:8px;}
-.btn-save{background:rgba(61,217,138,0.2);border:1px solid rgba(61,217,138,0.5);border-radius:6px;color:var(--green);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;}
-.btn-save:hover{background:rgba(61,217,138,0.3);}
-.btn-cancel{background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--muted);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;}
-.btn-cancel:hover{color:var(--text);}
-
-/* ── MOBILE SIDEBAR NAV ─────────────────────────── */
 .hamburger{display:none;background:transparent;border:1px solid var(--border2);border-radius:7px;padding:6px 9px;cursor:pointer;color:var(--text);font-size:18px;line-height:1;flex-shrink:0;}
+
+/* SIDEBAR */
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:199;backdrop-filter:blur(2px);}
 .sidebar-overlay.open{display:block;}
-.sidebar{position:fixed;top:0;left:-280px;width:260px;height:100vh;background:var(--s1);border-right:1px solid var(--border2);z-index:200;transition:left .25s ease;display:flex;flex-direction:column;padding:0;}
+.sidebar{position:fixed;top:0;left:-280px;width:260px;height:100vh;background:var(--s1);border-right:1px solid var(--border2);z-index:200;transition:left .25s ease;display:flex;flex-direction:column;}
 .sidebar.open{left:0;}
 .sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border);}
 .sidebar-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
@@ -112,36 +46,138 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .sidebar-footer{padding:12px 8px;border-top:1px solid var(--border);}
 .sidebar-out{width:100%;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;text-align:left;}
 .sidebar-out:hover{color:var(--red);border-color:rgba(224,85,119,0.4);}
-/* Nav rechts — auf Mobile nur User-Badge + Hamburger */
+
+/* LAYOUT */
+.page{max-width:900px;margin:0 auto;padding:16px;}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
+.lbl{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;font-weight:500;}
+.rb{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.ci{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
+.ci:focus{border-color:var(--purple);}
+.ci::placeholder{color:var(--muted2);}
+.cs{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
+.ir{display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;}
+.ferr{font-size:12px;color:var(--red);margin-top:-4px;margin-bottom:8px;display:none;}
+.btn{background:rgba(155,95,212,0.2);border:1px solid var(--purple);border-radius:8px;color:var(--pl);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn:hover{background:rgba(155,95,212,0.35);}
+.btn-del{background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:14px;padding:2px 5px;line-height:1;border-radius:4px;flex-shrink:0;}
+.btn-del:hover{color:var(--red);}
+.btn-edit{background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:14px;padding:2px 5px;line-height:1;border-radius:4px;flex-shrink:0;}
+.btn-edit:hover{color:var(--pl);}
+.add-form{background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-top:10px;display:none;}
+.add-form.show{display:block;}
+.section-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:6px;}
+.toggle-btn{background:rgba(155,95,212,0.15);border:1px solid var(--border2);border-radius:6px;color:var(--pl);padding:5px 12px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;}
+.toggle-btn:hover{background:rgba(155,95,212,0.25);}
+.edit-row{background:rgba(155,95,212,0.08);border:1px solid rgba(155,95,212,0.4);border-radius:8px;padding:12px;margin:2px 0 6px;display:none;}
+.edit-row.show{display:block;}
+.edit-actions{display:flex;gap:8px;margin-top:8px;}
+.btn-save{background:rgba(61,217,138,0.2);border:1px solid rgba(61,217,138,0.5);border-radius:6px;color:var(--green);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;}
+.btn-save:hover{background:rgba(61,217,138,0.3);}
+.btn-cancel{background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--muted);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;}
+.btn-cancel:hover{color:var(--text);}
+
+/* KALENDER */
+.cal-nav{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.cal-nav button{background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;}
+.cal-nav button:hover{border-color:var(--purple);}
+.cal-title{font-size:16px;font-weight:600;flex:1;text-align:center;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-day-header{text-align:center;font-size:11px;color:var(--muted);padding:6px 0;font-weight:500;}
+.cal-day{min-height:60px;background:var(--s2);border-radius:6px;padding:4px;cursor:pointer;border:1px solid transparent;}
+.cal-day:hover{border-color:var(--border2);}
+.cal-day.today{border-color:var(--purple);}
+.cal-day.other-month{opacity:.3;}
+.cal-day.selected{border-color:var(--cyan);background:var(--s3);}
+.cal-day-num{font-size:12px;font-weight:500;margin-bottom:2px;}
+.cal-day.today .cal-day-num{color:var(--pl);}
+.cal-event{font-size:9px;border-radius:3px;padding:1px 3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ev-ausgabe{background:rgba(224,85,119,0.25);color:var(--red);}
+.ev-einnahme{background:rgba(61,217,138,0.2);color:var(--green);}
+.ev-neutral{background:rgba(140,100,200,0.2);color:var(--pl);}
+.ev-sf{background:rgba(61,217,197,0.15);color:var(--cyan);}
+.day-detail{background:var(--s1);border:1px solid var(--border2);border-radius:12px;padding:16px;margin-top:12px;display:none;}
+.day-detail.show{display:block;}
+.ev-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.ev-row:last-child{border-bottom:none;}
+.ev-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* CHAT */
+.chat-wrap{background:var(--s1);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;height:480px;margin-bottom:12px;overflow:hidden;}
+.chat-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.chat-header-left{display:flex;align-items:center;gap:8px;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.chat-messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;}
+.chat-messages::-webkit-scrollbar{width:4px;}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.msg{max-width:78%;padding:9px 13px;border-radius:12px;position:relative;}
+.msg.mine{background:rgba(155,95,212,0.2);border:1px solid var(--border2);align-self:flex-end;border-bottom-right-radius:3px;}
+.msg.theirs{background:var(--s2);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:3px;}
+.msg-author{font-size:10px;font-weight:600;color:var(--pl);margin-bottom:3px;}
+.msg.mine .msg-author{color:var(--cyan);text-align:right;}
+.msg-text{font-size:13px;line-height:1.5;word-break:break-word;}
+.msg-footer{display:flex;align-items:center;justify-content:space-between;margin-top:4px;gap:8px;}
+.msg-time{font-size:10px;color:var(--muted2);}
+.msg-del{background:transparent;border:none;color:transparent;cursor:pointer;font-size:11px;padding:0;line-height:1;}
+.msg:hover .msg-del{color:var(--muted2);}
+.msg-del:hover{color:var(--red)!important;}
+.chat-footer{padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;}
+.chat-input{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:9px 12px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;flex:1;}
+.chat-input:focus{border-color:var(--purple);}
+.chat-input::placeholder{color:var(--muted2);}
+.chat-send{background:rgba(155,95,212,0.25);border:1px solid var(--purple);border-radius:8px;color:var(--pl);padding:9px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;white-space:nowrap;}
+.chat-send:hover{background:rgba(155,95,212,0.4);}
+.btn-danger{background:rgba(224,85,119,0.12);border:1px solid rgba(224,85,119,0.35);border-radius:6px;color:var(--red);padding:4px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:11px;}
+.btn-danger:hover{background:rgba(224,85,119,0.22);}
+
+/* RESPONSIVE */
 @media(max-width:700px){
   .nav-links{display:none;}
   .hamburger{display:block;}
   .nav-sync{display:none;}
-  .nav-right{gap:6px;}
 }
-/* ── RESPONSIVE FIXES ───────────────────────────── */
 @media(max-width:600px){
   .page{padding:10px;}
-  .card{padding:13px;}
-  .g2,.g3,.g4{grid-template-columns:1fr;}
+  .card{padding:12px;}
   .ir{flex-direction:column;}
   .ir .ci,.ir .cs,.ir input,.ir select{width:100%;min-width:0!important;}
-  .num-lg{font-size:20px;}
-  .num-md{font-size:17px;}
-  .score-big{font-size:36px;}
-  .rb{flex-wrap:wrap;gap:6px;}
-  .crow{flex-wrap:wrap;}
-  .by-badge{display:none;}
-  .tabs{overflow-x:auto;}
-  .stab{font-size:11px;padding:6px 4px;}
-  .monat-sel{flex-wrap:wrap;}
-  .monat-sel select{font-size:11px;}
-  .section-hdr{flex-wrap:wrap;gap:6px;}
+  .rb{flex-wrap:wrap;}
+  .chat-wrap{height:400px;}
+  .cal-day{min-height:44px;}
+  .cal-event{display:none;}
+  *{word-break:break-word;}
+  .nav-user{max-width:100px;}
 }
 </style>
 </head>
 <body>
+
+<!-- SIDEBAR -->
+<div class="sidebar-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a class="sidebar-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+    <button class="sidebar-close" onclick="closeSidebar()">&#215;</button>
+  </div>
+  <div class="sidebar-user" id="sb-user">👤 …</div>
+  <div class="sidebar-links">
+    <a class="sidebar-link" data-page="index" href="index.html">🏠&#8202; Dashboard</a>
+    <a class="sidebar-link" data-page="budget" href="budget.html">💸&#8202; Budget</a>
+    <a class="sidebar-link" data-page="spartoepfe" href="spartoepfe.html">🪙&#8202; Spartöpfe</a>
+    <a class="sidebar-link" data-page="sinking" href="sinking.html">🎯&#8202; Sinking Funds</a>
+    <a class="sidebar-link on" data-page="kalender" href="kalender.html">📅&#8202; Kalender</a>
+    <a class="sidebar-link" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
+    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
+    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
+  </div>
+  <div class="sidebar-footer">
+    <button class="sidebar-out" onclick="doLogout()">← Abmelden</button>
+  </div>
+</div>
+
 <nav class="nav">
+  <button class="hamburger" onclick="openSidebar()">&#9776;</button>
   <a class="nav-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
   <div class="nav-links">
     <a class="nav-link" href="index.html">Dashboard</a>
@@ -151,9 +187,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link on" href="kalender.html">Kalender</a>
     <a class="nav-link" href="statistik.html">Statistik</a>
     <a class="nav-link" href="schulden.html">Schulden</a>
-      <a class="nav-link" href="einstellungen.html">⚙️</a>
+    <a class="nav-link" href="einstellungen.html">⚙️</a>
   </div>
-  <button class="hamburger" onclick="openSidebar()">&#9776;</button>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
     <div class="nav-sync ok" id="sync-badge">● Live</div>
@@ -162,6 +197,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 </nav>
 
 <div class="page">
+
   <!-- KALENDER -->
   <div class="card">
     <div class="cal-nav">
@@ -169,13 +205,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
       <div class="cal-title" id="cal-title"></div>
       <button onclick="changeMonth(1)">&#8594;</button>
     </div>
-    <div class="cal-grid" id="cal-headers">
-      <div class="cal-day-header">Mo</div>
-      <div class="cal-day-header">Di</div>
-      <div class="cal-day-header">Mi</div>
-      <div class="cal-day-header">Do</div>
-      <div class="cal-day-header">Fr</div>
-      <div class="cal-day-header">Sa</div>
+    <div class="cal-grid">
+      <div class="cal-day-header">Mo</div><div class="cal-day-header">Di</div>
+      <div class="cal-day-header">Mi</div><div class="cal-day-header">Do</div>
+      <div class="cal-day-header">Fr</div><div class="cal-day-header">Sa</div>
       <div class="cal-day-header">So</div>
     </div>
     <div class="cal-grid" id="cal-grid" style="margin-top:4px;"></div>
@@ -184,7 +217,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   <!-- TAG DETAIL -->
   <div class="day-detail" id="day-detail">
     <div class="section-hdr">
-      <div class="lbl" id="selected-day-label" style="margin:0;"></div>
+      <div class="lbl" id="selected-day-label" style="margin:0;font-size:13px;text-transform:none;color:var(--text);font-weight:600;"></div>
       <button class="toggle-btn" onclick="toggleForm('new-event-form')">+ Eintrag</button>
     </div>
     <div class="add-form" id="new-event-form">
@@ -195,7 +228,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
           <option value="ausgabe">Ausgabe</option>
           <option value="einnahme">Einnahme</option>
         </select>
-        <input class="ci" id="ev-betrag" type="number" placeholder="Betrag € (optional)" min="0.01" max="999999" step="0.01" style="flex:1;min-width:120px;">
+        <input class="ci" id="ev-betrag" type="number" placeholder="Betrag € (optional)" min="0.01" max="999999" step="0.01" style="flex:1;min-width:100px;">
       </div>
       <input class="ci" id="ev-notiz" placeholder="Notiz (optional)" maxlength="200" style="margin-bottom:10px;">
       <div id="ev-err" class="ferr">Bitte einen Titel eingeben.</div>
@@ -204,25 +237,36 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <div id="day-events" style="margin-top:10px;"></div>
   </div>
 
-  <!-- CHAT -->
-  <div class="card" style="margin-top:16px;">
-    <div class="lbl" style="margin-bottom:12px;">💬 Gemeinsamer Chat</div>
-    <div class="chat-box" id="chat-box"><div style="color:var(--muted);font-size:13px;">Lädt Nachrichten...</div></div>
-    <div class="chat-input-row">
-      <input class="ci" id="chat-input" placeholder="Nachricht eingeben..." maxlength="500" style="flex:1;">
-      <button class="btn" onclick="sendMsg()">Senden</button>
+  <!-- CHAT — fixes scrollbar, live updates, delete, clear -->
+  <div class="chat-wrap">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <div class="live-dot"></div>
+        <span class="lbl" style="margin:0;">💬 Gemeinsamer Chat</span>
+      </div>
+      <button class="btn-danger" onclick="clearChat()">Chat leeren</button>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0;">Lädt…</div>
+    </div>
+    <div class="chat-footer">
+      <input class="chat-input" id="chat-input" placeholder="Nachricht schreiben…" maxlength="500">
+      <button class="chat-send" onclick="sendMsg()">Senden</button>
     </div>
   </div>
+
 </div>
 
 <script>
-const SUPABASE_URL = 'https://qhflajqbrzuxxxiqzlyi.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL='https://qhflajqbrzuxxxiqzlyi.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let currentUser=null, kalEvents=[], sfFunds=[], einnahmen=[];
 let calYear=new Date().getFullYear(), calMonth=new Date().getMonth();
 let selectedDate=null;
+let chatMsgs=[];
 
+/* ── UTILS ──────────────────────────────────────────────── */
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
 function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});}
 function fmtEur(n){const v=Math.round(Number(n)*100)/100;return v<0?'−\u00a0€\u00a0'+fmtN(Math.abs(v)):'\u20ac\u00a0'+fmtN(v);}
@@ -232,27 +276,37 @@ function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
 function todayISO(){return new Date().toISOString().split('T')[0];}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
 function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
-function showErr(id){document.getElementById(id).style.display='block';}
-function hideErr(id){document.getElementById(id).style.display='none';}
-function toggleForm(id){document.getElementById(id).classList.toggle('show');}
+function showErr(id){const e=document.getElementById(id);if(e)e.style.display='block';}
+function hideErr(id){const e=document.getElementById(id);if(e)e.style.display='none';}
+function toggleForm(id){const e=document.getElementById(id);if(e)e.classList.toggle('show');}
+function toggleEdit(id){const e=document.getElementById(id);if(e)e.classList.toggle('show');}
 
+/* ── SIDEBAR ────────────────────────────────────────────── */
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sb-overlay').classList.add('open');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-overlay').classList.remove('open');}
+function setSidebarPage(p){document.querySelectorAll('.sidebar-link').forEach(l=>l.classList.toggle('on',l.dataset.page===p));}
+
+/* ── KALENDER ───────────────────────────────────────────── */
 const MONATE=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 
-function changeMonth(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++;}else if(calMonth<0){calMonth=11;calYear--;}loadAndRender();}
+function changeMonth(dir){
+  calMonth+=dir;
+  if(calMonth>11){calMonth=0;calYear++;}
+  else if(calMonth<0){calMonth=11;calYear--;}
+  loadAndRender();
+}
 
 async function loadAndRender(){
   try{
     const startDate=`${calYear}-${String(calMonth+1).padStart(2,'0')}-01`;
     const lastDay=new Date(calYear,calMonth+1,0).getDate();
     const endDate=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-    const [rk,rs,re]=await Promise.all([
+    const[rk,rs,re]=await Promise.all([
       sb.from('kalender').select('*').gte('datum',startDate).lte('datum',endDate),
       sb.from('sinking_funds').select('*'),
       sb.from('einnahmen').select('*').eq('monat',calMonth+1).eq('jahr',calYear),
     ]);
-    kalEvents=rk.data||[];
-    sfFunds=rs.data||[];
-    einnahmen=re.data||[];
+    kalEvents=rk.data||[];sfFunds=rs.data||[];einnahmen=re.data||[];
     renderCalendar();setSyncOk();
   }catch(e){setSyncErr();}
 }
@@ -264,31 +318,31 @@ function renderCalendar(){
   const firstDay=new Date(calYear,calMonth,1).getDay();
   const offset=(firstDay===0)?6:firstDay-1;
   const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
-  const daysInPrevMonth=new Date(calYear,calMonth,0).getDate();
+  const daysInPrev=new Date(calYear,calMonth,0).getDate();
   const today=todayISO();
 
+  // Prev month padding
   for(let i=0;i<offset;i++){
-    const d=daysInPrevMonth-offset+1+i;
-    const prevMonth=calMonth===0?12:calMonth;
-    const prevYear=calMonth===0?calYear-1:calYear;
-    const iso=`${prevYear}-${String(prevMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    grid.innerHTML+=dayCell(d,iso,true);
+    const d=daysInPrev-offset+1+i;
+    const pm=calMonth===0?12:calMonth;
+    const py=calMonth===0?calYear-1:calYear;
+    const iso=`${py}-${String(pm).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    grid.innerHTML+=dayCell(d,iso,true,today);
   }
+  // Current month
   for(let d=1;d<=daysInMonth;d++){
     const iso=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    grid.innerHTML+=dayCell(d,iso,false);
+    grid.innerHTML+=dayCell(d,iso,false,today);
   }
-  // Rest auffüllen
+  // Next month padding
   const total=offset+daysInMonth;
-  const remaining=total%7===0?0:7-(total%7);
-  for(let i=1;i<=remaining;i++){
-    const nextMonth=calMonth===11?1:calMonth+2;
-    const nextYear=calMonth===11?calYear+1:calYear;
-    const iso=`${nextYear}-${String(nextMonth).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-    grid.innerHTML+=dayCell(i,iso,true);
+  const rem=total%7===0?0:7-(total%7);
+  for(let i=1;i<=rem;i++){
+    const nm=calMonth===11?1:calMonth+2;
+    const ny=calMonth===11?calYear+1:calYear;
+    const iso=`${ny}-${String(nm).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+    grid.innerHTML+=dayCell(i,iso,true,today);
   }
-
-  // Event-Listener
   grid.querySelectorAll('.cal-day').forEach(el=>{
     el.addEventListener('click',()=>selectDay(el.dataset.date));
   });
@@ -296,35 +350,21 @@ function renderCalendar(){
 
 function getEventsForDay(iso){
   const evs=[];
-  // Manuelle Einträge
-  kalEvents.filter(e=>e.datum===iso).forEach(e=>{
-    evs.push({typ:e.typ,titel:e.titel,betrag:e.betrag,id:e.id,quelle:'manuell'});
-  });
-  // Sinking Fund Fälligkeiten (simpel: zeigen wenn Monat/Jahr passt)
-  sfFunds.forEach(f=>{
-    if(f.faelligkeit&&f.faelligkeit.toLowerCase().includes(MONATE[calMonth].substring(0,3).toLowerCase())&&f.faelligkeit.includes(String(calYear))){
-      const firstIso=`${calYear}-${String(calMonth+1).padStart(2,'0')}-01`;
-      if(iso===firstIso) evs.push({typ:'sf',titel:f.name+' fällig',betrag:null,quelle:'sf'});
-    }
-  });
-  // Einnahmen
-  einnahmen.filter(e=>e.datum===iso).forEach(e=>{
-    evs.push({typ:'einnahme',titel:e.bezeichnung,betrag:e.betrag,quelle:'einnahme'});
-  });
+  kalEvents.filter(e=>e.datum===iso).forEach(e=>evs.push({...e,quelle:'manuell'}));
+  einnahmen.filter(e=>e.datum===iso).forEach(e=>evs.push({typ:'einnahme',titel:e.bezeichnung,betrag:e.betrag,quelle:'einnahme',id:e.id}));
   return evs;
 }
 
-function dayCell(d,iso,otherMonth){
-  const today=todayISO();
+function dayCell(d,iso,otherMonth,today){
   const isToday=iso===today;
-  const isSelected=iso===selectedDate;
+  const isSel=iso===selectedDate;
   const evs=getEventsForDay(iso);
-  let cls='cal-day'+(otherMonth?' other-month':'')+(isToday?' today':'')+(isSelected?' selected':'');
-  let evHtml=evs.slice(0,3).map(e=>{
+  let cls='cal-day'+(otherMonth?' other-month':'')+(isToday?' today':'')+(isSel?' selected':'');
+  let evHtml=evs.slice(0,2).map(e=>{
     const ecls=e.typ==='ausgabe'?'ev-ausgabe':e.typ==='einnahme'?'ev-einnahme':e.typ==='sf'?'ev-sf':'ev-neutral';
     return`<div class="cal-event ${ecls}">${esc(e.titel)}</div>`;
   }).join('');
-  if(evs.length>3) evHtml+=`<div style="font-size:9px;color:var(--muted);">+${evs.length-3} mehr</div>`;
+  if(evs.length>2)evHtml+=`<div style="font-size:9px;color:var(--muted);">+${evs.length-2}</div>`;
   return`<div class="${cls}" data-date="${iso}"><div class="cal-day-num">${d}</div>${evHtml}</div>`;
 }
 
@@ -343,11 +383,11 @@ function selectDay(iso){
 function renderDayEvents(iso){
   const evs=getEventsForDay(iso);
   const el=document.getElementById('day-events');
-  if(!evs.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;">Keine Einträge für diesen Tag.</div>';return;}
   const typOpts=`<option value="neutral">Neutral</option><option value="ausgabe">Ausgabe</option><option value="einnahme">Einnahme</option>`;
+  if(!evs.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;">Keine Einträge für diesen Tag.</div>';return;}
   el.innerHTML=evs.map(e=>{
     const col=e.typ==='ausgabe'?'var(--red)':e.typ==='einnahme'?'var(--green)':e.typ==='sf'?'var(--cyan)':'var(--pl)';
-    if(e.quelle!=='manuell') return`<div class="ev-row">
+    if(e.quelle!=='manuell')return`<div class="ev-row">
       <div class="ev-dot" style="background:${col};"></div>
       <div style="flex:1;font-size:13px;">${esc(e.titel)}</div>
       ${e.betrag?`<div style="font-size:13px;font-weight:500;color:${col};">${fmtEur(e.betrag)}</div>`:''}
@@ -355,16 +395,16 @@ function renderDayEvents(iso){
     return`<div>
       <div class="ev-row">
         <div class="ev-dot" style="background:${col};"></div>
-        <div style="flex:1;font-size:13px;">${esc(e.titel)}</div>
+        <div style="flex:1;font-size:13px;">${esc(e.titel)}${e.notiz?`<span style="display:block;font-size:11px;color:var(--muted);">${esc(e.notiz)}</span>`:''}</div>
         ${e.betrag?`<div style="font-size:13px;font-weight:500;color:${col};">${fmtEur(e.betrag)}</div>`:''}
         <button class="btn-edit" onclick="toggleEdit('eev-${esc(e.id)}')">✏️</button>
         <button class="btn-del" onclick="delEvent('${esc(e.id)}')">✕</button>
       </div>
       <div class="edit-row" id="eev-${esc(e.id)}">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-          <input class="ci" id="eev-ti-${esc(e.id)}" value="${esc(e.titel)}" maxlength="80" placeholder="Titel" style="flex:2;min-width:150px;">
+          <input class="ci" id="eev-ti-${esc(e.id)}" value="${esc(e.titel)}" maxlength="80" placeholder="Titel" style="flex:2;min-width:140px;">
           <select class="cs" id="eev-ty-${esc(e.id)}" style="min-width:110px;">${typOpts}</select>
-          <input class="ci" id="eev-am-${esc(e.id)}" type="number" value="${e.betrag||''}" min="0.01" max="999999" step="0.01" placeholder="Betrag (opt.)" style="flex:1;min-width:100px;">
+          <input class="ci" id="eev-am-${esc(e.id)}" type="number" value="${e.betrag||''}" min="0.01" max="999999" step="0.01" placeholder="Betrag (opt.)" style="flex:1;min-width:90px;">
         </div>
         <input class="ci" id="eev-no-${esc(e.id)}" value="${esc(e.notiz||'')}" maxlength="200" placeholder="Notiz (optional)" style="margin-bottom:8px;">
         <div class="edit-actions">
@@ -374,7 +414,6 @@ function renderDayEvents(iso){
       </div>
     </div>`;
   }).join('');
-  // Set selected typ
   evs.filter(e=>e.quelle==='manuell').forEach(e=>{const s=document.getElementById('eev-ty-'+e.id);if(s)s.value=e.typ;});
 }
 
@@ -387,57 +426,72 @@ async function addEvent(){
   const betragRaw=parseFloat(document.getElementById('ev-betrag').value);
   const betrag=!isNaN(betragRaw)&&betragRaw>0?betragRaw:null;
   const notiz=validateStr(document.getElementById('ev-notiz').value||'',200)||null;
-  const res=await sb.from('kalender').insert({datum:selectedDate,titel,typ,betrag,notiz,erstellt_von:userName()});
-  if(res.error){setSyncErr();return;}
-  document.getElementById('ev-titel').value='';document.getElementById('ev-betrag').value='';document.getElementById('ev-notiz').value='';
+  await sb.from('kalender').insert({datum:selectedDate,titel,typ,betrag,notiz,erstellt_von:userName()});
+  document.getElementById('ev-titel').value='';
+  document.getElementById('ev-betrag').value='';
+  document.getElementById('ev-notiz').value='';
   document.getElementById('new-event-form').classList.remove('show');
   await loadAndRender();
   renderDayEvents(selectedDate);setSyncOk();
 }
 
-
-function toggleEdit(id){const el=document.getElementById(id);if(el)el.classList.toggle('show');}
-
 async function saveEvent(id){
-  const titel=(document.getElementById('eev-ti-'+id).value||'').trim().substring(0,80);
+  const titel=validateStr(document.getElementById('eev-ti-'+id).value,80);
   if(!titel)return;
   const typ=document.getElementById('eev-ty-'+id).value;
   const betragRaw=parseFloat(document.getElementById('eev-am-'+id).value);
   const betrag=!isNaN(betragRaw)&&betragRaw>0?betragRaw:null;
-  const notiz=(document.getElementById('eev-no-'+id).value||'').trim().substring(0,200)||null;
+  const notiz=validateStr(document.getElementById('eev-no-'+id).value||'',200)||null;
   await sb.from('kalender').update({titel,typ,betrag,notiz}).eq('id',id);
   await loadAndRender();
-  if(selectedDate)renderDayEvents(selectedDate);
-  setSyncOk();
+  if(selectedDate)renderDayEvents(selectedDate);setSyncOk();
 }
 
 async function delEvent(id){
   if(!confirm('Eintrag löschen?'))return;
   await sb.from('kalender').delete().eq('id',id);
   await loadAndRender();
-  if(selectedDate) renderDayEvents(selectedDate);setSyncOk();
+  if(selectedDate)renderDayEvents(selectedDate);setSyncOk();
 }
 
-// CHAT
+/* ── CHAT (LIVE) ────────────────────────────────────────── */
+let chatChannel=null;
+
 async function loadChat(){
-  const {data}=await sb.from('kommentare').select('*').order('created_at',{ascending:true}).limit(50);
-  renderChat(data||[]);
+  const{data}=await sb.from('kommentare').select('*').order('created_at',{ascending:true}).limit(100);
+  chatMsgs=data||[];
+  renderChat(false);
 }
 
-function renderChat(msgs){
-  const box=document.getElementById('chat-box');
-  if(!msgs.length){box.innerHTML='<div style="color:var(--muted);font-size:13px;">Noch keine Nachrichten.</div>';return;}
-  box.innerHTML=msgs.map(m=>{
+function renderChat(scrollIfMine=false){
+  const box=document.getElementById('chat-messages');
+  const wasAtBottom=box.scrollHeight-box.scrollTop-box.clientHeight<60;
+
+  if(!chatMsgs.length){
+    box.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0;">Noch keine Nachrichten — schreib etwas! 👋</div>';
+    return;
+  }
+
+  box.innerHTML=chatMsgs.map(m=>{
     const mine=m.autor===userName();
-    const t=new Date(m.created_at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    const d=new Date(m.created_at).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+    const ts=new Date(m.created_at);
+    const now=new Date();
+    const isToday=ts.toDateString()===now.toDateString();
+    const timeStr=isToday
+      ?ts.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})
+      :ts.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+ts.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
     return`<div class="msg${mine?' mine':' theirs'}">
       <div class="msg-author">${esc(m.autor)}</div>
       <div class="msg-text">${esc(m.nachricht)}</div>
-      <div class="msg-time">${d} ${t}</div>
+      <div class="msg-footer">
+        <span class="msg-time">${timeStr}</span>
+        ${mine?`<button class="msg-del" onclick="delMsg('${esc(m.id)}')" title="Löschen">✕</button>`:''}
+      </div>
     </div>`;
   }).join('');
-  box.scrollTop=box.scrollHeight;
+
+  // Auto-scroll wenn am Ende oder eigene Nachricht
+  if(wasAtBottom||scrollIfMine) box.scrollTop=box.scrollHeight;
 }
 
 async function sendMsg(){
@@ -445,44 +499,65 @@ async function sendMsg(){
   const text=validateStr(input.value,500);
   if(!text)return;
   input.value='';
-  const res=await sb.from('kommentare').insert({nachricht:text,autor:userName()});
-  if(res.error){setSyncErr();return;}
+  const{data,error}=await sb.from('kommentare').insert({nachricht:text,autor:userName()}).select().single();
+  if(error){setSyncErr();return;}
+  // Sofort lokal hinzufügen — kein Warten auf Realtime
+  chatMsgs.push(data);
+  renderChat(true);
   setSyncOk();
 }
 
-document.addEventListener('DOMContentLoaded',()=>{
-  const ci=document.getElementById('chat-input');
-  if(ci) ci.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
-});
-
-// Echtzeit Chat
-function subscribeChat(){
-  sb.channel('chat-updates').on('postgres_changes',{event:'INSERT',schema:'public',table:'kommentare'},async()=>{
-    await loadChat();
-  }).subscribe();
+async function delMsg(id){
+  await sb.from('kommentare').delete().eq('id',id);
+  chatMsgs=chatMsgs.filter(m=>m.id!==id);
+  renderChat(false);setSyncOk();
 }
 
+async function clearChat(){
+  if(!confirm('Alle Nachrichten unwiderruflich löschen?'))return;
+  await sb.from('kommentare').delete().neq('id','00000000-0000-0000-0000-000000000000');
+  chatMsgs=[];renderChat(false);setSyncOk();
+}
+
+function subscribeChat(){
+  // Alle Änderungen live empfangen
+  chatChannel=sb.channel('chat-live')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'kommentare'},payload=>{
+      // Nur hinzufügen wenn nicht bereits lokal vorhanden (eigene msgs)
+      if(!chatMsgs.find(m=>m.id===payload.new.id)){
+        chatMsgs.push(payload.new);
+        renderChat(false);
+      }
+    })
+    .on('postgres_changes',{event:'DELETE',schema:'public',table:'kommentare'},payload=>{
+      chatMsgs=chatMsgs.filter(m=>m.id!==payload.old.id);
+      renderChat(false);
+    })
+    .subscribe();
+}
+
+/* ── AUTH ───────────────────────────────────────────────── */
 async function doLogout(){await sb.auth.signOut();location.href='index.html';}
+
 function onLogin(user){
   currentUser=user;
-  const nb=document.getElementById('nav-user');
-  if(nb) nb.textContent='👤 '+getDisplayName(user);
-  const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
+  const name=getDisplayName(user);
+  const nb=document.getElementById('nav-user');if(nb)nb.textContent='👤 '+name;
+  const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+name;
   setSidebarPage('kalender');
   loadAndRender();
   loadChat();
   subscribeChat();
 }
+
 document.addEventListener('DOMContentLoaded',async()=>{
+  // Enter = senden
+  const ci=document.getElementById('chat-input');
+  if(ci)ci.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
   const res=await sb.auth.getSession();
-  if(res.data?.session?.user) onLogin(res.data.session.user);
+  if(res.data?.session?.user)onLogin(res.data.session.user);
   else location.href='index.html';
 });
-
-function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sb-overlay').classList.add('open');}
-function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-overlay').classList.remove('open');}
-function setSidebarPage(page){document.querySelectorAll('.sidebar-link').forEach(l=>{l.classList.toggle('on',l.dataset.page===page);});}
-
 </script>
 </body>
 </html>

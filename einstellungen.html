@@ -18,7 +18,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .nav-link:hover{color:var(--text);background:var(--s2);}
 .nav-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
 .nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;}
+.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .nav-sync{font-size:11px;border-radius:20px;padding:3px 10px;}
 .nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
 .nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
@@ -96,7 +96,32 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 </style>
 </head>
 <body>
+
+<!-- SIDEBAR OVERLAY + PANEL -->
+<div class="sidebar-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a class="sidebar-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+    <button class="sidebar-close" onclick="closeSidebar()">&#215;</button>
+  </div>
+  <div class="sidebar-user" id="sb-user">👤 …</div>
+  <div class="sidebar-links">
+    <a class="sidebar-link" data-page="index" href="index.html">🏠&#8202; Dashboard</a>
+    <a class="sidebar-link" data-page="budget" href="budget.html">💸&#8202; Budget</a>
+    <a class="sidebar-link" data-page="spartoepfe" href="spartoepfe.html">🪙&#8202; Spartöpfe</a>
+    <a class="sidebar-link" data-page="sinking" href="sinking.html">🎯&#8202; Sinking Funds</a>
+    <a class="sidebar-link" data-page="kalender" href="kalender.html">📅&#8202; Kalender</a>
+    <a class="sidebar-link" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
+    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
+    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
+  </div>
+  <div class="sidebar-footer">
+    <button class="sidebar-out" onclick="doLogout()">← Abmelden</button>
+  </div>
+</div>
+
 <nav class="nav">
+  <button class="hamburger" onclick="openSidebar()">&#9776;</button>
   <a class="nav-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
   <div class="nav-links">
     <a class="nav-link" href="index.html">Dashboard</a>
@@ -108,7 +133,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="schulden.html">Schulden</a>
     <a class="nav-link on" href="einstellungen.html">⚙️ Einstellungen</a>
   </div>
-  <button class="hamburger" onclick="openSidebar()">&#9776;</button>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
     <div class="nav-sync ok" id="sync-badge">● Live</div>
