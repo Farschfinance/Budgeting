@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KassenAbsturZ · Schulden</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Orbitron:wght@600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0E0B16;--s1:#16121F;--s2:#1E1929;--s3:#261F35;--border:rgba(140,100,200,0.18);--border2:rgba(140,100,200,0.35);--purple:#9B5FD4;--pl:#C490F0;--cyan:#3DD9C5;--green:#3DD98A;--red:#E05577;--amber:#E0A830;--text:#EDE8F5;--muted:#8878A8;--muted2:#5C5075;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;min-height:100vh;}
+.nav{background:var(--s1);border-bottom:1px solid var(--border2);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100;}
+.nav-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
+.nav-logo span{color:var(--cyan);}
+.nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.nav-links::-webkit-scrollbar{display:none;}
+.nav-link{color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;}
+.nav-link:hover{color:var(--text);background:var(--s2);}
+.nav-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;}
+.nav-sync{font-size:11px;border-radius:20px;padding:3px 10px;}
+.nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
+.nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
+.nav-out{font-size:11px;color:var(--muted2);background:transparent;border:1px solid var(--border);border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.nav-out:hover{color:var(--red);border-color:rgba(224,85,119,0.4);}
+.page{max-width:900px;margin:0 auto;padding:16px;}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
+.debt-box{background:var(--s1);border:2px solid rgba(224,85,119,0.3);border-radius:12px;padding:16px;margin-bottom:12px;}
+.lbl{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;font-weight:500;}
+.num-lg{font-size:28px;font-weight:600;}
+.num-md{font-size:18px;font-weight:600;}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.g4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.rb{display:flex;justify-content:space-between;align-items:center;}
+.sbox{background:var(--s2);border-radius:8px;padding:12px;}
+.slbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.sval{font-size:16px;font-weight:600;}
+.prow{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;}
+.prow:last-child{border-bottom:none;}
+.pill{font-size:11px;padding:2px 9px;border-radius:20px;font-weight:500;}
+.pg{background:rgba(61,217,138,0.12);color:var(--green);}
+.pr{background:rgba(224,85,119,0.12);color:var(--red);}
+.pa{background:rgba(224,168,48,0.12);color:var(--amber);}
+.ci{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
+.ci:focus{border-color:var(--purple);}
+.ir{display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap;}
+.btn{background:rgba(155,95,212,0.2);border:1px solid var(--purple);border-radius:8px;color:var(--pl);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn:hover{background:rgba(155,95,212,0.35);}
+.track{height:8px;background:var(--s3);border-radius:4px;margin:10px 0 4px;}
+.fill{height:100%;border-radius:4px;}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="nav-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+  <div class="nav-links">
+    <a class="nav-link" href="index.html">Dashboard</a>
+    <a class="nav-link" href="budget.html">Budget</a>
+    <a class="nav-link" href="spartoepfe.html">Spartöpfe</a>
+    <a class="nav-link" href="sinking.html">Sinking Funds</a>
+    <a class="nav-link" href="kalender.html">Kalender</a>
+    <a class="nav-link" href="statistik.html">Statistik</a>
+    <a class="nav-link on" href="schulden.html">Schulden</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-user" id="nav-user"></div>
+    <div class="nav-sync ok" id="sync-badge">● Live</div>
+    <button class="nav-out" onclick="doLogout()">Abmelden</button>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- AKTUELLE SCHULDEN -->
+  <div class="debt-box">
+    <div class="rb" style="margin-bottom:12px;">
+      <div>
+        <div class="lbl">Aktueller Schuldenstand</div>
+        <div class="num-lg" id="debt-current" style="color:var(--red);">Lädt...</div>
+      </div>
+      <div class="pill pr" id="debt-status">Aktiv</div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Dispo-Überziehung · Stand wird manuell gepflegt</div>
+
+    <div class="g4" style="margin-bottom:14px;">
+      <div class="sbox"><div class="slbl">Freier Spielraum / Monat</div><div class="sval" id="debt-monthly" style="color:var(--amber);">...</div></div>
+      <div class="sbox"><div class="slbl">Schuldenfrei in</div><div class="sval" id="debt-months" style="color:var(--green);">...</div></div>
+      <div class="sbox"><div class="slbl">Einnahmen (angesetzt)</div><div class="sval" id="debt-income" style="color:var(--cyan);">€ 6.700</div></div>
+      <div class="sbox"><div class="slbl">Fixkosten + SF</div><div class="sval" id="debt-fixed" style="color:var(--pl);">€ 3.808</div></div>
+    </div>
+
+    <!-- Tilgungsfortschritt -->
+    <div style="margin-bottom:6px;">
+      <div class="rb"><span style="font-size:13px;">Tilgungsfortschritt</span><span id="debt-pct-label" style="font-size:12px;color:var(--muted);">0 %</span></div>
+      <div class="track"><div class="fill" id="debt-bar" style="width:0%;background:var(--green);"></div></div>
+    </div>
+  </div>
+
+  <!-- STAND AKTUALISIEREN -->
+  <div class="card">
+    <div class="lbl" style="margin-bottom:12px;">Schuldenstand aktualisieren</div>
+    <div class="ir">
+      <input class="ci" id="debt-new-val" type="number" placeholder="Aktueller Kontostand (negativ = im Minus, z.B. -1450)" step="0.01">
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn" onclick="updateDebt()">Stand aktualisieren</button>
+      <span style="font-size:12px;color:var(--muted);">Minusbetrag negativ eingeben, z.B. -1700</span>
+    </div>
+  </div>
+
+  <!-- EINSTELLUNGEN -->
+  <div class="card">
+    <div class="lbl" style="margin-bottom:12px;">Berechnung anpassen</div>
+    <div class="ir">
+      <div style="flex:1;min-width:140px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Monatliche Einnahmen €</div>
+        <input class="ci" id="conf-income" type="number" value="6700" min="0" step="100">
+      </div>
+      <div style="flex:1;min-width:140px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Fixkosten + Sinking Funds €</div>
+        <input class="ci" id="conf-fixed" type="number" value="3808" min="0" step="10">
+      </div>
+      <div style="flex:1;min-width:140px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Variables Budget €</div>
+        <input class="ci" id="conf-variable" type="number" value="2000" min="0" step="100">
+      </div>
+    </div>
+    <button class="btn" onclick="recalc()">Neu berechnen</button>
+  </div>
+
+  <!-- TILGUNGSPLAN -->
+  <div class="card">
+    <div class="lbl" style="margin-bottom:10px;">Tilgungsplan</div>
+    <div id="debt-plan"></div>
+  </div>
+
+  <!-- SZENARIEN -->
+  <div class="card">
+    <div class="lbl" style="margin-bottom:10px;">Szenarien — schneller schuldenfrei</div>
+    <div id="scenarios"></div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://qhflajqbrzuxxxiqzlyi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser=null;
+let debtState={current:-1700, startDebt:-1700, income:6700, fixed:3808, variable:2000};
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
+function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});}
+function fmtEur(n){const v=Math.round(Number(n)*100)/100;return v<0?'−\u00a0€\u00a0'+fmtN(Math.abs(v)):'\u20ac\u00a0'+fmtN(v);}
+function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
+
+function render(){
+  const {current, startDebt, income, fixed, variable} = debtState;
+  const freePerMonth = Math.round((income - fixed - variable)*100)/100;
+  const monthsLeft = current < 0 ? Math.ceil(Math.abs(current)/Math.max(freePerMonth,1)) : 0;
+  const progress = startDebt < 0 ? Math.min(100, Math.round((1 - current/startDebt)*100)) : 100;
+
+  document.getElementById('debt-current').textContent = fmtEur(current);
+  document.getElementById('debt-current').style.color = current >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('debt-monthly').textContent = fmtEur(freePerMonth);
+  document.getElementById('debt-months').textContent = current >= 0 ? 'Schuldenfrei!' : '~ '+monthsLeft+' Monate';
+  document.getElementById('debt-income').textContent = fmtEur(income);
+  document.getElementById('debt-fixed').textContent = fmtEur(fixed);
+  document.getElementById('debt-status').textContent = current >= 0 ? 'Schuldenfrei 🎉' : 'Aktiv';
+  document.getElementById('debt-status').className = 'pill '+(current>=0?'pg':'pr');
+  document.getElementById('debt-bar').style.width = Math.max(0,progress)+'%';
+  document.getElementById('debt-pct-label').textContent = Math.max(0,progress)+'\u00a0%';
+
+  // Tilgungsplan
+  let bal = current;
+  const MONATE=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const now = new Date();
+  let planHtml = '';
+  for(let i=0;i<12&&bal<0;i++){
+    bal = Math.round((bal + freePerMonth)*100)/100;
+    const m = (now.getMonth()+1+i)%12;
+    const y = now.getFullYear() + Math.floor((now.getMonth()+1+i)/12);
+    const done = bal >= 0;
+    const col = done?'var(--green)':bal>-500?'var(--amber)':'var(--red)';
+    const disp = bal>=0 ? ('+\u00a0'+fmtEur(bal)) : ('−\u00a0€\u00a0'+fmtN(Math.abs(bal)));
+    planHtml += `<div class="prow">
+      <div style="min-width:80px;font-weight:500;">${esc(MONATE[m])}</div>
+      <div style="flex:1;color:var(--muted);">${y}</div>
+      <div style="font-weight:600;color:${col};">${disp}</div>
+      ${done?'<div class="pill pg">Schuldenfrei 🎉</div>':''}
+    </div>`;
+    if(done) break;
+  }
+  document.getElementById('debt-plan').innerHTML = planHtml || '<div style="color:var(--green);font-size:13px;">Bereits schuldenfrei!</div>';
+
+  // Szenarien
+  const sc=[
+    {label:'Kein Extra-Sparen', save:0},
+    {label:'€ 100 weniger variabel', save:100},
+    {label:'€ 200 weniger variabel', save:200},
+    {label:'€ 300 weniger variabel', save:300},
+    {label:'€ 500 weniger variabel', save:500},
+  ];
+  const scHtml = sc.map(s=>{
+    const mo = current<0 ? Math.ceil(Math.abs(current)/Math.max(freePerMonth+s.save,1)) : 0;
+    const col = mo<=2?'var(--green)':mo<=4?'var(--amber)':'var(--muted)';
+    return`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;">
+      <span>${esc(s.label)}</span>
+      <span style="font-weight:600;color:${col};">${current>=0?'Schuldenfrei':mo+' Monate'}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('scenarios').innerHTML = scHtml;
+}
+
+function recalc(){
+  const income = parseFloat(document.getElementById('conf-income').value)||6700;
+  const fixed = parseFloat(document.getElementById('conf-fixed').value)||3808;
+  const variable = parseFloat(document.getElementById('conf-variable').value)||2000;
+  debtState = {...debtState, income, fixed, variable};
+  render();
+}
+
+function updateDebt(){
+  const val = parseFloat(document.getElementById('debt-new-val').value);
+  if(isNaN(val))return;
+  debtState.current = Math.round(val*100)/100;
+  if(val < debtState.startDebt) debtState.startDebt = debtState.current;
+  document.getElementById('debt-new-val').value='';
+  render();
+}
+
+async function doLogout(){await sb.auth.signOut();location.href='index.html';}
+function onLogin(user){
+  currentUser=user;
+  const nb=document.getElementById('nav-user');
+  if(nb) nb.textContent='👤 '+user.email.split('@')[0];
+  render();setSyncOk();
+}
+document.addEventListener('DOMContentLoaded',async()=>{
+  const res=await sb.auth.getSession();
+  if(res.data?.session?.user) onLogin(res.data.session.user);
+  else location.href='index.html';
+});
+</script>
+</body>
+</html>

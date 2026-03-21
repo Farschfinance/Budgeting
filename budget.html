@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KassenAbsturZ · Budget</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Orbitron:wght@600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0E0B16;--s1:#16121F;--s2:#1E1929;--s3:#261F35;--border:rgba(140,100,200,0.18);--border2:rgba(140,100,200,0.35);--purple:#9B5FD4;--pl:#C490F0;--cyan:#3DD9C5;--green:#3DD98A;--red:#E05577;--amber:#E0A830;--text:#EDE8F5;--muted:#8878A8;--muted2:#5C5075;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;min-height:100vh;}
+.nav{background:var(--s1);border-bottom:1px solid var(--border2);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100;}
+.nav-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
+.nav-logo span{color:var(--cyan);}
+.nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.nav-links::-webkit-scrollbar{display:none;}
+.nav-link{color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;}
+.nav-link:hover{color:var(--text);background:var(--s2);}
+.nav-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;}
+.nav-sync{font-size:11px;border-radius:20px;padding:3px 10px;}
+.nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
+.nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
+.nav-out{font-size:11px;color:var(--muted2);background:transparent;border:1px solid var(--border);border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.nav-out:hover{color:var(--red);border-color:rgba(224,85,119,0.4);}
+.page{max-width:900px;margin:0 auto;padding:16px;}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
+.lbl{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;font-weight:500;}
+.num-md{font-size:18px;font-weight:600;}
+.num-lg{font-size:24px;font-weight:600;}
+.rb{display:flex;justify-content:space-between;align-items:center;}
+.track{height:5px;background:var(--s3);border-radius:3px;margin:8px 0 4px;}
+.fill{height:100%;border-radius:3px;}
+.crow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.crow:last-child{border-bottom:none;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.ci{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
+.ci:focus{border-color:var(--purple);}
+.ci::placeholder{color:var(--muted2);}
+.cs{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
+.ir{display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;}
+.ferr{font-size:12px;color:var(--red);margin-top:-4px;margin-bottom:8px;display:none;}
+.btn{background:rgba(155,95,212,0.2);border:1px solid var(--purple);border-radius:8px;color:var(--pl);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn:hover{background:rgba(155,95,212,0.35);}
+.btn-green{background:rgba(61,217,138,0.15);border:1px solid rgba(61,217,138,0.4);border-radius:8px;color:var(--green);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn-green:hover{background:rgba(61,217,138,0.25);}
+.btn-red{background:rgba(224,85,119,0.12);border:1px solid rgba(224,85,119,0.4);border-radius:8px;color:var(--red);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn-red:hover{background:rgba(224,85,119,0.22);}
+.btn-del{background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:14px;padding:2px 5px;line-height:1;border-radius:4px;flex-shrink:0;}
+.btn-del:hover{color:var(--red);}
+.btn-edit{background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;flex-shrink:0;}
+.btn-edit:hover{color:var(--cyan);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.show{display:flex;}
+.modal{background:#1E1929;border:1px solid rgba(140,100,200,0.4);border-radius:14px;padding:22px;width:100%;max-width:420px;}
+.modal-title{font-size:15px;font-weight:600;margin-bottom:16px;color:var(--pl);}
+.modal-lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;margin-top:12px;}
+.modal-btns{display:flex;gap:8px;margin-top:18px;}
+.btn-edit{background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:14px;padding:2px 5px;line-height:1;border-radius:4px;flex-shrink:0;}
+.btn-edit:hover{color:var(--pl);}
+.add-form{background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-top:10px;display:none;}
+.add-form.show{display:block;}
+.section-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.toggle-btn{background:rgba(155,95,212,0.15);border:1px solid var(--border2);border-radius:6px;color:var(--pl);padding:5px 12px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;}
+.toggle-btn:hover{background:rgba(155,95,212,0.25);}
+.by-badge{font-size:10px;color:var(--muted2);background:var(--s3);border-radius:10px;padding:1px 7px;white-space:nowrap;flex-shrink:0;}
+.tabs{display:flex;gap:3px;background:var(--s2);border-radius:8px;padding:4px;margin-bottom:16px;}
+.stab{flex:1;padding:7px;text-align:center;font-size:12px;font-weight:500;cursor:pointer;border-radius:6px;color:var(--muted);}
+.stab.on{background:var(--s3);color:var(--text);border:1px solid var(--border2);}
+.sp{display:none;}.sp.on{display:block;}
+.monat-sel{display:flex;gap:8px;align-items:center;}
+.monat-sel select{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;}
+.edit-row{background:var(--s2);border:1px solid rgba(155,95,212,0.5);border-radius:8px;padding:12px;margin:2px 0 6px;display:none;}
+.edit-row.show{display:block;}
+.edit-row .ir{margin-bottom:8px;}
+.edit-actions{display:flex;gap:8px;}
+.btn-save{background:rgba(61,217,138,0.2);border:1px solid rgba(61,217,138,0.5);border-radius:6px;color:var(--green);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;}
+.btn-save:hover{background:rgba(61,217,138,0.3);}
+.btn-cancel{background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--muted);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;}
+.btn-cancel:hover{color:var(--text);}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="nav-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+  <div class="nav-links">
+    <a class="nav-link" href="index.html">Dashboard</a>
+    <a class="nav-link on" href="budget.html">Budget</a>
+    <a class="nav-link" href="spartoepfe.html">Spartöpfe</a>
+    <a class="nav-link" href="sinking.html">Sinking Funds</a>
+    <a class="nav-link" href="kalender.html">Kalender</a>
+    <a class="nav-link" href="statistik.html">Statistik</a>
+    <a class="nav-link" href="schulden.html">Schulden</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-user" id="nav-user"></div>
+    <div class="nav-sync ok" id="sync-badge">● Live</div>
+    <button class="nav-out" onclick="doLogout()">Abmelden</button>
+  </div>
+</nav>
+<div class="page">
+  <div class="tabs">
+    <div class="stab on" onclick="showTab('ausgaben',this)">Ausgaben</div>
+    <div class="stab" onclick="showTab('einnahmen',this)">Einnahmen</div>
+    <div class="stab" onclick="showTab('bargeld',this)">Bargeld</div>
+    <div class="stab" onclick="showTab('fixkosten',this)">Fixkosten</div>
+  </div>
+
+  <div id="sp-ausgaben" class="sp on">
+    <div class="card">
+      <div class="rb" style="margin-bottom:12px;">
+        <div><div class="lbl">Variables Budget · laufender Monat</div><div class="num-lg" style="color:var(--pl);" id="v-total">...</div></div>
+        <div style="text-align:right;"><div class="lbl">Noch übrig</div><div class="num-md" id="v-left">...</div></div>
+      </div>
+      <div class="track"><div class="fill" id="v-bar" style="width:0%;"></div></div>
+      <div style="font-size:12px;color:var(--muted);text-align:right;" id="v-pct">...</div>
+    </div>
+    <div class="card">
+      <div class="section-hdr"><div class="lbl" style="margin:0;">Ausgabe buchen</div></div>
+      <div class="ir">
+        <input class="ci" id="e-desc" placeholder="Beschreibung" maxlength="60" style="flex:2;min-width:120px;">
+        <input class="ci" id="e-amt" type="number" placeholder="Betrag €" min="0.01" max="99999" step="0.01" style="flex:1;min-width:90px;">
+        <select class="cs" id="e-cat" style="min-width:130px;"></select>
+        <input class="ci" id="e-date" type="date" style="flex:1;min-width:130px;">
+      </div>
+      <div id="e-err" class="ferr">Bitte alle Felder ausfüllen.</div>
+      <button class="btn-red" onclick="bookExp()">− Ausgabe buchen</button>
+    </div>
+    <div class="card">
+      <div class="section-hdr">
+        <div class="lbl" style="margin:0;">Kategorien</div>
+        <button class="toggle-btn" onclick="toggleForm('bform')">+ Kategorie</button>
+      </div>
+      <div class="add-form" id="bform">
+        <div class="ir">
+          <input class="ci" id="b-name" placeholder="Name" maxlength="40" style="flex:2;">
+          <input class="ci" id="b-budget" type="number" placeholder="Budget €" min="1" max="99999" style="flex:1;min-width:100px;">
+          <input type="color" id="b-color" value="#9B5FD4" style="width:36px;height:36px;border-radius:50%;border:2px solid var(--border2);cursor:pointer;flex-shrink:0;padding:2px;">
+        </div>
+        <div id="b-err" class="ferr">Bitte Name und Budget eingeben.</div>
+        <button class="btn" onclick="addCat()">Hinzufügen</button>
+      </div>
+      <div id="cat-list"></div>
+    </div>
+    <div class="card">
+      <div class="section-hdr">
+        <div class="lbl" style="margin:0;">Alle Ausgaben</div>
+        <div class="monat-sel">
+          <select id="filter-monat" onchange="loadAusgaben()"></select>
+          <select id="filter-jahr" onchange="loadAusgaben()"></select>
+        </div>
+      </div>
+      <div id="ausgaben-list"></div>
+    </div>
+  </div>
+
+  <div id="sp-einnahmen" class="sp">
+    <div class="card"><div class="lbl">Einnahmen · laufender Monat</div><div class="num-lg" style="color:var(--green);" id="ein-total">...</div></div>
+    <div class="card">
+      <div class="lbl" style="margin-bottom:12px;">Einnahme erfassen</div>
+      <div class="ir">
+        <input class="ci" id="ein-bezeichnung" placeholder="Bezeichnung" maxlength="60" style="flex:2;min-width:120px;">
+        <input class="ci" id="ein-betrag" type="number" placeholder="Betrag €" min="0.01" max="999999" step="0.01" style="flex:1;min-width:90px;">
+        <input class="ci" id="ein-kat" placeholder="Kategorie" maxlength="40" style="flex:1;min-width:120px;">
+        <input class="ci" id="ein-datum" type="date" style="flex:1;min-width:130px;">
+      </div>
+      <div id="ein-err" class="ferr">Bitte Bezeichnung und Betrag eingeben.</div>
+      <button class="btn-green" onclick="addEinnahme()">+ Einnahme erfassen</button>
+    </div>
+    <div class="card">
+      <div class="section-hdr">
+        <div class="lbl" style="margin:0;">Alle Einnahmen</div>
+        <div class="monat-sel">
+          <select id="ein-filter-monat" onchange="loadEinnahmen()"></select>
+          <select id="ein-filter-jahr" onchange="loadEinnahmen()"></select>
+        </div>
+      </div>
+      <div id="einnahmen-list"></div>
+    </div>
+  </div>
+
+  <div id="sp-bargeld" class="sp">
+    <div class="card"><div class="lbl">Bargeld-Saldo</div><div class="num-lg" id="cash-saldo" style="color:var(--cyan);">...</div></div>
+    <div class="card">
+      <div class="lbl" style="margin-bottom:12px;">Buchung erfassen</div>
+      <div class="ir">
+        <input class="ci" id="cash-bezeichnung" placeholder="Bezeichnung (optional)" maxlength="60" style="flex:2;min-width:120px;">
+        <input class="ci" id="cash-betrag" type="number" placeholder="Betrag €" max="99999" step="0.01" style="flex:1;min-width:90px;">
+        <input class="ci" id="cash-datum" type="date" style="flex:1;min-width:130px;">
+      </div>
+      <div id="cash-err" class="ferr">Bitte gültigen Betrag eingeben.</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-green" onclick="bookCash(1)">+ Einzahlung</button>
+        <button class="btn-red" onclick="bookCash(-1)">− Ausgabe</button>
+      </div>
+    </div>
+    <div class="card"><div class="lbl" style="margin-bottom:10px;">Verlauf</div><div id="cash-list"></div></div>
+  </div>
+
+  <div id="sp-fixkosten" class="sp">
+    <div class="card"><div class="lbl">Fixkosten gesamt / Monat</div><div class="num-lg" style="color:var(--pl);" id="fix-total">...</div></div>
+    <div class="card">
+      <div class="section-hdr">
+        <div class="lbl" style="margin:0;">Alle Fixkosten</div>
+        <button class="toggle-btn" onclick="toggleForm('fform')">+ Fixkosten</button>
+      </div>
+      <div class="add-form" id="fform">
+        <div class="ir">
+          <input class="ci" id="f-name" placeholder="Bezeichnung" maxlength="40" style="flex:2;">
+          <input class="ci" id="f-amt" type="number" placeholder="Betrag €" min="0.01" max="99999" step="0.01" style="flex:1;min-width:110px;">
+        </div>
+        <div id="f-err" class="ferr">Bitte Bezeichnung und Betrag eingeben.</div>
+        <button class="btn" onclick="addFix()">Hinzufügen</button>
+      </div>
+      <div id="fix-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://qhflajqbrzuxxxiqzlyi.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null,cats=[],fixItems=[],bargeldItems=[],einnahmenItems=[],currentAusgaben=[];
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
+function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});}
+function fmtEur(n,sg=false){const v=Math.round(Number(n)*100)/100;return v<0?'−\u00a0€\u00a0'+fmtN(Math.abs(v)):(sg&&v>0?'+\u00a0':'')+'\u20ac\u00a0'+fmtN(v);}
+function vs(s,max){const v=String(s).trim();return(v.length>0&&v.length<=max)?v:null;}
+function va(v,mn,mx){const n=parseFloat(v);return(!isNaN(n)&&n>=mn&&n<=mx)?Math.round(n*100)/100:null;}
+function showErr(id){document.getElementById(id).style.display='block';}
+function hideErr(id){document.getElementById(id).style.display='none';}
+function toggleForm(id){document.getElementById(id).classList.toggle('show');}
+function toggleEdit(id){document.getElementById(id).classList.toggle('show');}
+function userName(){return currentUser?currentUser.email.split('@')[0]:'unbekannt';}
+function todayISO(){return new Date().toISOString().split('T')[0];}
+function fmtDate(iso){if(!iso)return'';const d=new Date(iso+'T12:00:00');return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});}
+function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
+function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
+const MONATE=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+function fillMonatFilter(sId,yId){
+  const s=document.getElementById(sId),now=new Date();
+  MONATE.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=m;if(i+1===now.getMonth()+1)o.selected=true;s.appendChild(o);});
+  const sy=document.getElementById(yId);
+  for(let y=now.getFullYear();y>=now.getFullYear()-3;y--){const o=document.createElement('option');o.value=y;o.textContent=y;if(y===now.getFullYear())o.selected=true;sy.appendChild(o);}
+}
+function showTab(name,el){
+  document.querySelectorAll('.sp').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.stab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('sp-'+name).classList.add('on');el.classList.add('on');
+}
+
+async function loadAll(){
+  try{
+    const[rc,rf,rb,re]=await Promise.all([
+      sb.from('kategorien').select('*').order('created_at'),
+      sb.from('fixkosten').select('*').order('created_at'),
+      sb.from('bargeld').select('*').order('datum',{ascending:false}),
+      sb.from('einnahmen').select('*').eq('monat',new Date().getMonth()+1).eq('jahr',new Date().getFullYear()).order('datum',{ascending:false}),
+    ]);
+    cats=rc.data||[];fixItems=rf.data||[];bargeldItems=rb.data||[];einnahmenItems=re.data||[];
+    renderCats();renderFix();renderCash();renderEinnahmen();updateOverview();updateCatSel();setSyncOk();
+  }catch(e){setSyncErr();}
+}
+
+function updateOverview(){
+  const tb=cats.reduce((a,c)=>a+Number(c.budget),0);
+  const ts=cats.reduce((a,c)=>a+Number(c.spent),0);
+  const left=Math.round((tb-ts)*100)/100;
+  const pct=tb>0?Math.min(100,Math.round(ts/tb*1000)/10):0;
+  const lc=left<0?'var(--red)':left<tb*0.2?'var(--amber)':'var(--green)';
+  document.getElementById('v-total').textContent=fmtEur(tb);
+  document.getElementById('v-left').textContent=fmtEur(left);
+  document.getElementById('v-left').style.color=lc;
+  document.getElementById('v-bar').style.width=pct+'%';
+  document.getElementById('v-bar').style.background=pct>90?'var(--red)':pct>70?'var(--amber)':'var(--green)';
+  document.getElementById('v-pct').textContent=fmtN(pct)+'\u00a0% verbraucht';
+  document.getElementById('fix-total').textContent=fmtEur(fixItems.reduce((a,f)=>a+Number(f.betrag),0));
+  const cs=bargeldItems.reduce((a,b)=>a+Number(b.betrag),0);
+  const csEl=document.getElementById('cash-saldo');if(csEl){csEl.textContent=fmtEur(cs);csEl.style.color=cs<0?'var(--red)':'var(--cyan)';}
+  const et=einnahmenItems.reduce((a,e)=>a+Number(e.betrag),0);
+  const etEl=document.getElementById('ein-total');if(etEl)etEl.textContent=fmtEur(et);
+}
+
+function updateCatSel(){
+  const sel=document.getElementById('e-cat');sel.innerHTML='';
+  cats.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
+}
+
+// ── KATEGORIEN ──────────────────────────────────────────────
+function renderCats(){
+  const el=document.getElementById('cat-list');
+  if(!cats.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0;">Noch keine Kategorien.</div>';return;}
+  el.innerHTML=cats.map(c=>{
+    const p=c.budget>0?Math.min(100,Math.round(Number(c.spent)/Number(c.budget)*1000)/10):0;
+    const col=p>90?'var(--red)':p>70?'var(--amber)':esc(c.color);
+    return`<div>
+      <div class="crow">
+        <div class="dot" style="background:${esc(c.color)}"></div>
+        <div style="flex:1;font-size:13px;">${esc(c.name)}</div>
+        <div style="flex:2;padding:0 8px;"><div class="track" style="margin:0;"><div class="fill" style="width:${p}%;background:${col};"></div></div></div>
+        <div style="min-width:120px;text-align:right;font-size:13px;font-weight:500;color:${col};">\u20ac\u00a0${fmtN(c.spent)}<span style="color:var(--muted);font-weight:400;"> / \u20ac\u00a0${fmtN(c.budget)}</span></div>
+        <button class="btn-edit" onclick="toggleEdit('ec-${esc(c.id)}')" title="Bearbeiten">✏️</button>
+        <button class="btn-del" onclick="delCat('${esc(c.id)}')" title="Löschen">✕</button>
+      </div>
+      <div class="edit-row" id="ec-${esc(c.id)}">
+        <div class="ir">
+          <input class="ci" id="ec-n-${esc(c.id)}" value="${esc(c.name)}" maxlength="40" placeholder="Name" style="flex:2;">
+          <input class="ci" id="ec-b-${esc(c.id)}" type="number" value="${Number(c.budget)}" min="1" max="99999" placeholder="Budget €" style="flex:1;min-width:100px;">
+          <input type="color" id="ec-c-${esc(c.id)}" value="${esc(c.color)}" style="width:36px;height:36px;border-radius:50%;border:2px solid var(--border2);cursor:pointer;flex-shrink:0;padding:2px;">
+        </div>
+        <div class="edit-actions">
+          <button class="btn-save" onclick="saveCat('${esc(c.id)}')">✓ Speichern</button>
+          <button class="btn-cancel" onclick="toggleEdit('ec-${esc(c.id)}')">Abbrechen</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function saveCat(id){
+  const name=vs(document.getElementById('ec-n-'+id).value,40);
+  const budget=va(document.getElementById('ec-b-'+id).value,1,99999);
+  const color=document.getElementById('ec-c-'+id).value;
+  if(!name||!budget)return;
+  await sb.from('kategorien').update({name,budget,color}).eq('id',id);
+  const c=cats.find(x=>x.id===id);if(c){c.name=name;c.budget=budget;c.color=color;}
+  renderCats();updateCatSel();updateOverview();setSyncOk();
+}
+async function addCat(){
+  const name=vs(document.getElementById('b-name').value,40);
+  const budget=va(document.getElementById('b-budget').value,1,99999);
+  if(!name||!budget){showErr('b-err');return;}hideErr('b-err');
+  const color=document.getElementById('b-color').value||'#9B5FD4';
+  const res=await sb.from('kategorien').insert({name,budget,spent:0,color}).select().single();
+  if(res.error){setSyncErr();return;}
+  cats.push(res.data);
+  document.getElementById('b-name').value='';document.getElementById('b-budget').value='';
+  renderCats();updateCatSel();updateOverview();setSyncOk();
+}
+async function delCat(id){
+  if(!confirm('Kategorie löschen?'))return;
+  await sb.from('kategorien').delete().eq('id',id);
+  cats=cats.filter(c=>c.id!==id);renderCats();updateCatSel();updateOverview();setSyncOk();
+}
+
+// ── AUSGABEN ────────────────────────────────────────────────
+async function loadAusgaben(){
+  const monat=parseInt(document.getElementById('filter-monat').value);
+  const jahr=parseInt(document.getElementById('filter-jahr').value);
+  const s=`${jahr}-${String(monat).padStart(2,'0')}-01`;
+  const e=new Date(jahr,monat,0).toISOString().split('T')[0];
+  const{data}=await sb.from('ausgaben').select('*').gte('created_at',s+'T00:00:00').lte('created_at',e+'T23:59:59').order('created_at',{ascending:false});
+  currentAusgaben=data||[];renderAusgaben();
+}
+function renderAusgaben(){
+  const el=document.getElementById('ausgaben-list');
+  if(!currentAusgaben.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0;">Keine Ausgaben in diesem Zeitraum.</div>';return;}
+  const catOpts=cats.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+  el.innerHTML=currentAusgaben.map(a=>{
+    const cat=cats.find(c=>c.id===a.kategorie_id);
+    const d=new Date(a.created_at).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+    const dateVal=a.created_at?a.created_at.split('T')[0]:'';
+    return`<div>
+      <div class="crow">
+        <div style="font-size:12px;color:var(--muted2);min-width:32px;">${esc(d)}</div>
+        <div style="flex:1;font-size:13px;">${esc(a.beschreibung)}</div>
+        <div style="font-size:11px;color:var(--muted);background:var(--s3);padding:1px 8px;border-radius:10px;white-space:nowrap;">${esc(cat?cat.name:'—')}</div>
+        <div style="font-size:13px;font-weight:500;color:var(--amber);white-space:nowrap;">−\u20ac\u00a0${fmtN(a.betrag)}</div>
+        <span class="by-badge">${esc(a.erstellt_von)}</span>
+        <button class="btn-edit" onclick="toggleEdit('ea-${esc(a.id)}')">✏️</button>
+        <button class="btn-del" onclick="delAusgabe('${esc(a.id)}','${esc(a.kategorie_id)}',${Number(a.betrag)})">✕</button>
+      </div>
+      <div class="edit-row" id="ea-${esc(a.id)}">
+        <div class="ir">
+          <input class="ci" id="ea-d-${esc(a.id)}" value="${esc(a.beschreibung)}" maxlength="60" placeholder="Beschreibung" style="flex:2;min-width:120px;">
+          <input class="ci" id="ea-a-${esc(a.id)}" type="number" value="${Number(a.betrag)}" min="0.01" max="99999" step="0.01" style="flex:1;min-width:80px;">
+          <select class="cs" id="ea-c-${esc(a.id)}" style="min-width:110px;">${catOpts}</select>
+          <input class="ci" id="ea-dt-${esc(a.id)}" type="date" value="${esc(dateVal)}" style="min-width:130px;">
+        </div>
+        <div class="edit-actions">
+          <button class="btn-save" onclick="saveAusgabe('${esc(a.id)}','${esc(a.kategorie_id)}',${Number(a.betrag)})">✓ Speichern</button>
+          <button class="btn-cancel" onclick="toggleEdit('ea-${esc(a.id)}')">Abbrechen</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  currentAusgaben.forEach(a=>{const s=document.getElementById('ea-c-'+a.id);if(s)s.value=a.kategorie_id||'';});
+}
+async function saveAusgabe(id,oldCatId,oldAmt){
+  const desc=vs(document.getElementById('ea-d-'+id).value,60);
+  const amt=va(document.getElementById('ea-a-'+id).value,0.01,99999);
+  const newCatId=document.getElementById('ea-c-'+id).value;
+  const dateVal=document.getElementById('ea-dt-'+id).value;
+  if(!desc||!amt)return;
+  const oldCat=cats.find(c=>c.id===oldCatId);
+  const newCat=cats.find(c=>c.id===newCatId);
+  if(oldCat){const ns=Math.max(0,Math.round((Number(oldCat.spent)-oldAmt)*100)/100);await sb.from('kategorien').update({spent:ns}).eq('id',oldCatId);oldCat.spent=ns;}
+  if(newCat){const ns=Math.round((Number(newCat.spent)+amt)*100)/100;await sb.from('kategorien').update({spent:ns}).eq('id',newCatId);newCat.spent=ns;}
+  await sb.from('ausgaben').update({beschreibung:desc,betrag:amt,kategorie_id:newCatId,...(dateVal?{created_at:dateVal+'T12:00:00'}:{})}).eq('id',id);
+  renderCats();updateOverview();loadAusgaben();setSyncOk();
+}
+async function delAusgabe(id,catId,amt){
+  if(!confirm('Ausgabe löschen?'))return;
+  const cat=cats.find(c=>c.id===catId);
+  if(cat){const ns=Math.max(0,Math.round((Number(cat.spent)-amt)*100)/100);await sb.from('kategorien').update({spent:ns}).eq('id',catId);cat.spent=ns;}
+  await sb.from('ausgaben').delete().eq('id',id);
+  renderCats();updateOverview();loadAusgaben();setSyncOk();
+}
+async function bookExp(){
+  const desc=vs(document.getElementById('e-desc').value,60);
+  const amt=va(document.getElementById('e-amt').value,0.01,99999);
+  const date=document.getElementById('e-date').value||todayISO();
+  if(!desc||!amt){showErr('e-err');return;}hideErr('e-err');
+  const catId=document.getElementById('e-cat').value;
+  const cat=cats.find(c=>c.id===catId);if(!cat)return;
+  const ns=Math.round((Number(cat.spent)+amt)*100)/100;
+  await sb.from('kategorien').update({spent:ns}).eq('id',catId);
+  await sb.from('ausgaben').insert({beschreibung:desc,betrag:amt,kategorie_id:catId,erstellt_von:userName(),created_at:date+'T12:00:00'});
+  cat.spent=ns;
+  document.getElementById('e-desc').value='';document.getElementById('e-amt').value='';
+  renderCats();updateOverview();loadAusgaben();setSyncOk();
+}
+
+// ── FIXKOSTEN ────────────────────────────────────────────────
+function renderFix(){
+  const el=document.getElementById('fix-list');
+  if(!fixItems.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0;">Keine Fixkosten eingetragen.</div>';return;}
+  el.innerHTML=fixItems.map(f=>`<div>
+    <div class="crow">
+      <div class="dot" style="background:var(--pl);"></div>
+      <div style="flex:1;font-size:13px;">${esc(f.name)}</div>
+      <div style="font-size:13px;font-weight:500;color:var(--pl);">\u20ac\u00a0${fmtN(f.betrag)}</div>
+      <button class="btn-edit" onclick="toggleEdit('ef-${esc(f.id)}')">✏️</button>
+      <button class="btn-del" onclick="delFix('${esc(f.id)}')">✕</button>
+    </div>
+    <div class="edit-row" id="ef-${esc(f.id)}">
+      <div class="ir">
+        <input class="ci" id="ef-n-${esc(f.id)}" value="${esc(f.name)}" maxlength="40" placeholder="Bezeichnung" style="flex:2;">
+        <input class="ci" id="ef-a-${esc(f.id)}" type="number" value="${Number(f.betrag)}" min="0.01" max="99999" step="0.01" style="flex:1;min-width:110px;">
+      </div>
+      <div class="edit-actions">
+        <button class="btn-save" onclick="saveFix('${esc(f.id)}')">✓ Speichern</button>
+        <button class="btn-cancel" onclick="toggleEdit('ef-${esc(f.id)}')">Abbrechen</button>
+      </div>
+    </div>
+  </div>`).join('');
+}
+async function saveFix(id){
+  const name=vs(document.getElementById('ef-n-'+id).value,40);
+  const amt=va(document.getElementById('ef-a-'+id).value,0.01,99999);
+  if(!name||!amt)return;
+  await sb.from('fixkosten').update({name,betrag:amt}).eq('id',id);
+  const f=fixItems.find(x=>x.id===id);if(f){f.name=name;f.betrag=amt;}
+  renderFix();updateOverview();setSyncOk();
+}
+async function addFix(){
+  const name=vs(document.getElementById('f-name').value,40);
+  const amt=va(document.getElementById('f-amt').value,0.01,99999);
+  if(!name||!amt){showErr('f-err');return;}hideErr('f-err');
+  const res=await sb.from('fixkosten').insert({name,betrag:amt}).select().single();
+  if(res.error){setSyncErr();return;}
+  fixItems.push(res.data);
+  document.getElementById('f-name').value='';document.getElementById('f-amt').value='';
+  renderFix();updateOverview();setSyncOk();
+}
+async function delFix(id){
+  if(!confirm('Fixkosten-Eintrag löschen?'))return;
+  await sb.from('fixkosten').delete().eq('id',id);
+  fixItems=fixItems.filter(f=>f.id!==id);renderFix();updateOverview();setSyncOk();
+}
+
+// ── BARGELD ──────────────────────────────────────────────────
+function renderCash(){
+  const el=document.getElementById('cash-list');
+  if(!bargeldItems.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0;">Noch keine Buchungen.</div>';return;}
+  el.innerHTML=bargeldItems.map(b=>{
+    const pos=Number(b.betrag)>=0;
+    return`<div>
+      <div class="crow">
+        <div style="font-size:12px;color:var(--muted2);min-width:50px;">${esc(fmtDate(b.datum))}</div>
+        <div style="flex:1;font-size:13px;">${esc(b.bezeichnung||'—')}</div>
+        <div style="font-size:13px;font-weight:500;color:${pos?'var(--green)':'var(--red)'};">${pos?'+':''}\u20ac\u00a0${fmtN(b.betrag)}</div>
+        <span class="by-badge">${esc(b.erstellt_von)}</span>
+        <button class="btn-edit" onclick="toggleEdit('ecash-${esc(b.id)}')">✏️</button>
+        <button class="btn-del" onclick="delCash('${esc(b.id)}')">✕</button>
+      </div>
+      <div class="edit-row" id="ecash-${esc(b.id)}">
+        <div class="ir">
+          <input class="ci" id="ecash-bz-${esc(b.id)}" value="${esc(b.bezeichnung||'')}" maxlength="60" placeholder="Bezeichnung" style="flex:2;">
+          <input class="ci" id="ecash-am-${esc(b.id)}" type="number" value="${Number(b.betrag)}" step="0.01" style="flex:1;min-width:100px;">
+          <input class="ci" id="ecash-dt-${esc(b.id)}" type="date" value="${esc(b.datum||'')}" style="min-width:130px;">
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">+ = Einzahlung · − = Ausgabe</div>
+        <div class="edit-actions">
+          <button class="btn-save" onclick="saveCash('${esc(b.id)}')">✓ Speichern</button>
+          <button class="btn-cancel" onclick="toggleEdit('ecash-${esc(b.id)}')">Abbrechen</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function saveCash(id){
+  const bez=vs(document.getElementById('ecash-bz-'+id).value||'—',60)||'—';
+  const amt=parseFloat(document.getElementById('ecash-am-'+id).value);
+  const datum=document.getElementById('ecash-dt-'+id).value||todayISO();
+  if(isNaN(amt))return;
+  const fa=Math.round(amt*100)/100;
+  await sb.from('bargeld').update({bezeichnung:bez,betrag:fa,datum}).eq('id',id);
+  const b=bargeldItems.find(x=>x.id===id);if(b){b.bezeichnung=bez;b.betrag=fa;b.datum=datum;}
+  renderCash();updateOverview();setSyncOk();
+}
+async function bookCash(sign){
+  const raw=document.getElementById('cash-betrag').value;
+  const bez=vs(document.getElementById('cash-bezeichnung').value||'—',60)||'—';
+  const date=document.getElementById('cash-datum').value||todayISO();
+  const amt=va(Math.abs(parseFloat(raw)),0.01,99999);
+  if(!amt){showErr('cash-err');return;}hideErr('cash-err');
+  const fa=Math.round(amt*sign*100)/100;
+  const res=await sb.from('bargeld').insert({bezeichnung:bez,betrag:fa,datum:date,erstellt_von:userName()}).select().single();
+  if(res.error){setSyncErr();return;}
+  bargeldItems.unshift(res.data);
+  document.getElementById('cash-betrag').value='';document.getElementById('cash-bezeichnung').value='';
+  renderCash();updateOverview();setSyncOk();
+}
+async function delCash(id){
+  if(!confirm('Buchung löschen?'))return;
+  await sb.from('bargeld').delete().eq('id',id);
+  bargeldItems=bargeldItems.filter(b=>b.id!==id);renderCash();updateOverview();setSyncOk();
+}
+
+// ── EINNAHMEN ────────────────────────────────────────────────
+function renderEinnahmen(){
+  const el=document.getElementById('einnahmen-list');
+  if(!einnahmenItems.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0;">Keine Einnahmen eingetragen.</div>';return;}
+  el.innerHTML=einnahmenItems.map(e=>`<div>
+    <div class="crow">
+      <div style="font-size:12px;color:var(--muted2);min-width:50px;">${esc(fmtDate(e.datum))}</div>
+      <div style="flex:1;font-size:13px;">${esc(e.bezeichnung)}</div>
+      <div style="font-size:11px;color:var(--muted);background:var(--s3);padding:1px 8px;border-radius:10px;">${esc(e.kategorie)}</div>
+      <div style="font-size:13px;font-weight:500;color:var(--green);">+\u20ac\u00a0${fmtN(e.betrag)}</div>
+      <button class="btn-edit" onclick="toggleEdit('eein-${esc(e.id)}')">✏️</button>
+      <button class="btn-del" onclick="delEinnahme('${esc(e.id)}')">✕</button>
+    </div>
+    <div class="edit-row" id="eein-${esc(e.id)}">
+      <div class="ir">
+        <input class="ci" id="eein-bz-${esc(e.id)}" value="${esc(e.bezeichnung)}" maxlength="60" placeholder="Bezeichnung" style="flex:2;min-width:120px;">
+        <input class="ci" id="eein-am-${esc(e.id)}" type="number" value="${Number(e.betrag)}" min="0.01" max="999999" step="0.01" style="flex:1;min-width:80px;">
+        <input class="ci" id="eein-kt-${esc(e.id)}" value="${esc(e.kategorie)}" maxlength="40" placeholder="Kategorie" style="flex:1;min-width:100px;">
+        <input class="ci" id="eein-dt-${esc(e.id)}" type="date" value="${esc(e.datum||'')}" style="min-width:130px;">
+      </div>
+      <div class="edit-actions">
+        <button class="btn-save" onclick="saveEinnahme('${esc(e.id)}')">✓ Speichern</button>
+        <button class="btn-cancel" onclick="toggleEdit('eein-${esc(e.id)}')">Abbrechen</button>
+      </div>
+    </div>
+  </div>`).join('');
+}
+async function saveEinnahme(id){
+  const bez=vs(document.getElementById('eein-bz-'+id).value,60);
+  const amt=va(document.getElementById('eein-am-'+id).value,0.01,999999);
+  const kat=vs(document.getElementById('eein-kt-'+id).value||'Sonstiges',40)||'Sonstiges';
+  const datum=document.getElementById('eein-dt-'+id).value||todayISO();
+  if(!bez||!amt)return;
+  const d=new Date(datum);
+  await sb.from('einnahmen').update({bezeichnung:bez,betrag:amt,kategorie:kat,datum,monat:d.getMonth()+1,jahr:d.getFullYear()}).eq('id',id);
+  const e=einnahmenItems.find(x=>x.id===id);if(e){e.bezeichnung=bez;e.betrag=amt;e.kategorie=kat;e.datum=datum;}
+  renderEinnahmen();updateOverview();setSyncOk();
+}
+async function addEinnahme(){
+  const bez=vs(document.getElementById('ein-bezeichnung').value,60);
+  const amt=va(document.getElementById('ein-betrag').value,0.01,999999);
+  const kat=vs(document.getElementById('ein-kat').value||'Sonstiges',40)||'Sonstiges';
+  const datum=document.getElementById('ein-datum').value||todayISO();
+  if(!bez||!amt){showErr('ein-err');return;}hideErr('ein-err');
+  const d=new Date(datum);
+  const res=await sb.from('einnahmen').insert({bezeichnung:bez,betrag:amt,kategorie:kat,datum,monat:d.getMonth()+1,jahr:d.getFullYear()}).select().single();
+  if(res.error){setSyncErr();return;}
+  einnahmenItems.unshift(res.data);
+  document.getElementById('ein-bezeichnung').value='';document.getElementById('ein-betrag').value='';document.getElementById('ein-kat').value='';
+  renderEinnahmen();updateOverview();setSyncOk();
+}
+async function loadEinnahmen(){
+  const monat=parseInt(document.getElementById('ein-filter-monat').value);
+  const jahr=parseInt(document.getElementById('ein-filter-jahr').value);
+  const{data}=await sb.from('einnahmen').select('*').eq('monat',monat).eq('jahr',jahr).order('datum',{ascending:false});
+  einnahmenItems=data||[];renderEinnahmen();
+  const etEl=document.getElementById('ein-total');if(etEl)etEl.textContent=fmtEur(einnahmenItems.reduce((a,e)=>a+Number(e.betrag),0));
+}
+async function delEinnahme(id){
+  if(!confirm('Einnahme löschen?'))return;
+  await sb.from('einnahmen').delete().eq('id',id);
+  einnahmenItems=einnahmenItems.filter(e=>e.id!==id);renderEinnahmen();updateOverview();setSyncOk();
+}
+
+// ── AUTH ─────────────────────────────────────────────────────
+async function doLogout(){await sb.auth.signOut();location.href='index.html';}
+function onLogin(user){
+  currentUser=user;
+  const nb=document.getElementById('nav-user');if(nb)nb.textContent='👤 '+user.email.split('@')[0];
+  document.getElementById('e-date').value=todayISO();
+  document.getElementById('cash-datum').value=todayISO();
+  document.getElementById('ein-datum').value=todayISO();
+  fillMonatFilter('filter-monat','filter-jahr');
+  fillMonatFilter('ein-filter-monat','ein-filter-jahr');
+  loadAll();loadAusgaben();
+}
+document.addEventListener('DOMContentLoaded',async()=>{
+  const res=await sb.auth.getSession();
+  if(res.data?.session?.user)onLogin(res.data.session.user);
+  else location.href='index.html';
+});
+sb.channel('budget-sync').on('postgres_changes',{event:'*',schema:'public'},()=>loadAll()).subscribe();
+</script>
+</body>
+</html>

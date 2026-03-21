@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KassenAbsturZ · Spartöpfe</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Orbitron:wght@600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0E0B16;--s1:#16121F;--s2:#1E1929;--s3:#261F35;--border:rgba(140,100,200,0.18);--border2:rgba(140,100,200,0.35);--purple:#9B5FD4;--pl:#C490F0;--cyan:#3DD9C5;--green:#3DD98A;--red:#E05577;--amber:#E0A830;--text:#EDE8F5;--muted:#8878A8;--muted2:#5C5075;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;min-height:100vh;}
+.nav{background:var(--s1);border-bottom:1px solid var(--border2);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100;}
+.nav-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
+.nav-logo span{color:var(--cyan);}
+.nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.nav-links::-webkit-scrollbar{display:none;}
+.nav-link{color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;}
+.nav-link:hover{color:var(--text);background:var(--s2);}
+.nav-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;}
+.nav-sync{font-size:11px;border-radius:20px;padding:3px 10px;}
+.nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
+.nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
+.nav-out{font-size:11px;color:var(--muted2);background:transparent;border:1px solid var(--border);border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.nav-out:hover{color:var(--red);border-color:rgba(224,85,119,0.4);}
+.page{max-width:900px;margin:0 auto;padding:16px;}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
+.lbl{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;font-weight:500;}
+.num-md{font-size:18px;font-weight:600;}
+.num-lg{font-size:24px;font-weight:600;}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.rb{display:flex;justify-content:space-between;align-items:center;}
+.track{height:6px;background:var(--s3);border-radius:3px;margin:8px 0 4px;}
+.fill{height:100%;border-radius:3px;}
+.crow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.crow:last-child{border-bottom:none;}
+.ci{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
+.ci:focus{border-color:var(--purple);}
+.ci::placeholder{color:var(--muted2);}
+.ir{display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;}
+.ferr{font-size:12px;color:var(--red);margin-top:-4px;margin-bottom:8px;display:none;}
+.btn{background:rgba(155,95,212,0.2);border:1px solid var(--purple);border-radius:8px;color:var(--pl);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn:hover{background:rgba(155,95,212,0.35);}
+.btn-green{background:rgba(61,217,138,0.15);border:1px solid rgba(61,217,138,0.4);border-radius:8px;color:var(--green);padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn-green:hover{background:rgba(61,217,138,0.25);}
+.btn-red{background:rgba(224,85,119,0.12);border:1px solid rgba(224,85,119,0.4);border-radius:8px;color:var(--red);padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn-red:hover{background:rgba(224,85,119,0.22);}
+.btn-del{background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1;border-radius:4px;flex-shrink:0;}
+.btn-del:hover{color:var(--red);}
+.add-form{background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-top:10px;display:none;}
+.add-form.show{display:block;}
+.section-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.toggle-btn{background:rgba(155,95,212,0.15);border:1px solid var(--border2);border-radius:6px;color:var(--pl);padding:5px 12px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;}
+.toggle-btn:hover{background:rgba(155,95,212,0.25);}
+.topf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:16px;}
+.topf-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;position:relative;}
+.topf-card:hover{border-color:var(--border2);}
+.topf-card.selected{border-color:var(--purple);background:var(--s2);}
+.topf-accent{height:3px;border-radius:2px;margin-bottom:12px;}
+.detail-panel{background:var(--s1);border:1px solid var(--border2);border-radius:12px;padding:16px;margin-bottom:12px;display:none;}
+.detail-panel.show{display:block;}
+.pill{font-size:11px;padding:2px 9px;border-radius:20px;font-weight:500;}
+.pg{background:rgba(61,217,138,0.12);color:var(--green);}
+.pr{background:rgba(224,85,119,0.12);color:var(--red);}
+
+.btn-edit{background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:14px;padding:2px 5px;line-height:1;border-radius:4px;flex-shrink:0;}
+.btn-edit:hover{color:var(--pl);}
+.edit-row{background:rgba(155,95,212,0.08);border:1px solid rgba(155,95,212,0.4);border-radius:8px;padding:12px;margin:4px 0 6px;display:none;}
+.edit-row.show{display:block;}
+.edit-actions{display:flex;gap:8px;margin-top:8px;}
+.btn-save{background:rgba(61,217,138,0.2);border:1px solid rgba(61,217,138,0.5);border-radius:6px;color:var(--green);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;}
+.btn-save:hover{background:rgba(61,217,138,0.3);}
+.btn-cancel{background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--muted);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;}
+.btn-cancel:hover{color:var(--text);}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="nav-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+  <div class="nav-links">
+    <a class="nav-link" href="index.html">Dashboard</a>
+    <a class="nav-link" href="budget.html">Budget</a>
+    <a class="nav-link on" href="spartoepfe.html">Spartöpfe</a>
+    <a class="nav-link" href="sinking.html">Sinking Funds</a>
+    <a class="nav-link" href="kalender.html">Kalender</a>
+    <a class="nav-link" href="statistik.html">Statistik</a>
+    <a class="nav-link" href="schulden.html">Schulden</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-user" id="nav-user"></div>
+    <div class="nav-sync ok" id="sync-badge">● Live</div>
+    <button class="nav-out" onclick="doLogout()">Abmelden</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="card">
+    <div class="section-hdr">
+      <div><div class="lbl">Spartöpfe gesamt angespart</div><div class="num-lg" style="color:var(--cyan);" id="total-saved">...</div></div>
+      <button class="toggle-btn" onclick="toggleForm('new-topf-form')">+ Neuer Spartopf</button>
+    </div>
+    <div class="add-form" id="new-topf-form">
+      <div class="ir">
+        <input class="ci" id="nt-name" placeholder="Name z.B. Urlaub Japan" maxlength="40" style="flex:2;">
+        <input class="ci" id="nt-ziel" type="number" placeholder="Sparziel € (optional)" min="1" max="999999" step="1" style="flex:1;min-width:120px;">
+        <input type="color" id="nt-farbe" value="#3DD9C5" style="width:36px;height:36px;border-radius:50%;border:2px solid var(--border2);cursor:pointer;flex-shrink:0;padding:2px;">
+      </div>
+      <div id="nt-err" class="ferr">Bitte einen Namen eingeben.</div>
+      <button class="btn" onclick="addTopf()">Spartopf anlegen</button>
+    </div>
+  </div>
+
+  <div class="topf-grid" id="topf-grid"><div style="color:var(--muted);font-size:13px;padding:10px 0;">Lädt...</div></div>
+
+  <!-- DETAIL PANEL (öffnet wenn man einen Topf anklickt) -->
+  <div class="detail-panel" id="detail-panel">
+    <div class="rb" style="margin-bottom:14px;">
+      <div>
+        <div class="lbl" id="dp-label">Spartopf</div>
+        <div class="num-lg" id="dp-saldo" style="color:var(--cyan);">...</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="lbl">Ziel</div>
+        <div style="font-size:16px;font-weight:600;color:var(--muted);" id="dp-ziel">—</div>
+      </div>
+    </div>
+    <div class="track" id="dp-track" style="display:none;"><div class="fill" id="dp-bar" style="width:0%;background:var(--cyan);"></div></div>
+    <div style="font-size:12px;color:var(--muted);text-align:right;margin-bottom:14px;" id="dp-pct"></div>
+
+    <div class="card" style="margin-bottom:12px;">
+      <div class="lbl" style="margin-bottom:12px;">Buchung eintragen</div>
+      <div class="ir">
+        <input class="ci" id="dp-bezeichnung" placeholder="Bezeichnung (optional)" maxlength="60" style="flex:2;min-width:120px;">
+        <input class="ci" id="dp-betrag" type="number" placeholder="Betrag €" min="0.01" max="999999" step="0.01" style="flex:1;min-width:100px;">
+        <input class="ci" id="dp-datum" type="date" style="flex:1;min-width:130px;">
+      </div>
+      <div id="dp-err" class="ferr">Bitte gültigen Betrag eingeben.</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-green" onclick="buchTopf(1)">+ Einzahlung</button>
+        <button class="btn-red" onclick="buchTopf(-1)">− Auszahlung</button>
+        <button class="btn-del" style="margin-left:auto;font-size:13px;color:var(--red);padding:8px;" onclick="delTopf()">Topf löschen</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="lbl" style="margin-bottom:10px;">Transaktionen</div>
+      <div id="dp-buchungen"><div style="color:var(--muted);font-size:13px;">Keine Buchungen.</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://qhflajqbrzuxxxiqzlyi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null, toepfe = [], selectedTopf = null;
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
+function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});}
+function fmtEur(n){const v=Math.round(Number(n)*100)/100;return v<0?'−\u00a0€\u00a0'+fmtN(Math.abs(v)):'\u20ac\u00a0'+fmtN(v);}
+function validateStr(s,max){const v=String(s).trim();return(v.length>0&&v.length<=max)?v:null;}
+function validateAmt(v,min,max){const n=parseFloat(v);return(!isNaN(n)&&n>=min&&n<=max)?Math.round(n*100)/100:null;}
+function showErr(id){document.getElementById(id).style.display='block';}
+function hideErr(id){document.getElementById(id).style.display='none';}
+function toggleForm(id){document.getElementById(id).classList.toggle('show');}
+function userName(){return currentUser?currentUser.email.split('@')[0]:'unbekannt';}
+function todayISO(){return new Date().toISOString().split('T')[0];}
+function fmtDate(iso){if(!iso)return'';const d=new Date(iso+'T12:00:00');return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});}
+function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
+function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
+
+async function loadToepfe(){
+  try{
+    const {data,error}=await sb.from('spartoepfe').select('*').order('created_at');
+    if(error)throw error;
+    // Für jeden Topf den Saldo berechnen
+    const buchRes=await sb.from('spartopf_buchungen').select('*');
+    const buchungen=buchRes.data||[];
+    toepfe=(data||[]).map(t=>{
+      const tb=buchungen.filter(b=>b.spartopf_id===t.id);
+      const saldo=Math.round(tb.reduce((a,b)=>a+Number(b.betrag),0)*100)/100;
+      return{...t,saldo,buchungen:tb.sort((a,b)=>new Date(b.datum)-new Date(a.datum))};
+    });
+    renderToepfe();
+    if(selectedTopf){
+      const updated=toepfe.find(t=>t.id===selectedTopf.id);
+      if(updated) openTopf(updated);
+    }
+    setSyncOk();
+  }catch(e){setSyncErr();}
+}
+
+function renderToepfe(){
+  const grid=document.getElementById('topf-grid');
+  const totalSaved=toepfe.reduce((a,t)=>a+t.saldo,0);
+  document.getElementById('total-saved').textContent=fmtEur(totalSaved);
+  if(!toepfe.length){grid.innerHTML='<div style="color:var(--muted);font-size:13px;">Noch keine Spartöpfe. Leg oben einen an!</div>';return;}
+  grid.innerHTML=toepfe.map(t=>{
+    const pct=t.ziel&&t.ziel>0?Math.min(100,Math.round(t.saldo/Number(t.ziel)*1000)/10):null;
+    const col=t.saldo<0?'var(--red)':pct===null?'var(--cyan)':pct>75?'var(--green)':pct>40?'var(--cyan)':'var(--pl)';
+    return `<div class="topf-card${selectedTopf&&selectedTopf.id===t.id?' selected':''}" onclick="openTopf(toepfe.find(x=>x.id==='${esc(t.id)}'))">
+      <div class="topf-accent" style="background:${esc(t.farbe)};"></div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px;">${esc(t.name)}</div>
+      <div style="font-size:22px;font-weight:600;color:${col};">${fmtEur(t.saldo)}</div>
+      ${t.ziel?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">von \u20ac\u00a0${fmtN(t.ziel)} Ziel · ${fmtN(pct)}\u00a0%</div>
+      <div class="track"><div class="fill" style="width:${pct}%;background:${col};"></div></div>`:'<div style="font-size:11px;color:var(--muted);margin-top:6px;">${esc(t.buchungen.length)} Buchungen</div>'}
+      <div style="font-size:11px;color:var(--muted2);margin-top:6px;">${esc(t.buchungen.length)} Buchung${t.buchungen.length!==1?'en':''}</div>
+    </div>`;
+  }).join('');
+}
+
+function openTopf(t){
+  selectedTopf=toepfe.find(tp=>tp.id===t.id)||t;
+  const panel=document.getElementById('detail-panel');
+  panel.classList.add('show');
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  document.getElementById('dp-label').textContent=selectedTopf.name;
+  document.getElementById('dp-saldo').textContent=fmtEur(selectedTopf.saldo);
+  document.getElementById('dp-saldo').style.color=selectedTopf.saldo<0?'var(--red)':'var(--cyan)';
+  document.getElementById('dp-datum').value=todayISO();
+  if(selectedTopf.ziel){
+    const pct=Math.min(100,Math.round(selectedTopf.saldo/Number(selectedTopf.ziel)*1000)/10);
+    document.getElementById('dp-ziel').textContent='\u20ac\u00a0'+fmtN(selectedTopf.ziel);
+    document.getElementById('dp-track').style.display='block';
+    document.getElementById('dp-bar').style.width=Math.max(0,pct)+'%';
+    document.getElementById('dp-pct').textContent=fmtN(pct)+'\u00a0% des Ziels erreicht';
+  } else {
+    document.getElementById('dp-ziel').textContent='Kein Ziel';
+    document.getElementById('dp-track').style.display='none';
+    document.getElementById('dp-pct').textContent='';
+  }
+  // Buchungen
+  const bs=selectedTopf.buchungen||[];
+  const bEl=document.getElementById('dp-buchungen');
+  if(!bs.length){bEl.innerHTML='<div style="color:var(--muted);font-size:13px;">Noch keine Buchungen.</div>';return;}
+  bEl.innerHTML=bs.map(b=>{
+    const pos=Number(b.betrag)>=0;
+    return `<div class="crow">
+      <div style="font-size:12px;color:var(--muted2);min-width:50px;">${esc(fmtDate(b.datum))}</div>
+      <div style="flex:1;font-size:13px;">${esc(b.bezeichnung||'—')}</div>
+      <div style="font-size:13px;font-weight:500;color:${pos?'var(--green)':'var(--red)'};">${pos?'+':''}\u20ac\u00a0${fmtN(b.betrag)}</div>
+      <span style="font-size:10px;color:var(--muted2);background:var(--s3);border-radius:10px;padding:1px 7px;">${esc(b.erstellt_von)}</span>
+      <button class="btn-del" onclick="delBuchung('${esc(b.id)}')">&#215;</button>
+    </div>`;
+  }).join('');
+  renderToepfe();
+}
+
+async function addTopf(){
+  const name=validateStr(document.getElementById('nt-name').value,40);
+  if(!name){showErr('nt-err');return;}
+  hideErr('nt-err');
+  const zielRaw=parseFloat(document.getElementById('nt-ziel').value);
+  const ziel=!isNaN(zielRaw)&&zielRaw>0?zielRaw:null;
+  const farbe=document.getElementById('nt-farbe').value||'#3DD9C5';
+  const res=await sb.from('spartoepfe').insert({name,ziel,farbe}).select().single();
+  if(res.error){setSyncErr();return;}
+  document.getElementById('nt-name').value='';document.getElementById('nt-ziel').value='';
+  document.getElementById('new-topf-form').classList.remove('show');
+  await loadToepfe();setSyncOk();
+}
+
+async function buchTopf(sign){
+  if(!selectedTopf)return;
+  const bez=validateStr(document.getElementById('dp-bezeichnung').value||'—',60)||'—';
+  const raw=document.getElementById('dp-betrag').value;
+  const amt=validateAmt(Math.abs(parseFloat(raw)),0.01,999999);
+  const datum=document.getElementById('dp-datum').value||todayISO();
+  if(!amt){showErr('dp-err');return;}
+  hideErr('dp-err');
+  const finalAmt=Math.round(amt*sign*100)/100;
+  const res=await sb.from('spartopf_buchungen').insert({spartopf_id:selectedTopf.id,betrag:finalAmt,bezeichnung:bez,datum,erstellt_von:userName()});
+  if(res.error){setSyncErr();return;}
+  document.getElementById('dp-betrag').value='';document.getElementById('dp-bezeichnung').value='';
+  await loadToepfe();setSyncOk();
+}
+
+
+function toggleEdit(id){const el=document.getElementById(id);if(el)el.classList.toggle('show');}
+
+async function saveBuchung(id){
+  if(!selectedTopf)return;
+  const bez=(document.getElementById('ebuch-bz-'+id).value||'—').trim().substring(0,60)||'—';
+  const amt=parseFloat(document.getElementById('ebuch-am-'+id).value);
+  const datum=document.getElementById('ebuch-dt-'+id).value||new Date().toISOString().split('T')[0];
+  if(isNaN(amt))return;
+  const fa=Math.round(amt*100)/100;
+  await sb.from('spartopf_buchungen').update({bezeichnung:bez,betrag:fa,datum}).eq('id',id);
+  await loadToepfe();setSyncOk();
+}
+
+async function delBuchung(id){
+  if(!confirm('Buchung löschen?'))return;
+  await sb.from('spartopf_buchungen').delete().eq('id',id);
+  await loadToepfe();setSyncOk();
+}
+
+async function delTopf(){
+  if(!selectedTopf)return;
+  if(!confirm('Spartopf und alle Buchungen löschen?'))return;
+  await sb.from('spartoepfe').delete().eq('id',selectedTopf.id);
+  selectedTopf=null;
+  document.getElementById('detail-panel').classList.remove('show');
+  await loadToepfe();setSyncOk();
+}
+
+async function doLogout(){await sb.auth.signOut();location.href='index.html';}
+function onLogin(user){
+  currentUser=user;
+  const nb=document.getElementById('nav-user');
+  if(nb) nb.textContent='👤 '+user.email.split('@')[0];
+  loadToepfe();
+}
+document.addEventListener('DOMContentLoaded',async()=>{
+  const res=await sb.auth.getSession();
+  if(res.data?.session?.user) onLogin(res.data.session.user);
+  else location.href='index.html';
+});
+sb.channel('spartoepfe-sync').on('postgres_changes',{event:'*',schema:'public',table:'spartopf_buchungen'},()=>loadToepfe()).subscribe();
+</script>
+</body>
+</html>

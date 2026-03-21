@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KassenAbsturZ · Sinking Funds</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Orbitron:wght@600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0E0B16;--s1:#16121F;--s2:#1E1929;--s3:#261F35;--border:rgba(140,100,200,0.18);--border2:rgba(140,100,200,0.35);--purple:#9B5FD4;--pl:#C490F0;--cyan:#3DD9C5;--green:#3DD98A;--red:#E05577;--amber:#E0A830;--text:#EDE8F5;--muted:#8878A8;--muted2:#5C5075;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;min-height:100vh;}
+.nav{background:var(--s1);border-bottom:1px solid var(--border2);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100;}
+.nav-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
+.nav-logo span{color:var(--cyan);}
+.nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.nav-links::-webkit-scrollbar{display:none;}
+.nav-link{color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;}
+.nav-link:hover{color:var(--text);background:var(--s2);}
+.nav-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;}
+.nav-sync{font-size:11px;border-radius:20px;padding:3px 10px;}
+.nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
+.nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
+.nav-out{font-size:11px;color:var(--muted2);background:transparent;border:1px solid var(--border);border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.nav-out:hover{color:var(--red);border-color:rgba(224,85,119,0.4);}
+.page{max-width:900px;margin:0 auto;padding:16px;}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
+.lbl{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;font-weight:500;}
+.num-md{font-size:18px;font-weight:600;}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.rb{display:flex;justify-content:space-between;align-items:center;}
+.track{height:5px;background:var(--s3);border-radius:3px;margin:8px 0 4px;}
+.fill{height:100%;border-radius:3px;}
+.sfcard{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px;}
+.sfgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+.ci{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
+.ci:focus{border-color:var(--purple);}
+.ci::placeholder{color:var(--muted2);}
+.ir{display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;}
+.ferr{font-size:12px;color:var(--red);margin-top:-4px;margin-bottom:8px;display:none;}
+.btn{background:rgba(155,95,212,0.2);border:1px solid var(--purple);border-radius:8px;color:var(--pl);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn:hover{background:rgba(155,95,212,0.35);}
+.btn-del{background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1;border-radius:4px;flex-shrink:0;}
+.btn-del:hover{color:var(--red);}
+.add-form{background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-top:10px;display:none;}
+.add-form.show{display:block;}
+.section-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.toggle-btn{background:rgba(155,95,212,0.15);border:1px solid var(--border2);border-radius:6px;color:var(--pl);padding:5px 12px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;}
+.toggle-btn:hover{background:rgba(155,95,212,0.25);}
+
+.btn-edit{background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:14px;padding:2px 5px;line-height:1;border-radius:4px;flex-shrink:0;}
+.btn-edit:hover{color:var(--pl);}
+.edit-row{background:var(--s2);border:1px solid rgba(155,95,212,0.5);border-radius:8px;padding:12px;margin:2px 0 6px;display:none;}
+.edit-row.show{display:block;}
+.edit-actions{display:flex;gap:8px;margin-top:8px;}
+.btn-save{background:rgba(61,217,138,0.2);border:1px solid rgba(61,217,138,0.5);border-radius:6px;color:var(--green);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;}
+.btn-save:hover{background:rgba(61,217,138,0.3);}
+.btn-cancel{background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--muted);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;}
+.btn-cancel:hover{color:var(--text);}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="nav-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+  <div class="nav-links">
+    <a class="nav-link" href="index.html">Dashboard</a>
+    <a class="nav-link" href="budget.html">Budget</a>
+    <a class="nav-link" href="spartoepfe.html">Spartöpfe</a>
+    <a class="nav-link on" href="sinking.html">Sinking Funds</a>
+    <a class="nav-link" href="kalender.html">Kalender</a>
+    <a class="nav-link" href="statistik.html">Statistik</a>
+    <a class="nav-link" href="schulden.html">Schulden</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-user" id="nav-user"></div>
+    <div class="nav-sync ok" id="sync-badge">● Live</div>
+    <button class="nav-out" onclick="doLogout()">Abmelden</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="g2" style="margin-bottom:12px;">
+    <div class="card" style="padding:13px;"><div class="lbl">Monatliche Einzahlung</div><div class="num-md" style="color:var(--cyan);" id="sf-monthly">...</div></div>
+    <div class="card" style="padding:13px;"><div class="lbl">Gesamt angespart</div><div class="num-md" style="color:var(--pl);" id="sf-saved">...</div></div>
+  </div>
+
+  <div class="card">
+    <div class="section-hdr">
+      <div class="lbl" style="margin:0;">Alle Sinking Funds</div>
+      <button class="toggle-btn" onclick="toggleForm('sfform')">+ Fund</button>
+    </div>
+    <div class="add-form" id="sfform">
+      <div class="ir">
+        <input class="ci" id="sf-name" placeholder="Name z.B. KFZ-Versicherung" maxlength="40" style="flex:2;min-width:140px;">
+        <input class="ci" id="sf-mo" type="number" placeholder="€ / Monat" min="1" max="9999" step="1" style="flex:1;min-width:100px;">
+        <input class="ci" id="sf-goal" type="number" placeholder="Ziel €" min="1" max="99999" step="1" style="flex:1;min-width:90px;">
+        <input class="ci" id="sf-due" placeholder="Fälligkeit z.B. Okt 2025" maxlength="20" style="flex:1;min-width:120px;">
+      </div>
+      <div id="sf-err" class="ferr">Bitte Name, Monatsbetrag und Ziel eingeben.</div>
+      <button class="btn" onclick="addFund()">Hinzufügen</button>
+    </div>
+    <div class="sfgrid" id="sf-grid" style="margin-top:12px;"><div style="color:var(--muted);font-size:13px;">Lädt...</div></div>
+  </div>
+
+  <!-- ANGESPART AKTUALISIEREN -->
+  <div class="card">
+    <div class="lbl" style="margin-bottom:12px;">Angespartes aktualisieren</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Wenn du den monatlichen Betrag aufs Tagesgeldkonto überwiesen hast, kannst du es hier markieren.</div>
+    <div class="ir">
+      <select style="background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;flex:2;" id="sf-update-sel"></select>
+      <input class="ci" id="sf-update-amt" type="number" placeholder="Betrag €" min="0.01" max="99999" step="0.01" style="flex:1;min-width:100px;">
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" onclick="updateAngespart(1)">+ Einzahlung</button>
+      <button style="background:rgba(224,85,119,0.12);border:1px solid rgba(224,85,119,0.4);border-radius:8px;color:var(--red);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;" onclick="updateAngespart(-1)">− Fund abgebucht / zurückgesetzt</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://qhflajqbrzuxxxiqzlyi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser=null, funds=[];
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
+function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});}
+function fmtEur(n){const v=Math.round(Number(n)*100)/100;return v<0?'−\u00a0€\u00a0'+fmtN(Math.abs(v)):'\u20ac\u00a0'+fmtN(v);}
+function validateStr(s,max){const v=String(s).trim();return(v.length>0&&v.length<=max)?v:null;}
+function validateAmt(v,min,max){const n=parseFloat(v);return(!isNaN(n)&&n>=min&&n<=max)?Math.round(n*100)/100:null;}
+function showErr(id){document.getElementById(id).style.display='block';}
+function hideErr(id){document.getElementById(id).style.display='none';}
+function toggleForm(id){document.getElementById(id).classList.toggle('show');}
+function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
+function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
+
+async function loadFunds(){
+  try{
+    const {data,error}=await sb.from('sinking_funds').select('*').order('created_at');
+    if(error)throw error;
+    funds=data||[];
+    renderFunds();setSyncOk();
+  }catch(e){setSyncErr();}
+}
+
+function renderFunds(){
+  const totalMo=funds.reduce((a,f)=>a+Number(f.monatlich),0);
+  const totalSaved=funds.reduce((a,f)=>a+Number(f.angespart),0);
+  document.getElementById('sf-monthly').textContent=fmtEur(totalMo)+' / Monat';
+  document.getElementById('sf-saved').textContent=fmtEur(totalSaved);
+
+  const grid=document.getElementById('sf-grid');
+  if(!funds.length){grid.innerHTML='<div style="color:var(--muted);font-size:13px;">Noch keine Sinking Funds.</div>';return;}
+  grid.innerHTML=funds.map(f=>{
+    const p=f.ziel>0?Math.min(100,Math.round(Number(f.angespart)/Number(f.ziel)*1000)/10):0;
+    const col=p>75?'var(--green)':p>40?'var(--cyan)':'var(--pl)';
+    return`<div>
+      <div class="sfcard">
+        <div class="rb" style="margin-bottom:6px;">
+          <div style="font-size:13px;font-weight:500;">${esc(f.name)}</div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div style="font-size:11px;color:var(--red);">${esc(f.faelligkeit)}</div>
+            <button class="btn-edit" onclick="toggleEdit('esf-${esc(f.id)}')">✏️</button>
+            <button class="btn-del" onclick="delFund('${esc(f.id)}')">✕</button>
+          </div>
+        </div>
+        <div class="rb" style="margin-bottom:4px;">
+          <span style="font-size:18px;font-weight:600;color:${col};">${fmtEur(f.angespart)}</span>
+          <span style="font-size:12px;color:var(--muted);">/ ${fmtEur(f.ziel)}</span>
+        </div>
+        <div class="track"><div class="fill" style="width:${p}%;background:${col};"></div></div>
+        <div class="rb" style="font-size:11px;color:var(--muted);margin-top:3px;">
+          <span>${fmtN(p)}\u00a0%</span><span>+${fmtEur(f.monatlich)}\u00a0/ Mo</span>
+        </div>
+      </div>
+      <div class="edit-row" id="esf-${esc(f.id)}">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <input class="ci" id="esf-n-${esc(f.id)}" value="${esc(f.name)}" maxlength="40" placeholder="Name" style="flex:2;min-width:140px;">
+          <input class="ci" id="esf-m-${esc(f.id)}" type="number" value="${Number(f.monatlich)}" min="1" max="9999" placeholder="€/Monat" style="flex:1;min-width:90px;">
+          <input class="ci" id="esf-g-${esc(f.id)}" type="number" value="${Number(f.ziel)}" min="1" max="99999" placeholder="Ziel €" style="flex:1;min-width:90px;">
+          <input class="ci" id="esf-d-${esc(f.id)}" value="${esc(f.faelligkeit)}" maxlength="20" placeholder="Fälligkeit" style="flex:1;min-width:120px;">
+        </div>
+        <div class="edit-actions">
+          <button class="btn-save" onclick="saveFund('${esc(f.id)}')">✓ Speichern</button>
+          <button class="btn-cancel" onclick="toggleEdit('esf-${esc(f.id)}')">Abbrechen</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Update-Select befüllen
+  const sel=document.getElementById('sf-update-sel');
+  sel.innerHTML=funds.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('');
+}
+
+async function addFund(){
+  const name=validateStr(document.getElementById('sf-name').value,40);
+  const mo=validateAmt(document.getElementById('sf-mo').value,1,9999);
+  const goal=validateAmt(document.getElementById('sf-goal').value,1,99999);
+  const due=validateStr(document.getElementById('sf-due').value||'laufend',20)||'laufend';
+  if(!name||!mo||!goal){showErr('sf-err');return;}
+  hideErr('sf-err');
+  const res=await sb.from('sinking_funds').insert({name,monatlich:mo,angespart:0,ziel:goal,faelligkeit:due}).select().single();
+  if(res.error){setSyncErr();return;}
+  funds.push(res.data);
+  document.getElementById('sf-name').value='';document.getElementById('sf-mo').value='';
+  document.getElementById('sf-goal').value='';document.getElementById('sf-due').value='';
+  renderFunds();setSyncOk();
+}
+
+
+function toggleEdit(id){const el=document.getElementById(id);if(el)el.classList.toggle('show');}
+
+async function saveFund(id){
+  const name=document.getElementById('esf-n-'+id).value.trim();
+  const mo=parseFloat(document.getElementById('esf-m-'+id).value);
+  const goal=parseFloat(document.getElementById('esf-g-'+id).value);
+  const due=document.getElementById('esf-d-'+id).value.trim()||'laufend';
+  if(!name||isNaN(mo)||isNaN(goal))return;
+  await sb.from('sinking_funds').update({name,monatlich:Math.round(mo*100)/100,ziel:Math.round(goal*100)/100,faelligkeit:due}).eq('id',id);
+  const f=funds.find(x=>x.id===id);
+  if(f){f.name=name;f.monatlich=Math.round(mo*100)/100;f.ziel=Math.round(goal*100)/100;f.faelligkeit=due;}
+  renderFunds();setSyncOk();
+}
+
+async function delFund(id){
+  if(!confirm('Sinking Fund löschen?'))return;
+  await sb.from('sinking_funds').delete().eq('id',id);
+  funds=funds.filter(f=>f.id!==id);
+  renderFunds();setSyncOk();
+}
+
+async function updateAngespart(sign){
+  const id=document.getElementById('sf-update-sel').value;
+  const amt=validateAmt(document.getElementById('sf-update-amt').value,0.01,99999);
+  if(!amt||!id)return;
+  const fund=funds.find(f=>f.id===id);
+  if(!fund)return;
+  const newVal=Math.max(0,Math.round((Number(fund.angespart)+amt*sign)*100)/100);
+  const res=await sb.from('sinking_funds').update({angespart:newVal}).eq('id',id);
+  if(res.error){setSyncErr();return;}
+  fund.angespart=newVal;
+  document.getElementById('sf-update-amt').value='';
+  renderFunds();setSyncOk();
+}
+
+async function doLogout(){await sb.auth.signOut();location.href='index.html';}
+function onLogin(user){
+  currentUser=user;
+  const nb=document.getElementById('nav-user');
+  if(nb) nb.textContent='👤 '+user.email.split('@')[0];
+  loadFunds();
+}
+document.addEventListener('DOMContentLoaded',async()=>{
+  const res=await sb.auth.getSession();
+  if(res.data?.session?.user) onLogin(res.data.session.user);
+  else location.href='index.html';
+});
+sb.channel('sf-sync').on('postgres_changes',{event:'*',schema:'public',table:'sinking_funds'},()=>loadFunds()).subscribe();
+</script>
+</body>
+</html>

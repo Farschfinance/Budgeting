@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KassenAbsturZ · Statistik</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Orbitron:wght@600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0E0B16;--s1:#16121F;--s2:#1E1929;--s3:#261F35;--border:rgba(140,100,200,0.18);--border2:rgba(140,100,200,0.35);--purple:#9B5FD4;--pl:#C490F0;--cyan:#3DD9C5;--green:#3DD98A;--red:#E05577;--amber:#E0A830;--text:#EDE8F5;--muted:#8878A8;--muted2:#5C5075;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;min-height:100vh;}
+.nav{background:var(--s1);border-bottom:1px solid var(--border2);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100;}
+.nav-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
+.nav-logo span{color:var(--cyan);}
+.nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.nav-links::-webkit-scrollbar{display:none;}
+.nav-link{color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;}
+.nav-link:hover{color:var(--text);background:var(--s2);}
+.nav-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.nav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;}
+.nav-sync{font-size:11px;border-radius:20px;padding:3px 10px;}
+.nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
+.nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
+.nav-out{font-size:11px;color:var(--muted2);background:transparent;border:1px solid var(--border);border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.nav-out:hover{color:var(--red);border-color:rgba(224,85,119,0.4);}
+.page{max-width:900px;margin:0 auto;padding:16px;}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
+.lbl{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;font-weight:500;}
+.num-md{font-size:18px;font-weight:600;}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.rb{display:flex;justify-content:space-between;align-items:center;}
+.sbox{background:var(--s2);border-radius:8px;padding:12px;}
+.slbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.crow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.crow:last-child{border-bottom:none;}
+.pill{font-size:11px;padding:2px 9px;border-radius:20px;font-weight:500;}
+.pg{background:rgba(61,217,138,0.12);color:var(--green);}
+.pr{background:rgba(224,85,119,0.12);color:var(--red);}
+.pa{background:rgba(224,168,48,0.12);color:var(--amber);}
+.filter-row{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+.filter-row select{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:7px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
+.btn{background:rgba(155,95,212,0.2);border:1px solid var(--purple);border-radius:8px;color:var(--pl);padding:7px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn:hover{background:rgba(155,95,212,0.35);}
+.toggle-section{background:var(--s2);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:12px;}
+.toggle-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:500;}
+.toggle-header:hover{background:var(--s3);}
+.toggle-body{padding:16px;border-top:1px solid var(--border);display:none;}
+.toggle-body.show{display:block;}
+.chart-wrap{position:relative;height:260px;margin-top:12px;}
+.tip-item{background:var(--s2);border-left:3px solid var(--purple);border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:8px;}
+.tip-item:last-child{margin-bottom:0;}
+.compare-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.compare-row:last-child{border-bottom:none;}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="nav-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+  <div class="nav-links">
+    <a class="nav-link" href="index.html">Dashboard</a>
+    <a class="nav-link" href="budget.html">Budget</a>
+    <a class="nav-link" href="spartoepfe.html">Spartöpfe</a>
+    <a class="nav-link" href="sinking.html">Sinking Funds</a>
+    <a class="nav-link" href="kalender.html">Kalender</a>
+    <a class="nav-link on" href="statistik.html">Statistik</a>
+    <a class="nav-link" href="schulden.html">Schulden</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-user" id="nav-user"></div>
+    <div class="nav-sync ok" id="sync-badge">● Live</div>
+    <button class="nav-out" onclick="doLogout()">Abmelden</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="filter-row">
+    <select id="sel-jahr" onchange="loadStats()"></select>
+    <select id="sel-monat" onchange="loadStats()">
+      <option value="0">Ganzes Jahr</option>
+      <option value="1">Januar</option><option value="2">Februar</option><option value="3">März</option>
+      <option value="4">April</option><option value="5">Mai</option><option value="6">Juni</option>
+      <option value="7">Juli</option><option value="8">August</option><option value="9">September</option>
+      <option value="10">Oktober</option><option value="11">November</option><option value="12">Dezember</option>
+    </select>
+  </div>
+
+  <!-- ZUSAMMENFASSUNG -->
+  <div class="g3" style="margin-bottom:12px;" id="summary-grid">
+    <div class="sbox"><div class="slbl">Einnahmen</div><div class="num-md" id="sum-ein" style="color:var(--green);">...</div></div>
+    <div class="sbox"><div class="slbl">Ausgaben</div><div class="num-md" id="sum-aus" style="color:var(--red);">...</div></div>
+    <div class="sbox"><div class="slbl">Bilanz</div><div class="num-md" id="sum-bil">...</div></div>
+  </div>
+
+  <!-- AUSGABEN NACH KATEGORIE -->
+  <div class="card">
+    <div class="lbl" style="margin-bottom:12px;">Ausgaben nach Kategorie</div>
+    <div id="cat-stats"></div>
+    <div class="chart-wrap"><canvas id="cat-chart"></canvas></div>
+  </div>
+
+  <!-- MONATSVERGLEICH (optional einblendbar) -->
+  <div class="toggle-section">
+    <div class="toggle-header" onclick="toggleSection('vergleich-body')">
+      <span>↔ Vergleich mit Vormonat</span><span style="color:var(--muted);font-size:12px;">Einblenden</span>
+    </div>
+    <div class="toggle-body" id="vergleich-body">
+      <div id="vergleich-content"><div style="color:var(--muted);font-size:13px;">Lädt...</div></div>
+    </div>
+  </div>
+
+  <!-- SPARTIPPS (optional einblendbar) -->
+  <div class="toggle-section">
+    <div class="toggle-header" onclick="toggleSection('tipps-body')">
+      <span>💡 Spartipps für nächsten Monat</span><span style="color:var(--muted);font-size:12px;">Einblenden</span>
+    </div>
+    <div class="toggle-body" id="tipps-body">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Basierend auf euren aktuellen Ausgaben · Ziel: 1.000 € Puffer aufbauen</div>
+      <div id="tipps-content"><div style="color:var(--muted);font-size:13px;">Lädt...</div></div>
+    </div>
+  </div>
+
+  <!-- JAHRESVERLAUF -->
+  <div class="card">
+    <div class="lbl" style="margin-bottom:4px;">Ausgaben pro Monat · <span id="year-label"></span></div>
+    <div class="chart-wrap"><canvas id="month-chart"></canvas></div>
+  </div>
+
+  <!-- WOCHENAUSWERTUNG -->
+  <div class="card">
+    <div class="lbl" style="margin-bottom:12px;">Ausgaben pro Woche (laufender Monat)</div>
+    <div id="week-stats"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://qhflajqbrzuxxxiqzlyi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser=null;
+let catChart=null, monthChart=null;
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
+function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});}
+function fmtEur(n,sign=false){const v=Math.round(Number(n)*100)/100;return v<0?'−\u00a0€\u00a0'+fmtN(Math.abs(v)):(sign&&v>0?'+\u00a0':'')+'\u20ac\u00a0'+fmtN(v);}
+function userName(){return currentUser?currentUser.email.split('@')[0]:'unbekannt';}
+function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
+function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
+
+Chart.defaults.color='#8878A8';
+Chart.defaults.borderColor='rgba(140,100,200,0.15)';
+
+const CAT_COLORS=['#9B5FD4','#3DD9C5','#3DD98A','#E05577','#E0A830','#C490F0','#3DD9C5','#85B7EB'];
+
+function toggleSection(id){
+  const el=document.getElementById(id);
+  el.classList.toggle('show');
+  if(el.classList.contains('show')) buildVergleich();
+}
+
+function fillJahrFilter(){
+  const sel=document.getElementById('sel-jahr');
+  sel.innerHTML='';
+  const now=new Date().getFullYear();
+  for(let y=now;y>=now-3;y--){
+    const opt=document.createElement('option');
+    opt.value=y;opt.textContent=y;
+    if(y===now) opt.selected=true;
+    sel.appendChild(opt);
+  }
+  const ms=document.getElementById('sel-monat');
+  ms.value=new Date().getMonth()+1;
+}
+
+async function loadStats(){
+  try{
+    const jahr=parseInt(document.getElementById('sel-jahr').value);
+    const monat=parseInt(document.getElementById('sel-monat').value);
+    document.getElementById('year-label').textContent=jahr;
+
+    let ausgabenQuery=sb.from('ausgaben').select('*,kategorie_id');
+    let einnahmenQuery=sb.from('einnahmen').select('*');
+
+    if(monat>0){
+      const startDate=`${jahr}-${String(monat).padStart(2,'0')}-01T00:00:00`;
+      const lastDay=new Date(jahr,monat,0).getDate();
+      const endDate=`${jahr}-${String(monat).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}T23:59:59`;
+      ausgabenQuery=ausgabenQuery.gte('created_at',startDate).lte('created_at',endDate);
+      einnahmenQuery=einnahmenQuery.eq('monat',monat).eq('jahr',jahr);
+    } else {
+      const startDate=`${jahr}-01-01T00:00:00`;
+      const endDate=`${jahr}-12-31T23:59:59`;
+      ausgabenQuery=ausgabenQuery.gte('created_at',startDate).lte('created_at',endDate);
+      einnahmenQuery=einnahmenQuery.eq('jahr',jahr);
+    }
+
+    const [ra,re,rc]=await Promise.all([ausgabenQuery,einnahmenQuery,sb.from('kategorien').select('*')]);
+    const ausgaben=ra.data||[];
+    const einnahmen=re.data||[];
+    const cats=rc.data||[];
+
+    const totalAus=ausgaben.reduce((a,b)=>a+Number(b.betrag),0);
+    const totalEin=einnahmen.reduce((a,b)=>a+Number(b.betrag),0);
+    const bilanz=Math.round((totalEin-totalAus)*100)/100;
+
+    document.getElementById('sum-ein').textContent=fmtEur(totalEin);
+    document.getElementById('sum-aus').textContent=fmtEur(totalAus);
+    const bilEl=document.getElementById('sum-bil');
+    bilEl.textContent=fmtEur(bilanz,true);
+    bilEl.style.color=bilanz>=0?'var(--green)':'var(--red)';
+
+    // Kategorien-Auswertung
+    const catMap={};
+    ausgaben.forEach(a=>{
+      const cat=cats.find(c=>c.id===a.kategorie_id);
+      const name=cat?cat.name:'Sonstiges';
+      catMap[name]=(catMap[name]||0)+Number(a.betrag);
+    });
+    const catEntries=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+
+    const catEl=document.getElementById('cat-stats');
+    catEl.innerHTML=catEntries.map((e,i)=>{
+      const pct=totalAus>0?Math.round(e[1]/totalAus*1000)/10:0;
+      const col=CAT_COLORS[i%CAT_COLORS.length];
+      return`<div class="crow">
+        <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></div>
+        <div style="flex:1;font-size:13px;">${esc(e[0])}</div>
+        <div style="font-size:12px;color:var(--muted);">${fmtN(pct)}\u00a0%</div>
+        <div style="font-size:13px;font-weight:500;color:var(--amber);">−\u00a0${fmtEur(e[1])}</div>
+      </div>`;
+    }).join('')||'<div style="color:var(--muted);font-size:13px;">Keine Ausgaben im gewählten Zeitraum.</div>';
+
+    // Donut Chart
+    if(catChart) catChart.destroy();
+    const ctx=document.getElementById('cat-chart').getContext('2d');
+    catChart=new Chart(ctx,{
+      type:'doughnut',
+      data:{labels:catEntries.map(e=>e[0]),datasets:[{data:catEntries.map(e=>Math.round(e[1]*100)/100),backgroundColor:catEntries.map((_,i)=>CAT_COLORS[i%CAT_COLORS.length]),borderWidth:2,borderColor:'#0E0B16'}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:12},padding:12}}}}
+    });
+
+    // Monatsverlauf
+    const mLabels=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+    const mData=Array(12).fill(0);
+    ausgaben.forEach(a=>{
+      const m=new Date(a.created_at).getMonth();
+      mData[m]=Math.round((mData[m]+Number(a.betrag))*100)/100;
+    });
+    if(monthChart) monthChart.destroy();
+    const ctx2=document.getElementById('month-chart').getContext('2d');
+    monthChart=new Chart(ctx2,{
+      type:'bar',
+      data:{labels:mLabels,datasets:[{label:'Ausgaben',data:mData,backgroundColor:'rgba(155,95,212,0.4)',borderColor:'#9B5FD4',borderWidth:1,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'\u20ac\u00a0'+v}}}}
+    });
+
+    // Wochenauswertung (nur aktueller Monat)
+    const now=new Date();
+    const thisMonthAus=ausgaben.filter(a=>{
+      const d=new Date(a.created_at);
+      return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+    });
+    const weekMap={};
+    thisMonthAus.forEach(a=>{
+      const d=new Date(a.created_at);
+      const wk=Math.ceil(d.getDate()/7);
+      weekMap[wk]=(weekMap[wk]||0)+Number(a.betrag);
+    });
+    const weekEl=document.getElementById('week-stats');
+    const wEntries=Object.entries(weekMap).sort((a,b)=>a[0]-b[0]);
+    const maxW=Math.max(...wEntries.map(e=>e[1]),1);
+    weekEl.innerHTML=wEntries.map(([wk,amt])=>{
+      const pct=Math.round(amt/maxW*100);
+      return`<div style="margin-bottom:10px;">
+        <div class="rb"><span style="font-size:13px;">Woche ${wk}</span><span style="font-size:13px;font-weight:500;color:var(--amber);">−\u00a0${fmtEur(amt)}</span></div>
+        <div style="height:5px;background:var(--s3);border-radius:3px;margin-top:6px;"><div style="height:100%;width:${pct}%;background:var(--amber);border-radius:3px;"></div></div>
+      </div>`;
+    }).join('')||'<div style="color:var(--muted);font-size:13px;">Keine Ausgaben diesen Monat.</div>';
+
+    // Spartipps
+    buildTipps(catEntries, totalAus, totalEin);
+    setSyncOk();
+  }catch(e){setSyncErr();console.error(e);}
+}
+
+async function buildVergleich(){
+  const el=document.getElementById('vergleich-content');
+  const now=new Date();
+  const thisMon=now.getMonth()+1, thisYear=now.getFullYear();
+  const prevMon=thisMon===1?12:thisMon-1;
+  const prevYear=thisMon===1?thisYear-1:thisYear;
+
+  const [rc,ra1,ra2]=await Promise.all([
+    sb.from('kategorien').select('*'),
+    sb.from('ausgaben').select('*').gte('created_at',`${thisYear}-${String(thisMon).padStart(2,'0')}-01`).lte('created_at',`${thisYear}-${String(thisMon).padStart(2,'0')}-31T23:59:59`),
+    sb.from('ausgaben').select('*').gte('created_at',`${prevYear}-${String(prevMon).padStart(2,'0')}-01`).lte('created_at',`${prevYear}-${String(prevMon).padStart(2,'0')}-31T23:59:59`),
+  ]);
+  const cats=rc.data||[];
+  const thisAus=ra1.data||[];
+  const prevAus=ra2.data||[];
+
+  const thisMap={}, prevMap={};
+  thisAus.forEach(a=>{const c=cats.find(x=>x.id===a.kategorie_id);const n=c?c.name:'Sonstiges';thisMap[n]=(thisMap[n]||0)+Number(a.betrag);});
+  prevAus.forEach(a=>{const c=cats.find(x=>x.id===a.kategorie_id);const n=c?c.name:'Sonstiges';prevMap[n]=(prevMap[n]||0)+Number(a.betrag);});
+
+  const allCats=[...new Set([...Object.keys(thisMap),...Object.keys(prevMap)])];
+  const MONATE=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+  el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr 80px;gap:6px;font-size:11px;color:var(--muted);padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">
+    <span>Kategorie</span><span style="text-align:right;">${MONATE[prevMon-1]}</span><span style="text-align:right;">${MONATE[thisMon-1]}</span><span style="text-align:right;">Diff</span>
+  </div>`+allCats.map(name=>{
+    const prev=Math.round((prevMap[name]||0)*100)/100;
+    const curr=Math.round((thisMap[name]||0)*100)/100;
+    const diff=Math.round((curr-prev)*100)/100;
+    const col=diff<=0?'var(--green)':'var(--red)';
+    return`<div style="display:grid;grid-template-columns:1fr 1fr 1fr 80px;gap:6px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;">
+      <span>${esc(name)}</span>
+      <span style="text-align:right;color:var(--muted);">${fmtEur(prev)}</span>
+      <span style="text-align:right;">${fmtEur(curr)}</span>
+      <span style="text-align:right;font-weight:600;color:${col};">${diff>=0?'+':''}${fmtEur(diff)}</span>
+    </div>`;
+  }).join('');
+}
+
+function buildTipps(catEntries, totalAus, totalEin){
+  const el=document.getElementById('tipps-content');
+  const tipps=[];
+  const bilanz=totalEin-totalAus;
+  const puffer=1000;
+
+  if(bilanz<puffer){
+    const needed=Math.round((puffer-bilanz)*100)/100;
+    tipps.push(`Um euer Ziel von 1.000 € Puffer zu erreichen, müsst ihr noch <strong>${fmtEur(needed)}</strong> einsparen oder zusätzlich verdienen.`);
+  } else {
+    tipps.push(`Super! Ihr habt diesen Monat bereits <strong>${fmtEur(bilanz)}</strong> übrig — ihr übersteigt euer Pufferziel von 1.000 €!`);
+  }
+
+  catEntries.slice(0,3).forEach(([name,amt])=>{
+    if(amt>300) tipps.push(`<strong>${esc(name)}</strong> ist mit <strong>${fmtEur(amt)}</strong> eine eurer größten Ausgabenkategorien — schaut ob hier Einsparpotenzial steckt.`);
+  });
+
+  if(totalAus>2500) tipps.push('Eure variablen Ausgaben liegen über 2.500 € — versucht nächsten Monat ein Wochenbudget von 500 € einzuhalten.');
+  tipps.push('Überweist monatlich direkt am Zahltag mindestens <strong>100 €</strong> auf ein Tagesgeldkonto — bevor ihr andere Ausgaben macht.');
+
+  el.innerHTML=tipps.map(t=>`<div class="tip-item"><div style="font-size:13px;line-height:1.6;">${t}</div></div>`).join('');
+}
+
+async function doLogout(){await sb.auth.signOut();location.href='index.html';}
+function onLogin(user){
+  currentUser=user;
+  const nb=document.getElementById('nav-user');
+  if(nb) nb.textContent='👤 '+user.email.split('@')[0];
+  fillJahrFilter();
+  loadStats();
+}
+document.addEventListener('DOMContentLoaded',async()=>{
+  const res=await sb.auth.getSession();
+  if(res.data?.session?.user) onLogin(res.data.session.user);
+  else location.href='index.html';
+});
+</script>
+</body>
+</html>
