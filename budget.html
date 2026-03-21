@@ -79,6 +79,52 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .btn-save:hover{background:rgba(61,217,138,0.3);}
 .btn-cancel{background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--muted);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;}
 .btn-cancel:hover{color:var(--text);}
+
+/* ── MOBILE SIDEBAR NAV ─────────────────────────── */
+.hamburger{display:none;background:transparent;border:1px solid var(--border2);border-radius:7px;padding:6px 9px;cursor:pointer;color:var(--text);font-size:18px;line-height:1;flex-shrink:0;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:199;backdrop-filter:blur(2px);}
+.sidebar-overlay.open{display:block;}
+.sidebar{position:fixed;top:0;left:-280px;width:260px;height:100vh;background:var(--s1);border-right:1px solid var(--border2);z-index:200;transition:left .25s ease;display:flex;flex-direction:column;padding:0;}
+.sidebar.open{left:0;}
+.sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border);}
+.sidebar-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
+.sidebar-logo span{color:var(--cyan);}
+.sidebar-close{background:transparent;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1;}
+.sidebar-close:hover{color:var(--text);}
+.sidebar-user{padding:14px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--pl);font-weight:500;}
+.sidebar-links{flex:1;overflow-y:auto;padding:10px 8px;}
+.sidebar-link{display:block;color:var(--muted);text-decoration:none;padding:10px 12px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:2px;}
+.sidebar-link:hover{color:var(--text);background:var(--s2);}
+.sidebar-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.sidebar-footer{padding:12px 8px;border-top:1px solid var(--border);}
+.sidebar-out{width:100%;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;text-align:left;}
+.sidebar-out:hover{color:var(--red);border-color:rgba(224,85,119,0.4);}
+/* Nav rechts — auf Mobile nur User-Badge + Hamburger */
+@media(max-width:700px){
+  .nav-links{display:none;}
+  .hamburger{display:block;}
+  .nav-sync{display:none;}
+  .nav-right{gap:6px;}
+}
+/* ── RESPONSIVE FIXES ───────────────────────────── */
+@media(max-width:600px){
+  .page{padding:10px;}
+  .card{padding:13px;}
+  .g2,.g3,.g4{grid-template-columns:1fr;}
+  .ir{flex-direction:column;}
+  .ir .ci,.ir .cs,.ir input,.ir select{width:100%;min-width:0!important;}
+  .num-lg{font-size:20px;}
+  .num-md{font-size:17px;}
+  .score-big{font-size:36px;}
+  .rb{flex-wrap:wrap;gap:6px;}
+  .crow{flex-wrap:wrap;}
+  .by-badge{display:none;}
+  .tabs{overflow-x:auto;}
+  .stab{font-size:11px;padding:6px 4px;}
+  .monat-sel{flex-wrap:wrap;}
+  .monat-sel select{font-size:11px;}
+  .section-hdr{flex-wrap:wrap;gap:6px;}
+}
 </style>
 </head>
 <body>
@@ -92,6 +138,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="kalender.html">Kalender</a>
     <a class="nav-link" href="statistik.html">Statistik</a>
     <a class="nav-link" href="schulden.html">Schulden</a>
+      <a class="nav-link" href="einstellungen.html">⚙️</a>
   </div>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
@@ -99,6 +146,84 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <button class="nav-out" onclick="doLogout()">Abmelden</button>
   </div>
 </nav>
+
+<!-- EDIT MODALS -->
+<div class="modal-overlay" id="modal-cat" onclick="if(event.target===this)closeModal('modal-cat')">
+  <div class="modal">
+    <div class="modal-title">✏️ Kategorie bearbeiten</div>
+    <span class="modal-lbl">Name</span>
+    <input class="ci" id="mc-name" maxlength="40" style="margin-top:4px;">
+    <span class="modal-lbl">Budget €</span>
+    <input class="ci" id="mc-budget" type="number" min="1" max="99999" step="1" style="margin-top:4px;">
+    <span class="modal-lbl">Farbe</span>
+    <input type="color" id="mc-color" style="width:48px;height:36px;border-radius:8px;border:1px solid var(--border2);cursor:pointer;padding:2px;margin-top:4px;display:block;">
+    <div class="modal-btns">
+      <button class="btn" onclick="saveCatEdit()">Speichern</button>
+      <button style="background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;" onclick="closeModal('modal-cat')">Abbrechen</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-fix" onclick="if(event.target===this)closeModal('modal-fix')">
+  <div class="modal">
+    <div class="modal-title">✏️ Fixkosten bearbeiten</div>
+    <span class="modal-lbl">Bezeichnung</span>
+    <input class="ci" id="mf-name" maxlength="40" style="margin-top:4px;">
+    <span class="modal-lbl">Betrag €</span>
+    <input class="ci" id="mf-betrag" type="number" min="0.01" max="99999" step="0.01" style="margin-top:4px;">
+    <div class="modal-btns">
+      <button class="btn" onclick="saveFixEdit()">Speichern</button>
+      <button style="background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;" onclick="closeModal('modal-fix')">Abbrechen</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-aus" onclick="if(event.target===this)closeModal('modal-aus')">
+  <div class="modal">
+    <div class="modal-title">✏️ Ausgabe bearbeiten</div>
+    <span class="modal-lbl">Beschreibung</span>
+    <input class="ci" id="ma-desc" maxlength="60" style="margin-top:4px;">
+    <span class="modal-lbl">Betrag €</span>
+    <input class="ci" id="ma-amt" type="number" min="0.01" max="99999" step="0.01" style="margin-top:4px;">
+    <span class="modal-lbl">Kategorie</span>
+    <select class="cs" id="ma-cat" style="width:100%;margin-top:4px;"></select>
+    <div class="modal-btns">
+      <button class="btn" onclick="saveAusgabeEdit()">Speichern</button>
+      <button style="background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;" onclick="closeModal('modal-aus')">Abbrechen</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-ein" onclick="if(event.target===this)closeModal('modal-ein')">
+  <div class="modal">
+    <div class="modal-title">✏️ Einnahme bearbeiten</div>
+    <span class="modal-lbl">Bezeichnung</span>
+    <input class="ci" id="me-bez" maxlength="60" style="margin-top:4px;">
+    <span class="modal-lbl">Betrag €</span>
+    <input class="ci" id="me-amt" type="number" min="0.01" max="999999" step="0.01" style="margin-top:4px;">
+    <span class="modal-lbl">Kategorie</span>
+    <input class="ci" id="me-kat" maxlength="40" style="margin-top:4px;">
+    <span class="modal-lbl">Datum</span>
+    <input class="ci" id="me-datum" type="date" style="margin-top:4px;">
+    <div class="modal-btns">
+      <button class="btn" onclick="saveEinnahmeEdit()">Speichern</button>
+      <button style="background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;" onclick="closeModal('modal-ein')">Abbrechen</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-cash" onclick="if(event.target===this)closeModal('modal-cash')">
+  <div class="modal">
+    <div class="modal-title">✏️ Bargeld-Buchung bearbeiten</div>
+    <span class="modal-lbl">Bezeichnung</span>
+    <input class="ci" id="mca-bez" maxlength="60" style="margin-top:4px;">
+    <span class="modal-lbl">Betrag € (negativ = Ausgabe)</span>
+    <input class="ci" id="mca-betrag" type="number" max="99999" step="0.01" style="margin-top:4px;">
+    <span class="modal-lbl">Datum</span>
+    <input class="ci" id="mca-datum" type="date" style="margin-top:4px;">
+    <div class="modal-btns">
+      <button class="btn" onclick="saveCashEdit()">Speichern</button>
+      <button style="background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;" onclick="closeModal('modal-cash')">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <div class="page">
   <div class="tabs">
     <div class="stab on" onclick="showTab('ausgaben',this)">Ausgaben</div>
@@ -233,7 +358,8 @@ function showErr(id){document.getElementById(id).style.display='block';}
 function hideErr(id){document.getElementById(id).style.display='none';}
 function toggleForm(id){document.getElementById(id).classList.toggle('show');}
 function toggleEdit(id){document.getElementById(id).classList.toggle('show');}
-function userName(){return currentUser?currentUser.email.split('@')[0]:'unbekannt';}
+function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
+function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
 function todayISO(){return new Date().toISOString().split('T')[0];}
 function fmtDate(iso){if(!iso)return'';const d=new Date(iso+'T12:00:00');return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
@@ -598,7 +724,9 @@ async function delEinnahme(id){
 async function doLogout(){await sb.auth.signOut();location.href='index.html';}
 function onLogin(user){
   currentUser=user;
-  const nb=document.getElementById('nav-user');if(nb)nb.textContent='👤 '+user.email.split('@')[0];
+  const nb=document.getElementById('nav-user');if(nb)nb.textContent='👤 '+getDisplayName(user);
+  const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
+  setSidebarPage('budget');
   document.getElementById('e-date').value=todayISO();
   document.getElementById('cash-datum').value=todayISO();
   document.getElementById('ein-datum').value=todayISO();
@@ -612,6 +740,11 @@ document.addEventListener('DOMContentLoaded',async()=>{
   else location.href='index.html';
 });
 sb.channel('budget-sync').on('postgres_changes',{event:'*',schema:'public'},()=>loadAll()).subscribe();
+
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sb-overlay').classList.add('open');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-overlay').classList.remove('open');}
+function setSidebarPage(page){document.querySelectorAll('.sidebar-link').forEach(l=>{l.classList.toggle('on',l.dataset.page===page);});}
+
 </script>
 </body>
 </html>

@@ -73,6 +73,52 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .btn-save:hover{background:rgba(61,217,138,0.3);}
 .btn-cancel{background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--muted);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;}
 .btn-cancel:hover{color:var(--text);}
+
+/* ── MOBILE SIDEBAR NAV ─────────────────────────── */
+.hamburger{display:none;background:transparent;border:1px solid var(--border2);border-radius:7px;padding:6px 9px;cursor:pointer;color:var(--text);font-size:18px;line-height:1;flex-shrink:0;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:199;backdrop-filter:blur(2px);}
+.sidebar-overlay.open{display:block;}
+.sidebar{position:fixed;top:0;left:-280px;width:260px;height:100vh;background:var(--s1);border-right:1px solid var(--border2);z-index:200;transition:left .25s ease;display:flex;flex-direction:column;padding:0;}
+.sidebar.open{left:0;}
+.sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border);}
+.sidebar-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
+.sidebar-logo span{color:var(--cyan);}
+.sidebar-close{background:transparent;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1;}
+.sidebar-close:hover{color:var(--text);}
+.sidebar-user{padding:14px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--pl);font-weight:500;}
+.sidebar-links{flex:1;overflow-y:auto;padding:10px 8px;}
+.sidebar-link{display:block;color:var(--muted);text-decoration:none;padding:10px 12px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:2px;}
+.sidebar-link:hover{color:var(--text);background:var(--s2);}
+.sidebar-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.sidebar-footer{padding:12px 8px;border-top:1px solid var(--border);}
+.sidebar-out{width:100%;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;text-align:left;}
+.sidebar-out:hover{color:var(--red);border-color:rgba(224,85,119,0.4);}
+/* Nav rechts — auf Mobile nur User-Badge + Hamburger */
+@media(max-width:700px){
+  .nav-links{display:none;}
+  .hamburger{display:block;}
+  .nav-sync{display:none;}
+  .nav-right{gap:6px;}
+}
+/* ── RESPONSIVE FIXES ───────────────────────────── */
+@media(max-width:600px){
+  .page{padding:10px;}
+  .card{padding:13px;}
+  .g2,.g3,.g4{grid-template-columns:1fr;}
+  .ir{flex-direction:column;}
+  .ir .ci,.ir .cs,.ir input,.ir select{width:100%;min-width:0!important;}
+  .num-lg{font-size:20px;}
+  .num-md{font-size:17px;}
+  .score-big{font-size:36px;}
+  .rb{flex-wrap:wrap;gap:6px;}
+  .crow{flex-wrap:wrap;}
+  .by-badge{display:none;}
+  .tabs{overflow-x:auto;}
+  .stab{font-size:11px;padding:6px 4px;}
+  .monat-sel{flex-wrap:wrap;}
+  .monat-sel select{font-size:11px;}
+  .section-hdr{flex-wrap:wrap;gap:6px;}
+}
 </style>
 </head>
 <body>
@@ -86,6 +132,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="kalender.html">Kalender</a>
     <a class="nav-link" href="statistik.html">Statistik</a>
     <a class="nav-link" href="schulden.html">Schulden</a>
+      <a class="nav-link" href="einstellungen.html">⚙️</a>
   </div>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
@@ -164,7 +211,8 @@ function validateAmt(v,min,max){const n=parseFloat(v);return(!isNaN(n)&&n>=min&&
 function showErr(id){document.getElementById(id).style.display='block';}
 function hideErr(id){document.getElementById(id).style.display='none';}
 function toggleForm(id){document.getElementById(id).classList.toggle('show');}
-function userName(){return currentUser?currentUser.email.split('@')[0]:'unbekannt';}
+function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
+function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
 function todayISO(){return new Date().toISOString().split('T')[0];}
 function fmtDate(iso){if(!iso)return'';const d=new Date(iso+'T12:00:00');return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
@@ -236,12 +284,26 @@ function openTopf(t){
   if(!bs.length){bEl.innerHTML='<div style="color:var(--muted);font-size:13px;">Noch keine Buchungen.</div>';return;}
   bEl.innerHTML=bs.map(b=>{
     const pos=Number(b.betrag)>=0;
-    return `<div class="crow">
-      <div style="font-size:12px;color:var(--muted2);min-width:50px;">${esc(fmtDate(b.datum))}</div>
-      <div style="flex:1;font-size:13px;">${esc(b.bezeichnung||'—')}</div>
-      <div style="font-size:13px;font-weight:500;color:${pos?'var(--green)':'var(--red)'};">${pos?'+':''}\u20ac\u00a0${fmtN(b.betrag)}</div>
-      <span style="font-size:10px;color:var(--muted2);background:var(--s3);border-radius:10px;padding:1px 7px;">${esc(b.erstellt_von)}</span>
-      <button class="btn-del" onclick="delBuchung('${esc(b.id)}')">&#215;</button>
+    return `<div>
+      <div class="crow">
+        <div style="font-size:12px;color:var(--muted2);min-width:50px;">${esc(fmtDate(b.datum))}</div>
+        <div style="flex:1;font-size:13px;">${esc(b.bezeichnung||'—')}</div>
+        <div style="font-size:13px;font-weight:500;color:${pos?'var(--green)':'var(--red)'};">${pos?'+':''}\u20ac\u00a0${fmtN(b.betrag)}</div>
+        <span style="font-size:10px;color:var(--muted2);background:var(--s3);border-radius:10px;padding:1px 7px;">${esc(b.erstellt_von)}</span>
+        <button class="btn-edit" onclick="toggleEdit('ebuch-${esc(b.id)}')">✏️</button>
+        <button class="btn-del" onclick="delBuchung('${esc(b.id)}')">&#215;</button>
+      </div>
+      <div class="edit-row" id="ebuch-${esc(b.id)}">
+        <div class="ir">
+          <input class="ci" id="ebuch-bz-${esc(b.id)}" value="${esc(b.bezeichnung||'')}" placeholder="Bezeichnung" maxlength="60" style="flex:2;">
+          <input class="ci" id="ebuch-am-${esc(b.id)}" type="number" value="${Number(b.betrag)}" step="0.01" placeholder="Betrag €" style="flex:1;min-width:100px;">
+          <input class="ci" id="ebuch-dt-${esc(b.id)}" type="date" value="${esc(b.datum||'')}" style="flex:1;min-width:130px;">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-save" onclick="saveBuchung('${esc(b.id)}')">✓ Speichern</button>
+          <button class="btn-cancel" onclick="toggleEdit('ebuch-${esc(b.id)}')">Abbrechen</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
   renderToepfe();
@@ -309,7 +371,9 @@ async function doLogout(){await sb.auth.signOut();location.href='index.html';}
 function onLogin(user){
   currentUser=user;
   const nb=document.getElementById('nav-user');
-  if(nb) nb.textContent='👤 '+user.email.split('@')[0];
+  if(nb) nb.textContent='👤 '+getDisplayName(user);
+  const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
+  setSidebarPage('spartoepfe');
   loadToepfe();
 }
 document.addEventListener('DOMContentLoaded',async()=>{
@@ -318,6 +382,11 @@ document.addEventListener('DOMContentLoaded',async()=>{
   else location.href='index.html';
 });
 sb.channel('spartoepfe-sync').on('postgres_changes',{event:'*',schema:'public',table:'spartopf_buchungen'},()=>loadToepfe()).subscribe();
+
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sb-overlay').classList.add('open');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-overlay').classList.remove('open');}
+function setSidebarPage(page){document.querySelectorAll('.sidebar-link').forEach(l=>{l.classList.toggle('on',l.dataset.page===page);});}
+
 </script>
 </body>
 </html>

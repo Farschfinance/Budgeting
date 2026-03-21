@@ -92,6 +92,52 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .btn-save:hover{background:rgba(61,217,138,0.3);}
 .btn-cancel{background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--muted);padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;}
 .btn-cancel:hover{color:var(--text);}
+
+/* ── MOBILE SIDEBAR NAV ─────────────────────────── */
+.hamburger{display:none;background:transparent;border:1px solid var(--border2);border-radius:7px;padding:6px 9px;cursor:pointer;color:var(--text);font-size:18px;line-height:1;flex-shrink:0;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:199;backdrop-filter:blur(2px);}
+.sidebar-overlay.open{display:block;}
+.sidebar{position:fixed;top:0;left:-280px;width:260px;height:100vh;background:var(--s1);border-right:1px solid var(--border2);z-index:200;transition:left .25s ease;display:flex;flex-direction:column;padding:0;}
+.sidebar.open{left:0;}
+.sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border);}
+.sidebar-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
+.sidebar-logo span{color:var(--cyan);}
+.sidebar-close{background:transparent;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1;}
+.sidebar-close:hover{color:var(--text);}
+.sidebar-user{padding:14px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--pl);font-weight:500;}
+.sidebar-links{flex:1;overflow-y:auto;padding:10px 8px;}
+.sidebar-link{display:block;color:var(--muted);text-decoration:none;padding:10px 12px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:2px;}
+.sidebar-link:hover{color:var(--text);background:var(--s2);}
+.sidebar-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.sidebar-footer{padding:12px 8px;border-top:1px solid var(--border);}
+.sidebar-out{width:100%;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;text-align:left;}
+.sidebar-out:hover{color:var(--red);border-color:rgba(224,85,119,0.4);}
+/* Nav rechts — auf Mobile nur User-Badge + Hamburger */
+@media(max-width:700px){
+  .nav-links{display:none;}
+  .hamburger{display:block;}
+  .nav-sync{display:none;}
+  .nav-right{gap:6px;}
+}
+/* ── RESPONSIVE FIXES ───────────────────────────── */
+@media(max-width:600px){
+  .page{padding:10px;}
+  .card{padding:13px;}
+  .g2,.g3,.g4{grid-template-columns:1fr;}
+  .ir{flex-direction:column;}
+  .ir .ci,.ir .cs,.ir input,.ir select{width:100%;min-width:0!important;}
+  .num-lg{font-size:20px;}
+  .num-md{font-size:17px;}
+  .score-big{font-size:36px;}
+  .rb{flex-wrap:wrap;gap:6px;}
+  .crow{flex-wrap:wrap;}
+  .by-badge{display:none;}
+  .tabs{overflow-x:auto;}
+  .stab{font-size:11px;padding:6px 4px;}
+  .monat-sel{flex-wrap:wrap;}
+  .monat-sel select{font-size:11px;}
+  .section-hdr{flex-wrap:wrap;gap:6px;}
+}
 </style>
 </head>
 <body>
@@ -105,6 +151,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link on" href="kalender.html">Kalender</a>
     <a class="nav-link" href="statistik.html">Statistik</a>
     <a class="nav-link" href="schulden.html">Schulden</a>
+      <a class="nav-link" href="einstellungen.html">⚙️</a>
   </div>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
@@ -179,7 +226,8 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});}
 function fmtEur(n){const v=Math.round(Number(n)*100)/100;return v<0?'−\u00a0€\u00a0'+fmtN(Math.abs(v)):'\u20ac\u00a0'+fmtN(v);}
 function validateStr(s,max){const v=String(s).trim();return(v.length>0&&v.length<=max)?v:null;}
-function userName(){return currentUser?currentUser.email.split('@')[0]:'unbekannt';}
+function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
+function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
 function todayISO(){return new Date().toISOString().split('T')[0];}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
 function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
@@ -417,7 +465,9 @@ async function doLogout(){await sb.auth.signOut();location.href='index.html';}
 function onLogin(user){
   currentUser=user;
   const nb=document.getElementById('nav-user');
-  if(nb) nb.textContent='👤 '+user.email.split('@')[0];
+  if(nb) nb.textContent='👤 '+getDisplayName(user);
+  const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
+  setSidebarPage('kalender');
   loadAndRender();
   loadChat();
   subscribeChat();
@@ -427,6 +477,11 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(res.data?.session?.user) onLogin(res.data.session.user);
   else location.href='index.html';
 });
+
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sb-overlay').classList.add('open');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-overlay').classList.remove('open');}
+function setSidebarPage(page){document.querySelectorAll('.sidebar-link').forEach(l=>{l.classList.toggle('on',l.dataset.page===page);});}
+
 </script>
 </body>
 </html>
