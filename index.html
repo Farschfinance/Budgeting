@@ -175,27 +175,28 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   </div>
 </div>
 
-<div id="main-app" style="display:none;">
-  <nav class="nav">
-    <button class="hamburger" onclick="openSidebar()">&#9776;</button>
+<nav class="nav" id="main-nav" style="display:none;">
+  <button class="hamburger" onclick="openSidebar()">&#9776;</button>
   <a class="nav-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
-    <div class="nav-links">
-      <a class="nav-link on" href="index.html">Dashboard</a>
-      <a class="nav-link" href="budget.html">Budget</a>
-      <a class="nav-link" href="spartoepfe.html">Spartöpfe</a>
-      <a class="nav-link" href="sinking.html">Sinking Funds</a>
-      <a class="nav-link" href="kalender.html">Kalender</a>
-      <a class="nav-link" href="statistik.html">Statistik</a>
-      <a class="nav-link" href="schulden.html">Schulden</a>
-      <a class="nav-link" href="einstellungen.html">⚙️</a>
-      <a class="nav-link" href="import.html">📥</a>
-    </div>
-    <div class="nav-right">
-      <div class="nav-user" id="nav-user"></div>
-      <div class="nav-sync ok" id="sync-badge">● Live</div>
-      <button class="nav-out" onclick="doLogout()">Abmelden</button>
-    </div>
-  </nav>
+  <div class="nav-links">
+    <a class="nav-link on" href="index.html">Dashboard</a>
+    <a class="nav-link" href="budget.html">Budget</a>
+    <a class="nav-link" href="spartoepfe.html">Spartöpfe</a>
+    <a class="nav-link" href="sinking.html">Sinking Funds</a>
+    <a class="nav-link" href="kalender.html">Kalender</a>
+    <a class="nav-link" href="statistik.html">Statistik</a>
+    <a class="nav-link" href="schulden.html">Schulden</a>
+    <a class="nav-link" href="einstellungen.html">⚙️</a>
+    <a class="nav-link" href="import.html">📥</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-user" id="nav-user"></div>
+    <div class="nav-sync ok" id="sync-badge">● Live</div>
+    <button class="nav-out" onclick="doLogout()">Abmelden</button>
+  </div>
+</nav>
+
+<div id="main-app" style="display:none;">
 
   <div class="page">
 
@@ -315,43 +316,74 @@ function userName(){return currentUser?getDisplayName(currentUser):'?';}
 function showErr(id){document.getElementById(id).style.display='block';}
 function hideErr(id){document.getElementById(id).style.display='none';}
 
-const TIPPS = [
-  "Überweise dir jeden Monat am Zahltag zuerst den Sparbetrag — bevor du irgendwas anderes ausgibst. So sparst du automatisch.",
-  "Führe eine 24-Stunden-Regel ein: Vor jedem ungeplanten Kauf über 30 € einen Tag warten. Oft vergeht die Lust von selbst.",
-  "Meal-Planning für die Woche spart im Schnitt 15–20 % der Lebensmittelkosten und reduziert Lebensmittelverschwendung.",
-  "Vergleiche einmal im Jahr alle Dauerbezüge: Strom, Handy, Internet, Versicherungen. Meist lässt sich hier am meisten sparen.",
-  "Ein Notgroschen von 1.000 € auf dem Tagesgeldkonto verhindert, dass unerwartete Ausgaben das Monatsbudget sprengen.",
-  "Kaufe Markenprodukte im Supermarkt nur wenn der Preisunterschied zur Eigenmarke wirklich durch Qualität gerechtfertigt ist.",
-  "Nutze Cashback-Programme und Payback nur wenn du das Geld ohnehin ausgibst — nicht als Kaufanreiz.",
-  "Kleine, regelmäßige Ausgaben addieren sich: 3 € täglich für Kaffee sind 90 € im Monat und 1.080 € im Jahr.",
-  "Überprüfe einmal im Quartal alle Abos — Streaming, Apps, Zeitschriften. Was nutzt du wirklich?",
-  "Setze dir ein monatliches 'Fun-Budget' das du ohne Schuldgefühle ausgeben kannst. Struktur schafft Freiheit.",
-  "Beim Einkaufen mit einer Liste kaufst du im Schnitt 23 % weniger als ohne.",
-  "Sinking Funds für planbare große Ausgaben verhindern, dass du in Schulden gerätst wenn das Auto zur Inspektion muss.",
-  "Vergleiche immer den Grundpreis (€ pro 100g oder pro Liter) — nicht den Packungspreis.",
-  "Reparieren statt wegschmeißen: Viele Haushaltsgeräte lassen sich für wenig Geld reparieren — YouTube hilft.",
-  "Ein gemeinsames Haushaltskonto für Gemeinschaftsausgaben verhindert Diskussionen über 'wer hat was bezahlt'.",
-  "Die 50-30-20-Regel: 50 % für Notwendiges, 30 % für Wünsche, 20 % für Sparen und Schulden tilgen.",
-  "Kaufe Saisonware — Obst, Gemüse und auch Kleidung — wenn sie gerade günstig ist, nicht wenn du sie brauchst.",
-  "Günstigere Alternativen für teure Gewohnheiten finden: Filterkaffee statt Kapsel, Bibliothek statt Buchkauf.",
-  "Schreibe jeden Abend kurz auf was du heute ausgegeben hast. Bewusstsein ist der erste Schritt zur Kontrolle.",
-  "Energiespartipps: Geräte aus dem Stand-by, LED-Lampen, Kühlschrank-Temperatur auf 7 Grad — summiert sich.",
-  "Beim Online-Shopping: Artikel in den Warenkorb legen und 48 Stunden warten. Viele Shops schicken dann Rabattcodes.",
-  "Verhandle Preise öfter als du denkst: Handytarife, Versicherungen und Bankgebühren sind oft verhandelbar.",
-  "Nutze den Unterschied zwischen 'brauche ich' und 'will ich' bewusst — beides ist okay, aber du solltest es wissen.",
-  "Investiere in Qualität bei Dingen die täglich benutzt werden: Schuhe, Matratze, Werkzeug. Billig wird oft teuer.",
-  "Teile große Ausgaben in monatliche Beträge auf — so siehst du was z.B. dein Auto wirklich kostet.",
-  "Kaufe gebraucht: Möbel, Elektronik, Bücher, Kleidung — oft 50-80 % günstiger als neu.",
-  "Setze klare finanzielle Ziele mit Datum. 'Ich will sparen' ist weniger wirksam als 'Ich spare bis Juli 500 €'.",
-  "Prüfe ob du Anspruch auf staatliche Unterstützung hast: Kindergeld, Wohngeld, BAföG, Bildungsgutschein.",
-  "Koche größere Mengen vor und friere ein. Weniger Spontaneinkäufe, weniger Lieferdienste.",
-  "Dein größter finanzieller Vorteil: Zeit. Früh anfangen zu sparen ist wichtiger als die Höhe des Betrags.",
-  "Trenne Konsum-Schulden (Kreditkarte, Dispo) von Investitions-Schulden. Konsumschulden immer zuerst tilgen."
+// ── TIPP DES TAGES via Claude AI ─────────────────────────
+// Cache-Key enthält das Datum → täglich ein neuer Tipp, kein unnötiger API-Call
+const TIPP_CACHE_KEY = 'kassenz_tipp_';
+
+// Fallback-Tipps falls API nicht erreichbar
+const FALLBACK_TIPPS = [
+  "Überweise dir am Zahltag zuerst den Sparbetrag — bevor du andere Ausgaben tätigst.",
+  "24-Stunden-Regel: Vor ungeplanten Käufen über 30 € einen Tag warten.",
+  "Meal-Planning spart 15–20 % der Lebensmittelkosten.",
+  "Abos prüfen: Was nutzt du wirklich? Streaming, Apps, Zeitschriften.",
+  "Notgroschen von 1.000 € auf dem Tagesgeldkonto verhindert Budgetsprenger.",
+  "Grundpreis vergleichen — €/100g oder €/Liter, nicht den Packungspreis.",
+  "Reparieren statt wegwerfen — YouTube hilft bei fast jedem Haushaltsgerät.",
 ];
 
-function getTipp() {
-  const idx = new Date().getDate() % TIPPS.length;
-  return TIPPS[idx];
+async function loadTippDesTagges() {
+  const today = new Date().toISOString().split('T')[0];
+  const cacheKey = TIPP_CACHE_KEY + today;
+
+  // Cache prüfen: heute schon einen Tipp geladen?
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    document.getElementById('tip-text').textContent = cached;
+    return;
+  }
+
+  // Placeholder anzeigen
+  document.getElementById('tip-text').textContent = '✨ Lade Tipp des Tages…';
+
+  try {
+    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(),0,0)) / 86400000);
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 120,
+        system: 'Du bist ein freundlicher Finanzberater für deutsche Haushalte. Antworte NUR mit einem einzigen praktischen Finanztipp auf Deutsch. Kein "Tipp:" davor, kein Emoji am Anfang, keine Nummerierung. Einfach ein direkter, hilfreicher Satz oder zwei. Sei konkret und alltagsnah. Variere den Fokus täglich.',
+        messages: [{
+          role: 'user',
+          content: `Gib mir den Finanztipp für Tag ${dayOfYear} des Jahres. Sei kreativ und abwechslungsreich — kein Tipp soll wie ein anderer klingen.`
+        }]
+      })
+    });
+
+    if (!response.ok) throw new Error('API ' + response.status);
+    const data = await response.json();
+    const tipp = data.content?.[0]?.text?.trim();
+
+    if (tipp && tipp.length > 10) {
+      localStorage.setItem(cacheKey, tipp);
+      // Alte Cache-Einträge aufräumen (älter als 3 Tage)
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith(TIPP_CACHE_KEY) && key !== cacheKey) {
+          const keyDate = key.replace(TIPP_CACHE_KEY, '');
+          const diff = (new Date(today) - new Date(keyDate)) / 86400000;
+          if (diff > 3) localStorage.removeItem(key);
+        }
+      }
+      document.getElementById('tip-text').textContent = tipp;
+    } else {
+      throw new Error('Leere Antwort');
+    }
+  } catch(e) {
+    // Fallback: fester Tipp aus Array
+    const fallback = FALLBACK_TIPPS[new Date().getDate() % FALLBACK_TIPPS.length];
+    document.getElementById('tip-text').textContent = fallback;
+  }
 }
 
 function setDatum() {
@@ -360,7 +392,8 @@ function setDatum() {
   const monate = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
   document.getElementById('today-date').textContent = now.getDate()+'. '+monate[now.getMonth()]+' '+now.getFullYear();
   document.getElementById('today-name').textContent = tage[now.getDay()];
-  document.getElementById('tip-text').textContent = getTipp();
+  // Tipp asynchron laden (zeigt zuerst Fallback, dann KI-Tipp)
+  loadTippDesTagges();
 }
 
 function calcScore(pct, bargeld, schulden) {
@@ -528,11 +561,11 @@ function onLogin(user) {
   currentUser=user;
   document.getElementById('login-screen').style.display='none';
   document.getElementById('main-app').style.display='block';
+  const mn=document.getElementById('main-nav');if(mn)mn.style.display='flex';
   const nb=document.getElementById('nav-user');
   if(nb) nb.textContent='👤 '+getDisplayName(user);
   const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
   setSidebarPage('index');
-  
   setDatum();
   loadDashboard();
 }
