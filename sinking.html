@@ -214,7 +214,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 const SUPABASE_URL = 'https://qhflajqbrzuxxxiqzlyi.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-let currentUser=null, funds=[];
+let currentUser=null, funds=[], sfBuchungen={};
 
 function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
@@ -224,17 +224,30 @@ function validateStr(s,max){const v=String(s).trim();return(v.length>0&&v.length
 function validateAmt(v,min,max){const n=parseFloat(v);return(!isNaN(n)&&n>=min&&n<=max)?Math.round(n*100)/100:null;}
 function showErr(id){document.getElementById(id).style.display='block';}
 function hideErr(id){document.getElementById(id).style.display='none';}
+function toggleEdit(id){const el=document.getElementById(id);if(el)el.classList.toggle('show');}
 function toggleForm(id){document.getElementById(id).classList.toggle('show');}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
 function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
 
 async function loadFunds(){
   try{
-    const {data,error}=await sb.from('sinking_funds').select('*').order('created_at');
-    if(error)throw error;
-    funds=data||[];
+    const [{data:fd,error:fe},{data:bd}] = await Promise.all([
+      sb.from('sinking_funds').select('*').order('created_at'),
+      sb.from('sinking_fund_buchungen').select('*').order('datum',{ascending:false})
+    ]);
+    if(fe)throw fe;
+    funds = fd||[];
+    // Buchungen nach fund_id gruppieren
+    sfBuchungen = {};
+    (bd||[]).forEach(b=>{
+      if(!sfBuchungen[b.fund_id]) sfBuchungen[b.fund_id]=[];
+      sfBuchungen[b.fund_id].push(b);
+    });
     renderFunds();setSyncOk();
-  }catch(e){setSyncErr();}
+  }catch(e){
+    console.error('loadFunds error:',e);
+    setSyncErr();
+  }
 }
 
 // Buchungshistorie als DOM-Elemente (kein verschachteltes Template-Literal!)
@@ -373,7 +386,6 @@ async function addFund(){
 }
 
 
-function toggleEdit(id){const el=document.getElementById(id);if(el)el.classList.toggle('show');}
 
 async function saveFund(id){
   const name=document.getElementById('esf-n-'+id).value.trim();
