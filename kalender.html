@@ -620,19 +620,28 @@ document.addEventListener('DOMContentLoaded',async()=>{
 let presenceChannel=null;
 function initPresence(myName){
   presenceChannel=sb.channel('online-users',{config:{presence:{key:myName}}});
+
+  function updateBadge(){
+    const state=presenceChannel.presenceState();
+    const others=Object.entries(state)
+      .filter(([k])=>k!==myName)
+      .map(([k,v])=>{const i=Array.isArray(v)?v[0]:v;return i?.name||k;});
+    const badge=document.getElementById('partner-badge');
+    if(!badge)return;
+    if(others.length>0){badge.textContent='● '+others.join(', ')+' online';badge.classList.add('visible');}
+    else{badge.textContent='';badge.classList.remove('visible');}
+  }
+
   presenceChannel
-    .on('presence',{event:'sync'},()=>{
-      const state=presenceChannel.presenceState();
-      const others=Object.entries(state)
-        .filter(([k])=>k!==myName)
-        .map(([k,v])=>{const i=Array.isArray(v)?v[0]:v;return i?.name||k;});
-      const badge=document.getElementById('partner-badge');
-      if(!badge)return;
-      if(others.length>0){badge.textContent='● '+others.join(', ')+' ist auch online';badge.classList.add('visible');}
-      else{badge.textContent='';badge.classList.remove('visible');}
-    })
+    .on('presence',{event:'sync'},updateBadge)
+    .on('presence',{event:'join'},updateBadge)
+    .on('presence',{event:'leave'},updateBadge)
     .subscribe(async(s)=>{
-      if(s==='SUBSCRIBED') await presenceChannel.track({name:myName,ts:Date.now()});
+      if(s==='SUBSCRIBED'){
+        await presenceChannel.track({name:myName,ts:Date.now()});
+        // Sofort nach Verbindung State abfragen
+        updateBadge();
+      }
     });
 }
 
