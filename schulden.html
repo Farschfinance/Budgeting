@@ -335,14 +335,13 @@ function updateDebt(){
 }
 
 async function doLogout(){await sb.auth.signOut();location.href='index.html';}
-function onLogin(user){
+async function onLogin(user){
   currentUser=user;
   const nb=document.getElementById('nav-user');
   if(nb) nb.textContent='👤 '+getDisplayName(user);
   const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
   setSidebarPage('schulden');
-  
-  render();setSyncOk();
+  await loadDebtState();
 }
 document.addEventListener('DOMContentLoaded',async()=>{
   const res=await sb.auth.getSession();

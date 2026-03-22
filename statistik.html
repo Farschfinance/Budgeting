@@ -331,8 +331,6 @@ async function loadStats(){
     let einnahmenQuery=sb.from('einnahmen').select('*')
       .gte('datum',p.from).lte('datum',p.to);
 
-    {
-
     const [ra,re,rc]=await Promise.all([ausgabenQuery,einnahmenQuery,sb.from('kategorien').select('*')]);
     const ausgaben=ra.data||[];
     const einnahmen=re.data||[];
