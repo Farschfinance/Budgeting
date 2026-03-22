@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KassenAbsturZ · CSV Import</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Orbitron:wght@600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0E0B16;--s1:#16121F;--s2:#1E1929;--s3:#261F35;--border:rgba(140,100,200,0.18);--border2:rgba(140,100,200,0.35);--purple:#9B5FD4;--pl:#C490F0;--cyan:#3DD9C5;--green:#3DD98A;--red:#E05577;--amber:#E0A830;--text:#EDE8F5;--muted:#8878A8;--muted2:#5C5075;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;min-height:100vh;}
+.nav{background:var(--s1);border-bottom:1px solid var(--border2);padding:0 14px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100;gap:8px;}
+.nav-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;flex-shrink:0;}
+.nav-logo span{color:var(--cyan);}
+.nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;}
+.nav-links::-webkit-scrollbar{display:none;}
+.nav-link{color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;}
+.nav-link:hover{color:var(--text);background:var(--s2);}
+.nav-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.nav-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.nav-sync{font-size:11px;border-radius:20px;padding:3px 10px;}
+.nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
+.nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
+.nav-out{font-size:11px;color:var(--muted2);background:transparent;border:1px solid var(--border);border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.nav-out:hover{color:var(--red);}
+.hamburger{display:none;background:transparent;border:1px solid var(--border2);border-radius:7px;padding:6px 9px;cursor:pointer;color:var(--text);font-size:18px;line-height:1;flex-shrink:0;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:199;backdrop-filter:blur(2px);}
+.sidebar-overlay.open{display:block;}
+.sidebar{position:fixed;top:0;left:-280px;width:260px;height:100vh;background:var(--s1);border-right:1px solid var(--border2);z-index:200;transition:left .25s ease;display:flex;flex-direction:column;}
+.sidebar.open{left:0;}
+.sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border);}
+.sidebar-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
+.sidebar-logo span{color:var(--cyan);}
+.sidebar-close{background:transparent;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1;}
+.sidebar-user{padding:14px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--pl);font-weight:500;}
+.sidebar-links{flex:1;overflow-y:auto;padding:10px 8px;}
+.sidebar-link{display:block;color:var(--muted);text-decoration:none;padding:10px 12px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:2px;}
+.sidebar-link:hover{color:var(--text);background:var(--s2);}
+.sidebar-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.sidebar-footer{padding:12px 8px;border-top:1px solid var(--border);}
+.sidebar-out{width:100%;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;text-align:left;}
+.sidebar-out:hover{color:var(--red);}
+.page{max-width:900px;margin:0 auto;padding:16px;}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
+.lbl{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;font-weight:500;display:block;}
+.btn{background:rgba(155,95,212,0.2);border:1px solid var(--purple);border-radius:8px;color:var(--pl);padding:9px 18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn:hover{background:rgba(155,95,212,0.35);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-green{background:rgba(61,217,138,0.18);border:1px solid rgba(61,217,138,0.45);border-radius:8px;color:var(--green);padding:9px 18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn-green:hover{background:rgba(61,217,138,0.28);}
+.btn-green:disabled{opacity:.4;cursor:not-allowed;}
+.ci{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
+.ci:focus{border-color:var(--purple);}
+.cs{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
+
+/* DROP ZONE */
+.dropzone{border:2px dashed var(--border2);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:border-color .2s;}
+.dropzone:hover,.dropzone.drag{border-color:var(--purple);background:rgba(155,95,212,0.05);}
+.dropzone-icon{font-size:36px;margin-bottom:10px;}
+.dropzone-text{font-size:14px;color:var(--muted);}
+.dropzone-hint{font-size:12px;color:var(--muted2);margin-top:6px;}
+#file-input{display:none;}
+
+/* INFO BOX */
+.info{background:var(--s2);border-left:3px solid var(--cyan);border-radius:0 8px 8px 0;padding:12px 16px;font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;}
+.info strong{color:var(--text);}
+.warn{background:rgba(224,168,48,0.08);border-left:3px solid var(--amber);border-radius:0 8px 8px 0;padding:12px 16px;font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;}
+
+/* STEP INDICATOR */
+.steps{display:flex;gap:8px;margin-bottom:20px;align-items:center;}
+.step{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted2);}
+.step.active{color:var(--pl);font-weight:600;}
+.step.done{color:var(--green);}
+.step-num{width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;}
+.step-arrow{color:var(--muted2);font-size:12px;}
+
+/* PREVIEW TABLE */
+.preview-wrap{overflow-x:auto;margin-top:12px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:var(--s2);padding:8px 10px;text-align:left;font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;}
+td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;}
+tr.dup td{opacity:.45;}
+tr.dup .dup-badge{opacity:1;}
+tr.ignored td{opacity:.3;}
+tr.ignored .status-cell{opacity:1;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+.dup-badge{font-size:10px;background:rgba(224,85,119,0.15);color:var(--red);border-radius:10px;padding:1px 8px;white-space:nowrap;}
+.new-badge{font-size:10px;background:rgba(61,217,138,0.15);color:var(--green);border-radius:10px;padding:1px 8px;white-space:nowrap;}
+.ign-badge{font-size:10px;background:rgba(140,100,200,0.15);color:var(--muted);border-radius:10px;padding:1px 8px;white-space:nowrap;}
+
+/* ROW ACTION CONTROLS */
+.row-action{display:flex;gap:6px;align-items:center;}
+.action-sel{background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;}
+.cat-sel{background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;min-width:110px;}
+
+/* STATS BAR */
+.stats-bar{display:flex;gap:16px;flex-wrap:wrap;padding:12px 16px;background:var(--s2);border-radius:8px;margin-bottom:14px;}
+.stat-item{display:flex;align-items:center;gap:6px;font-size:13px;}
+.stat-dot{width:8px;height:8px;border-radius:50%;}
+
+/* PROGRESS */
+.progress-wrap{display:none;margin-top:10px;}
+.progress-bar{height:6px;background:var(--s3);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--green);border-radius:3px;width:0%;transition:width .3s;}
+.progress-text{font-size:12px;color:var(--muted);margin-top:6px;}
+
+/* RESULT */
+.result-box{display:none;background:rgba(61,217,138,0.08);border:1px solid rgba(61,217,138,0.3);border-radius:10px;padding:16px;margin-top:12px;}
+
+@media(max-width:700px){.nav-links{display:none;}.hamburger{display:block;}}
+@media(max-width:600px){.page{padding:10px;}.steps{flex-wrap:wrap;}.stats-bar{gap:10px;}.preview-wrap{font-size:12px;}td,th{padding:6px 8px;}}
+</style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a class="sidebar-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+    <button class="sidebar-close" onclick="closeSidebar()">&#215;</button>
+  </div>
+  <div class="sidebar-user" id="sb-user">👤 …</div>
+  <div class="sidebar-links">
+    <a class="sidebar-link" data-page="index" href="index.html">🏠&#8202; Dashboard</a>
+    <a class="sidebar-link" data-page="budget" href="budget.html">💸&#8202; Budget</a>
+    <a class="sidebar-link" data-page="spartoepfe" href="spartoepfe.html">🪙&#8202; Spartöpfe</a>
+    <a class="sidebar-link" data-page="sinking" href="sinking.html">🎯&#8202; Sinking Funds</a>
+    <a class="sidebar-link" data-page="kalender" href="kalender.html">📅&#8202; Kalender</a>
+    <a class="sidebar-link" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
+    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
+    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
+    <a class="sidebar-link on" data-page="import" href="import.html">📥&#8202; CSV Import</a>
+  </div>
+  <div class="sidebar-footer">
+    <button class="sidebar-out" onclick="doLogout()">← Abmelden</button>
+  </div>
+</div>
+
+<nav class="nav">
+  <button class="hamburger" onclick="openSidebar()">&#9776;</button>
+  <a class="nav-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+  <div class="nav-links">
+    <a class="nav-link" href="index.html">Dashboard</a>
+    <a class="nav-link" href="budget.html">Budget</a>
+    <a class="nav-link" href="spartoepfe.html">Spartöpfe</a>
+    <a class="nav-link" href="sinking.html">Sinking Funds</a>
+    <a class="nav-link" href="kalender.html">Kalender</a>
+    <a class="nav-link" href="statistik.html">Statistik</a>
+    <a class="nav-link" href="schulden.html">Schulden</a>
+    <a class="nav-link on" href="import.html">📥 Import</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-user" id="nav-user"></div>
+    <div class="nav-sync ok" id="sync-badge">● Live</div>
+    <button class="nav-out" onclick="doLogout()">Abmelden</button>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- STEPS -->
+  <div class="steps">
+    <div class="step done" id="step-1"><div class="step-num">1</div> CSV laden</div>
+    <div class="step-arrow">›</div>
+    <div class="step" id="step-2"><div class="step-num">2</div> Prüfen & zuweisen</div>
+    <div class="step-arrow">›</div>
+    <div class="step" id="step-3"><div class="step-num">3</div> Importieren</div>
+  </div>
+
+  <!-- INFO -->
+  <div class="info">
+    <strong>Volksbank Stuttgart — CSV Export</strong><br>
+    Online-Banking → Konto → Umsätze → <strong>Export → CSV</strong> → Zeitraum wählen → Exportieren.<br>
+    Die Datei wird <strong>nur in deinem Browser</strong> verarbeitet — sie verlässt nie dein Gerät.
+  </div>
+
+  <!-- SCHRITT 1: UPLOAD -->
+  <div class="card" id="card-upload">
+    <span class="lbl">Schritt 1 · CSV-Datei hochladen</span>
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="handleDrop(event)">
+      <div class="dropzone-icon">📂</div>
+      <div class="dropzone-text">CSV-Datei hier ablegen oder klicken</div>
+      <div class="dropzone-hint" id="file-name">Volksbank CSV · Semikolon-getrennt</div>
+    </div>
+    <input type="file" id="file-input" accept=".csv,.txt" onchange="handleFile(this.files[0])">
+    <div class="warn" style="margin-top:12px;margin-bottom:0;">
+      ⚠️ Die Datei wird <strong style="color:var(--text);">nicht hochgeladen</strong> — alles passiert lokal in deinem Browser. Keine Bankdaten verlassen dein Gerät.
+    </div>
+  </div>
+
+  <!-- SCHRITT 2: VORSCHAU -->
+  <div class="card" id="card-preview" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <span class="lbl" style="margin:0;">Schritt 2 · Buchungen prüfen & zuweisen</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="ignoreAllDups()">Alle Duplikate ignorieren</button>
+        <button class="btn" onclick="resetFile()" style="background:transparent;border-color:var(--border2);color:var(--muted);">Neue Datei</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar" id="stats-bar"></div>
+
+    <!-- Legende -->
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+      Wähle für jede Buchung: <strong style="color:var(--green);">Ausgabe</strong> (Kategorie zuweisen) ·
+      <strong style="color:var(--cyan);">Einnahme</strong> ·
+      <strong style="color:var(--muted);">Ignorieren</strong> (wird nicht importiert)
+    </div>
+
+    <div class="preview-wrap">
+      <table id="preview-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Datum</th>
+            <th>Empfänger / Verwendungszweck</th>
+            <th>Betrag</th>
+            <th>Aktion</th>
+            <th>Kategorie</th>
+            <th>Beschreibung</th>
+          </tr>
+        </thead>
+        <tbody id="preview-body"></tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button class="btn-green" id="import-btn" onclick="doImport()">✓ Ausgewählte importieren</button>
+      <span id="import-count" style="font-size:13px;color:var(--muted);"></span>
+    </div>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-text" id="progress-text">Importiere…</div>
+    </div>
+  </div>
+
+  <!-- SCHRITT 3: ERGEBNIS -->
+  <div class="result-box" id="result-box">
+    <div style="font-size:16px;font-weight:600;color:var(--green);margin-bottom:6px;">✓ Import abgeschlossen!</div>
+    <div id="result-text" style="font-size:13px;color:var(--muted);"></div>
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="budget.html" class="btn-green" style="text-decoration:none;display:inline-block;">→ Zum Budget</a>
+      <button class="btn" onclick="resetFile()">Weiteren Import starten</button>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+const SUPABASE_URL='https://qhflajqbrzuxxxiqzlyi.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null, cats=[], rows=[], existingFingerprints=new Set();
+// Erinnerung: Empfänger → zuletzt gewählte Kategorie/Aktion (gespeichert in localStorage)
+let memory = JSON.parse(localStorage.getItem('import_memory')||'{}');
+
+/* ── UTILS ─────────────────────────────────────────────── */
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
+function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
+function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
+function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sb-overlay').classList.add('open');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-overlay').classList.remove('open');}
+function setSidebarPage(p){document.querySelectorAll('.sidebar-link').forEach(l=>l.classList.toggle('on',l.dataset.page===p));}
+
+/* ── FINGERPRINT ────────────────────────────────────────── */
+// Eindeutiger Hash: Datum + Betrag + erste 20 Zeichen Empfänger
+function fingerprint(datum, betrag, empfaenger){
+  const e = String(empfaenger||'').trim().substring(0,20).toLowerCase();
+  return `${datum}|${Math.round(Number(betrag)*100)}|${e}`;
+}
+
+/* ── CSV PARSEN ─────────────────────────────────────────── */
+// Volksbank Format: Semikolon, ISO-Latin-1, Anführungszeichen optional
+// Spalten: Datum;Valuta;Betrag;Währung;Zahler/Empfänger;Verwendungszweck;Buchungstext;Kundenreferenz;Ursprung;Kontoauszugsnummer
+function parseVolksbankCSV(text){
+  // Decode Latin-1 to UTF-8 is handled by FileReader with encoding
+  const lines = text.split(/\r?\n/).filter(l=>l.trim().length>0);
+  if(lines.length < 2) return [];
+
+  // Prüfe ob erste Zeile Header ist
+  const firstLine = lines[0].toLowerCase();
+  const hasHeader = firstLine.includes('datum') || firstLine.includes('betrag') || firstLine.includes('valuta');
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+
+  const parsed = [];
+  for(const line of dataLines){
+    // Semikolon-Split mit Anführungszeichen-Handling
+    const cols = splitCSVLine(line, ';');
+    if(cols.length < 5) continue;
+
+    const datum     = parseDate(cols[0]);
+    const betragRaw = cols[2] || cols[6] || ''; // Spalte 3 (Index 2) = Betrag
+    const empf      = (cols[4]||'').trim();
+    const zweck     = (cols[5]||'').trim();
+    const buchtyp   = (cols[6]||'').trim();
+
+    if(!datum || !betragRaw) continue;
+
+    // Betrag: deutsches Format "1.234,56" → number
+    const betrag = parseBetrag(betragRaw);
+    if(isNaN(betrag) || betrag === 0) continue;
+
+    // Beschreibung zusammenbauen
+    const beschreibung = [empf, zweck].filter(Boolean).join(' · ').substring(0,80);
+
+    parsed.push({
+      datum,
+      betrag: Math.round(Math.abs(betrag)*100)/100,
+      isAusgabe: betrag < 0,
+      empfaenger: empf.substring(0,60),
+      verwendungszweck: zweck.substring(0,80),
+      beschreibung: beschreibung || buchtyp.substring(0,60) || '(kein Text)',
+      fp: fingerprint(datum, betrag, empf),
+    });
+  }
+  return parsed;
+}
+
+function splitCSVLine(line, sep){
+  const cols=[];let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){inQ=!inQ;}
+    else if(c===sep&&!inQ){cols.push(cur.trim());cur='';}
+    else cur+=c;
+  }
+  cols.push(cur.trim());
+  return cols;
+}
+
+function parseDate(raw){
+  // DD.MM.YYYY oder YYYY-MM-DD
+  raw=(raw||'').trim().replace(/"/g,'');
+  if(/^\d{2}\.\d{2}\.\d{4}$/.test(raw)){
+    const[d,m,y]=raw.split('.');
+    return`${y}-${m}-${d}`;
+  }
+  if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  return null;
+}
+
+function parseBetrag(raw){
+  // "1.234,56" → 1234.56 oder "-123,45" → -123.45
+  let s=String(raw).replace(/"/g,'').trim();
+  // Tausenderpunkt entfernen, Komma → Punkt
+  s=s.replace(/\./g,'').replace(',','.');
+  return parseFloat(s);
+}
+
+/* ── FILE HANDLING ──────────────────────────────────────── */
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('drag');
+  const file=e.dataTransfer.files[0];
+  if(file) handleFile(file);
+}
+
+function handleFile(file){
+  if(!file) return;
+  document.getElementById('file-name').textContent=file.name+' ('+Math.round(file.size/1024)+' KB)';
+  // Latin-1 Encoding für Volksbank
+  const reader=new FileReader();
+  reader.onload=e=>processCSV(e.target.result);
+  reader.readAsText(file,'iso-8859-1');
+}
+
+async function processCSV(text){
+  const parsed=parseVolksbankCSV(text);
+  if(!parsed.length){
+    alert('Keine gültigen Buchungen gefunden. Bitte prüfe ob es eine Volksbank CSV-Datei ist.');
+    return;
+  }
+
+  // Lade bestehende Fingerprints aus DB für Duplikat-Erkennung
+  const allFPs=new Set();
+  // Ausgaben
+  const{data:aus}=await sb.from('ausgaben').select('created_at,betrag,beschreibung');
+  (aus||[]).forEach(a=>{
+    const d=a.created_at?a.created_at.split('T')[0]:'';
+    // Wir können nicht exakt matchen ohne Empfänger, daher Datum+Betrag als light fingerprint
+    allFPs.add(`${d}|${Math.round(Number(a.betrag)*100)}`);
+  });
+  // Einnahmen
+  const{data:ein}=await sb.from('einnahmen').select('datum,betrag,bezeichnung');
+  (ein||[]).forEach(e=>{
+    allFPs.add(`${e.datum||''}|${Math.round(Number(e.betrag)*100)}`);
+  });
+  existingFingerprints=allFPs;
+
+  // Zeilen aufbauen mit Status
+  rows=parsed.map((p,i)=>{
+    const lightFP=`${p.datum}|${Math.round(p.betrag*100)}`;
+    const isDup=allFPs.has(lightFP);
+    // Erinnerte Aktion für diesen Empfänger?
+    const remembered=memory[p.empfaenger.toLowerCase().substring(0,30)];
+    return{
+      ...p,
+      id:i,
+      status: isDup?'dup':'new',
+      action: isDup?'ignore': (p.isAusgabe ? 'ausgabe' : 'einnahme'),
+      catId: remembered?.catId||'',
+      action: isDup?'ignore': (remembered?.action||(p.isAusgabe?'ausgabe':'einnahme')),
+    };
+  });
+
+  renderPreview();
+  document.getElementById('card-upload').style.display='none';
+  document.getElementById('card-preview').style.display='block';
+  setStep(2);
+}
+
+/* ── PREVIEW RENDER ─────────────────────────────────────── */
+function renderPreview(){
+  const tbody=document.getElementById('preview-body');
+  const catOpts=cats.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+
+  tbody.innerHTML=rows.map(r=>{
+    const isDup=r.status==='dup';
+    const isIgn=r.action==='ignore';
+    const rowCls=isDup&&r.action==='ignore'?'dup':isIgn?'ignored':'';
+    const statusBadge=isDup
+      ?`<span class="dup-badge">Duplikat</span>`
+      :isIgn?`<span class="ign-badge">Ignoriert</span>`
+      :`<span class="new-badge">Neu</span>`;
+    const betragCol=r.isAusgabe
+      ?`<span style="color:var(--amber);">−\u00a0€\u00a0${fmtN(r.betrag)}</span>`
+      :`<span style="color:var(--green);">+\u00a0€\u00a0${fmtN(r.betrag)}</span>`;
+    const catCol=r.action==='ausgabe'
+      ?`<select class="cat-sel" id="cat-${r.id}" onchange="setCat(${r.id},this.value)"><option value="">— Kategorie —</option>${catOpts}</select>`
+      :`<span style="color:var(--muted);font-size:12px;">—</span>`;
+    return`<tr class="${rowCls}" id="row-${r.id}">
+      <td class="status-cell">${statusBadge}</td>
+      <td style="white-space:nowrap;color:var(--muted);">${esc(r.datum.split('-').reverse().join('.'))}</td>
+      <td style="max-width:260px;">
+        <div style="font-size:13px;">${esc(r.empfaenger||'—')}</div>
+        <div style="font-size:11px;color:var(--muted2);">${esc(r.verwendungszweck||'')}</div>
+      </td>
+      <td style="white-space:nowrap;">${betragCol}</td>
+      <td class="row-action">
+        <select class="action-sel" id="action-${r.id}" onchange="setAction(${r.id},this.value)">
+          <option value="ausgabe"${r.action==='ausgabe'?' selected':''}>Ausgabe</option>
+          <option value="einnahme"${r.action==='einnahme'?' selected':''}>Einnahme</option>
+          <option value="ignore"${r.action==='ignore'?' selected':''}>Ignorieren</option>
+        </select>
+      </td>
+      <td>${catCol}</td>
+      <td>
+        <input class="ci" id="desc-${r.id}" value="${esc(r.beschreibung)}" maxlength="60"
+          style="font-size:12px;padding:4px 8px;min-width:120px;"
+          oninput="setDesc(${r.id},this.value)">
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Kategorie-Select vorausfüllen
+  rows.forEach(r=>{
+    if(r.catId){const s=document.getElementById('cat-'+r.id);if(s)s.value=r.catId;}
+  });
+
+  updateStats();
+}
+
+function setAction(id, action){
+  const r=rows.find(x=>x.id===id);
+  if(!r)return;
+  r.action=action;
+  // Erinnerung speichern
+  const key=r.empfaenger.toLowerCase().substring(0,30);
+  memory[key]={...(memory[key]||{}),action};
+  localStorage.setItem('import_memory',JSON.stringify(memory));
+  // Cat-Zelle aktualisieren
+  const catCell=document.getElementById('cat-'+id)?.closest('td');
+  if(catCell){
+    const catOpts=cats.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+    catCell.innerHTML=action==='ausgabe'
+      ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Kategorie —</option>${catOpts}</select>`
+      :`<span style="color:var(--muted);font-size:12px;">—</span>`;
+    if(action==='ausgabe'&&r.catId){const s=document.getElementById('cat-'+id);if(s)s.value=r.catId;}
+  }
+  // Row styling
+  const row=document.getElementById('row-'+id);
+  if(row) row.className=action==='ignore'?'ignored':'';
+  // Status badge
+  const sb=row?.querySelector('.status-cell');
+  if(sb) sb.innerHTML=action==='ignore'?'<span class="ign-badge">Ignoriert</span>':'<span class="new-badge">Neu</span>';
+  updateStats();
+}
+
+function setCat(id, catId){
+  const r=rows.find(x=>x.id===id);
+  if(!r)return;
+  r.catId=catId;
+  const key=r.empfaenger.toLowerCase().substring(0,30);
+  memory[key]={...(memory[key]||{}),catId};
+  localStorage.setItem('import_memory',JSON.stringify(memory));
+  updateStats();
+}
+
+function setDesc(id, desc){
+  const r=rows.find(x=>x.id===id);
+  if(r) r.beschreibung=desc.substring(0,60);
+}
+
+function ignoreAllDups(){
+  rows.forEach(r=>{if(r.status==='dup'){r.action='ignore';const s=document.getElementById('action-'+r.id);if(s)s.value='ignore';setAction(r.id,'ignore');}});
+}
+
+function updateStats(){
+  const total=rows.length;
+  const dup=rows.filter(r=>r.status==='dup').length;
+  const ignored=rows.filter(r=>r.action==='ignore').length;
+  const toImport=rows.filter(r=>r.action!=='ignore').length;
+  const noCat=rows.filter(r=>r.action==='ausgabe'&&!r.catId).length;
+
+  document.getElementById('stats-bar').innerHTML=`
+    <div class="stat-item"><div class="stat-dot" style="background:var(--text);"></div>${total} Buchungen gesamt</div>
+    <div class="stat-item"><div class="stat-dot" style="background:var(--red);"></div>${dup} Duplikate</div>
+    <div class="stat-item"><div class="stat-dot" style="background:var(--green);"></div>${toImport} werden importiert</div>
+    <div class="stat-item"><div class="stat-dot" style="background:var(--muted);"></div>${ignored} ignoriert</div>
+    ${noCat>0?`<div class="stat-item" style="color:var(--amber);">⚠ ${noCat} ohne Kategorie</div>`:''}`;
+
+  const btn=document.getElementById('import-btn');
+  const cnt=document.getElementById('import-count');
+  btn.disabled=toImport===0;
+  cnt.textContent=toImport>0?`${toImport} Buchungen werden importiert`:'Nichts zum Importieren ausgewählt';
+}
+
+/* ── IMPORT ─────────────────────────────────────────────── */
+async function doImport(){
+  const toImport=rows.filter(r=>r.action!=='ignore');
+  if(!toImport.length)return;
+
+  // Validierung: alle Ausgaben haben Kategorie?
+  const missing=toImport.filter(r=>r.action==='ausgabe'&&!r.catId);
+  if(missing.length){
+    alert(`${missing.length} Ausgabe(n) haben noch keine Kategorie zugewiesen. Bitte ergänze sie zuerst.`);
+    return;
+  }
+
+  document.getElementById('import-btn').disabled=true;
+  const pw=document.getElementById('progress-wrap');
+  const pf=document.getElementById('progress-fill');
+  const pt=document.getElementById('progress-text');
+  pw.style.display='block';
+  setStep(3);
+
+  let done=0, errors=0;
+
+  for(const r of toImport){
+    try{
+      if(r.action==='ausgabe'){
+        // Kategorie spent aktualisieren
+        const cat=cats.find(c=>c.id===r.catId);
+        if(cat){
+          const newSpent=Math.round((Number(cat.spent)+r.betrag)*100)/100;
+          await sb.from('kategorien').update({spent:newSpent}).eq('id',r.catId);
+          cat.spent=newSpent;
+        }
+        await sb.from('ausgaben').insert({
+          beschreibung:r.beschreibung,
+          betrag:r.betrag,
+          kategorie_id:r.catId,
+          erstellt_von:userName()+' (Import)',
+          created_at:r.datum+'T12:00:00'
+        });
+      } else if(r.action==='einnahme'){
+        const d=new Date(r.datum+'T12:00:00');
+        await sb.from('einnahmen').insert({
+          bezeichnung:r.beschreibung,
+          betrag:r.betrag,
+          kategorie:'Import',
+          datum:r.datum,
+          monat:d.getMonth()+1,
+          jahr:d.getFullYear()
+        });
+      }
+      done++;
+    }catch(e){errors++;}
+
+    pf.style.width=Math.round((done+errors)/toImport.length*100)+'%';
+    pt.textContent=`${done+errors} von ${toImport.length} importiert…`;
+  }
+
+  pw.style.display='none';
+  const rb=document.getElementById('result-box');
+  const rt=document.getElementById('result-text');
+  rb.style.display='block';
+  rt.innerHTML=`<strong style="color:var(--green);">${done}</strong> Buchungen erfolgreich importiert.`
+    +(errors>0?` <span style="color:var(--red);">${errors} Fehler.</span>`:'')
+    +`<br>Sie sind jetzt in Budget und Statistik sichtbar.`;
+
+  setSyncOk();
+}
+
+function resetFile(){
+  rows=[];
+  document.getElementById('card-upload').style.display='block';
+  document.getElementById('card-preview').style.display='none';
+  document.getElementById('result-box').style.display='none';
+  document.getElementById('file-name').textContent='Volksbank CSV · Semikolon-getrennt';
+  document.getElementById('file-input').value='';
+  setStep(1);
+}
+
+function setStep(n){
+  [1,2,3].forEach(i=>{
+    const el=document.getElementById('step-'+i);
+    if(!el)return;
+    el.className='step'+(i<n?' done':i===n?' active':'');
+  });
+}
+
+/* ── AUTH ───────────────────────────────────────────────── */
+async function doLogout(){await sb.auth.signOut();location.href='index.html';}
+
+async function loadCats(){
+  const{data}=await sb.from('kategorien').select('*').order('created_at');
+  cats=data||[];
+}
+
+function onLogin(user){
+  currentUser=user;
+  const nb=document.getElementById('nav-user');if(nb)nb.textContent='👤 '+getDisplayName(user);
+  const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
+  setSidebarPage('import');
+  loadCats();
+  setSyncOk();
+  setStep(1);
+}
+
+document.addEventListener('DOMContentLoaded',async()=>{
+  const res=await sb.auth.getSession();
+  if(res.data?.session?.user)onLogin(res.data.session.user);
+  else location.href='index.html';
+});
+</script>
+</body>
+</html>
