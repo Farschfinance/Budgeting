@@ -334,13 +334,12 @@ async function savePassword(){
 let periodHistory = []; // [{start_day, gueltig_ab}] sortiert aufsteigend
 
 async function loadPeriod(){
-  const {data} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true}).order('created_at',{ascending:true});
+  const {data, error} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true}).order('created_at',{ascending:true});
+  if(error){ console.error('loadPeriod Fehler:', error); }
   periodHistory = data || [];
-  let current = getStartDayForDate(localISO(new Date()));
-  // Sicherheit: wenn noch 1 und Einträge vorhanden, nimm den letzten
-  if(current === 1 && periodHistory.length > 0){
-    current = parseInt(periodHistory[periodHistory.length-1].start_day)||1;
-  }
+  console.log('[Einstellungen] period_history:', periodHistory.map(e=>e.start_day+'@'+e.gueltig_ab).join(', ')||'leer');
+  const current = getStartDayForDate(localISO(new Date()));
+  console.log('[Einstellungen] aktueller Starttag:', current);
   const el = document.getElementById('start-day');
   if(el) el.value = current;
   renderPeriodHistory();
@@ -425,6 +424,7 @@ async function savePeriod(){
 
   okEl.textContent='✓ Gespeichert! Gültig ab '+gueltigAb.split('-').reverse().join('.')+' · Starttag '+val+'.';
   okEl.style.display='block';
+  console.log('[Einstellungen] Gespeichert: start_day='+val+' gueltig_ab='+gueltigAb);
   await loadPeriod();
 }
 
