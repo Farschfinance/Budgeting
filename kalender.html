@@ -355,8 +355,17 @@ function renderCalendar(){
 
 function getEventsForDay(iso){
   const evs=[];
+  // Manuelle Kalendereinträge
   kalEvents.filter(e=>e.datum===iso).forEach(e=>evs.push({...e,quelle:'manuell'}));
+  // Einnahmen
   einnahmen.filter(e=>e.datum===iso).forEach(e=>evs.push({typ:'einnahme',titel:e.bezeichnung,betrag:e.betrag,quelle:'einnahme',id:e.id}));
+  // Sinking Fund Fälligkeiten
+  sfFunds.filter(f=>f.faelligkeit===iso).forEach(f=>{
+    const pct=f.ziel>0?Math.round(Number(f.angespart)/Number(f.ziel)*100):0;
+    const titel=f.name+' fällig';
+    const notiz=`Angespart: € ${Number(f.angespart).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})} / Ziel: € ${Number(f.ziel).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})} (${pct}%)`;
+    evs.push({typ:'sf',titel,notiz,betrag:null,quelle:'sinking',id:'sf-'+f.id});
+  });
   return evs;
 }
 
@@ -555,6 +564,11 @@ function onLogin(user){
   loadAndRender();
   loadChat();
   subscribeChat();
+  // Kalender-Einträge und Sinking Fund Fälligkeiten live aktualisieren
+  sb.channel('kal-data-sync')
+    .on('postgres_changes',{event:'*',schema:'public',table:'kalender'},()=>loadMonth())
+    .on('postgres_changes',{event:'*',schema:'public',table:'sinking_funds'},()=>loadMonth())
+    .subscribe();
 }
 
 document.addEventListener('DOMContentLoaded',async()=>{
