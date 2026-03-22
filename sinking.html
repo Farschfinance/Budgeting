@@ -201,11 +201,21 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <div class="add-form" id="sfform">
       <div class="ir">
         <input class="ci" id="sf-name" placeholder="Name z.B. KFZ-Versicherung" maxlength="40" style="flex:2;min-width:140px;">
-        <input class="ci" id="sf-mo" type="number" placeholder="€ / Monat" min="1" max="9999" step="1" style="flex:1;min-width:100px;">
-        <input class="ci" id="sf-goal" type="number" placeholder="Ziel €" min="1" max="99999" step="1" style="flex:1;min-width:90px;">
-        <input class="ci" id="sf-due" placeholder="Fälligkeit z.B. Okt 2025" maxlength="20" style="flex:1;min-width:120px;">
+        <input class="ci" id="sf-mo" type="number" placeholder="€ / Monat (opt.)" min="0" max="9999" step="1" style="flex:1;min-width:110px;">
+        <input class="ci" id="sf-goal" type="number" placeholder="Betrag pro Fälligkeit €" min="1" max="99999" step="1" style="flex:1;min-width:130px;">
       </div>
-      <div id="sf-err" class="ferr">Bitte Name, Monatsbetrag und Ziel eingeben.</div>
+      <div class="ir" style="margin-top:8px;">
+        <select class="ci" id="sf-turnus" style="flex:1;min-width:140px;" onchange="updateNewFundDue()">
+          <option value="einmalig">Einmalig</option>
+          <option value="monatlich">Monatlich</option>
+          <option value="quartalsweise" selected>Quartalsweise</option>
+          <option value="halbjaehrlich">Halbjährlich</option>
+          <option value="jaehrlich">Jährlich</option>
+        </select>
+        <input class="ci" id="sf-due" type="date" style="flex:1;min-width:140px;">
+        <span style="font-size:12px;color:var(--muted);align-self:center;min-width:160px;" id="sf-due-preview"></span>
+      </div>
+      <div id="sf-err" class="ferr">Bitte Name und Betrag pro Fälligkeit eingeben.</div>
       <button class="btn" onclick="addFund()">Hinzufügen</button>
     </div>
     <div class="sfgrid" id="sf-grid" style="margin-top:12px;"><div style="color:var(--muted);font-size:13px;">Lädt...</div></div>
@@ -218,7 +228,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 const SUPABASE_URL = 'https://qhflajqbrzuxxxiqzlyi.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-let currentUser=null, funds=[], sfBuchungen={};
+let currentUser=null, funds=[], sfBuchungen={}, sfFaelligkeiten={};
 
 function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
 function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
@@ -236,9 +246,10 @@ function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.text
 
 async function loadFunds(){
   try{
-    const [{data:fd,error:fe},{data:bd}] = await Promise.all([
+    const [{data:fd,error:fe},{data:bd},{data:fld}] = await Promise.all([
       sb.from('sinking_funds').select('*').order('created_at'),
-      sb.from('sinking_fund_buchungen').select('*').order('datum',{ascending:false})
+      sb.from('sinking_fund_buchungen').select('*').order('datum',{ascending:false}),
+      sb.from('sinking_fund_faelligkeiten').select('*').order('datum',{ascending:true})
     ]);
     if(fe)throw fe;
     funds = fd||[];
@@ -247,6 +258,12 @@ async function loadFunds(){
     (bd||[]).forEach(b=>{
       if(!sfBuchungen[b.fund_id]) sfBuchungen[b.fund_id]=[];
       sfBuchungen[b.fund_id].push(b);
+    });
+    // Fälligkeiten nach fund_id gruppieren
+    sfFaelligkeiten = {};
+    (fld||[]).forEach(f=>{
+      if(!sfFaelligkeiten[f.fund_id]) sfFaelligkeiten[f.fund_id]=[];
+      sfFaelligkeiten[f.fund_id].push(f);
     });
     renderFunds();setSyncOk();
   }catch(e){
@@ -306,7 +323,8 @@ function renderFunds(){
   // Render mit DOM-Methoden statt verschachtelten Template-Literals
   grid.innerHTML='';
   funds.forEach(f=>{
-    const p=f.ziel>0?Math.min(100,Math.round(Number(f.angespart)/Number(f.ziel)*1000)/10):0;
+    const prog=progressToNext(f);
+    const p=prog.pct;
     const col=p>75?'var(--green)':p>40?'var(--cyan)':'var(--pl)';
 
     const wrapper=document.createElement('div');
@@ -352,13 +370,14 @@ function renderFunds(){
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Buchungshistorie</div>
           <div id="hist-${f.id}"></div>
         </div>
+        <div id="faellig-${f.id}"></div>
       </div>
       <div class="edit-row" id="esf-${f.id}">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
           <input class="ci" id="esf-n-${f.id}" value="${esc(f.name)}" maxlength="40" placeholder="Name" style="flex:2;min-width:140px;">
           <input class="ci" id="esf-m-${f.id}" type="number" value="${Number(f.monatlich)}" min="1" max="9999" placeholder="€/Monat" style="flex:1;min-width:90px;">
           <input class="ci" id="esf-g-${f.id}" type="number" value="${Number(f.ziel)}" min="1" max="99999" placeholder="Ziel €" style="flex:1;min-width:90px;">
-          <input class="ci" id="esf-d-${f.id}" value="${esc(f.faelligkeit||'')}" maxlength="20" placeholder="Fälligkeit (YYYY-MM-DD)" style="flex:1;min-width:140px;">
+          <!-- Fälligkeiten werden direkt im Fälligkeiten-Bereich verwaltet -->
         </div>
         <div class="edit-actions">
           <button class="btn-save" onclick="saveFund('${f.id}')">✓ Speichern</button>
@@ -370,37 +389,238 @@ function renderFunds(){
     const histSlot = wrapper.querySelector('#hist-'+f.id);
     if(histSlot) histSlot.replaceWith(buildHistorie(f.id));
 
+    // Fälligkeiten-Section einhängen
+    const faelligSlot = wrapper.querySelector('#faellig-'+f.id);
+    if(faelligSlot) faelligSlot.replaceWith(buildFaelligkeitenSection(f.id));
+
     grid.appendChild(wrapper);
   });
 }
 
+// Turnus → Monate zwischen Fälligkeiten
+function turnusToMonths(t){ return{einmalig:0,monatlich:1,quartalsweise:3,halbjaehrlich:6,jaehrlich:12}[t]||0; }
+
+// Generiere nächste N Fälligkeitsdaten ab einem Startdatum
+function generateFaelligkeiten(startDate, turnus, count=8){
+  const months = turnusToMonths(turnus);
+  const dates = [];
+  let d = new Date(startDate+'T12:00:00');
+  dates.push(localISO(d));
+  if(months === 0) return dates; // einmalig
+  for(let i=1;i<count;i++){
+    d = new Date(d);
+    d.setMonth(d.getMonth() + months);
+    dates.push(localISO(d));
+  }
+  return dates;
+}
+
+// Preview der nächsten Fälligkeit beim Anlegen
+function updateNewFundDue(){
+  const turnus = document.getElementById('sf-turnus')?.value;
+  const due = document.getElementById('sf-due')?.value;
+  const prev = document.getElementById('sf-due-preview');
+  if(!prev) return;
+  if(!due){ prev.textContent=''; return; }
+  const dates = generateFaelligkeiten(due, turnus, 4);
+  prev.textContent = '→ '+dates.map(d=>d.split('-').reverse().slice(0,2).join('.')).join(', ')+(dates.length>1?'…':'');
+}
+
 async function addFund(){
   const name=validateStr(document.getElementById('sf-name').value,40);
-  const mo=validateAmt(document.getElementById('sf-mo').value,1,9999);
-  const goal=validateAmt(document.getElementById('sf-goal').value,1,99999);
-  const due=validateStr(document.getElementById('sf-due').value||'laufend',20)||'laufend';
-  if(!name||!mo||!goal){showErr('sf-err');return;}
+  const moRaw=document.getElementById('sf-mo').value;
+  const mo=moRaw?validateAmt(moRaw,0,9999)||0:0;
+  const goal=validateAmt(document.getElementById('sf-goal').value,0.01,99999);
+  const due=document.getElementById('sf-due').value;
+  const turnus=document.getElementById('sf-turnus').value;
+  if(!name||!goal){showErr('sf-err');return;}
   hideErr('sf-err');
-  const res=await sb.from('sinking_funds').insert({name,monatlich:mo,angespart:0,ziel:goal,faelligkeit:due}).select().single();
+
+  // Monatsbetrag auto-berechnen wenn nicht manuell gesetzt
+  let monatlich = mo;
+  if(!monatlich && due){
+    const months = turnusToMonths(turnus);
+    const today = new Date();
+    const dueDate = new Date(due+'T12:00:00');
+    const diffMonths = Math.max(1, (dueDate.getFullYear()-today.getFullYear())*12 + dueDate.getMonth()-today.getMonth());
+    monatlich = Math.ceil(goal / diffMonths * 100) / 100;
+  }
+
+  const res=await sb.from('sinking_funds').insert({
+    name, monatlich:Math.round(monatlich*100)/100, angespart:0, ziel:goal, faelligkeit:due||turnus
+  }).select().single();
   if(res.error){setSyncErr();return;}
   funds.push(res.data);
-  await pushNotif('🎯 Neuer Sinking Fund: '+name+' (Ziel: '+fmtEur(goal)+')','sinking');
+
+  // Fälligkeiten in neue Tabelle eintragen
+  if(due){
+    const dates = generateFaelligkeiten(due, turnus);
+    const rows = dates.map(d=>({fund_id:res.data.id, datum:d, erledigt:false}));
+    await sb.from('sinking_fund_faelligkeiten').insert(rows);
+    sfFaelligkeiten[res.data.id] = dates.map(d=>({fund_id:res.data.id,datum:d,erledigt:false,id:d}));
+  }
+
+  await pushNotif('🎯 Neuer Sinking Fund: '+name+' ('+fmtEur(goal)+' / '+turnus+')','sinking');
   document.getElementById('sf-name').value='';document.getElementById('sf-mo').value='';
   document.getElementById('sf-goal').value='';document.getElementById('sf-due').value='';
+  document.getElementById('sf-due-preview').textContent='';
   renderFunds();setSyncOk();
 }
 
 
 
+// Hilfsfunktion: nächste künftige Fälligkeit für einen Fund
+function nextFaelligkeit(fundId){
+  const today = localISO(new Date());
+  const dates = (sfFaelligkeiten[fundId]||[]).filter(f=>!f.erledigt && f.datum >= today);
+  return dates.length > 0 ? dates[0] : null;
+}
+
+// Berechne Fortschritt bis nächste Fälligkeit
+function progressToNext(f){
+  const next = nextFaelligkeit(f.id);
+  if(!next) return {pct:f.ziel>0?Math.min(100,Math.round(Number(f.angespart)/Number(f.ziel)*1000)/10):0, label:''};
+  const today = new Date();
+  const nextDate = new Date(next.datum+'T12:00:00');
+  const diffDays = Math.max(0, Math.round((nextDate-today)/86400000));
+  const diffMonths = Math.max(1, Math.round(diffDays/30));
+  const needed = Math.max(0, Number(f.ziel) - Number(f.angespart));
+  const moNoetig = needed > 0 ? Math.ceil(needed/diffMonths*100)/100 : 0;
+  const pct = f.ziel>0 ? Math.min(100, Math.round(Number(f.angespart)/Number(f.ziel)*1000)/10) : 0;
+  const dp = next.datum.split('-');
+  const dStr = dp[2]+'.'+dp[1]+'.'+dp[0];
+  const label = diffDays===0 ? '⚠ Heute fällig!' :
+    diffDays<8 ? '⚠ '+dStr+' ('+diffDays+' Tage)' :
+    dStr+(moNoetig>0?' · noch '+fmtEur(moNoetig)+'/Mo nötig':'');
+  return {pct, label, diffDays, moNoetig, dStr};
+}
+
+async function addFaelligkeit(fundId){
+  const inp = document.getElementById('sf-newdate-'+fundId);
+  const val = inp?.value;
+  if(!val) return;
+  const{error}=await sb.from('sinking_fund_faelligkeiten').insert({fund_id:fundId,datum:val,erledigt:false});
+  if(error){console.error(error);return;}
+  if(!sfFaelligkeiten[fundId]) sfFaelligkeiten[fundId]=[];
+  sfFaelligkeiten[fundId].push({fund_id:fundId,datum:val,erledigt:false,id:val+fundId});
+  sfFaelligkeiten[fundId].sort((a,b)=>a.datum.localeCompare(b.datum));
+  if(inp) inp.value='';
+  renderFunds();setSyncOk();
+}
+
+async function delFaelligkeit(faelligId, fundId){
+  await sb.from('sinking_fund_faelligkeiten').delete().eq('id',faelligId);
+  sfFaelligkeiten[fundId]=(sfFaelligkeiten[fundId]||[]).filter(x=>x.id!==faelligId);
+  renderFunds();setSyncOk();
+}
+
+async function markFaelligErledigt(faelligId, fundId){
+  await sb.from('sinking_fund_faelligkeiten').update({erledigt:true}).eq('id',faelligId);
+  const f = (sfFaelligkeiten[fundId]||[]).find(x=>x.id===faelligId);
+  if(f) f.erledigt=true;
+  renderFunds();setSyncOk();
+}
+
+function buildFaelligkeitenSection(fundId){
+  const wrap = document.createElement('div');
+  wrap.style.cssText='margin-top:12px;border-top:1px solid var(--border);padding-top:10px;';
+  
+  const lbl = document.createElement('div');
+  lbl.style.cssText='font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;';
+  lbl.textContent='Fälligkeiten';
+  wrap.appendChild(lbl);
+
+  const dates = sfFaelligkeiten[fundId]||[];
+  const today = localISO(new Date());
+
+  // Existierende Fälligkeiten
+  const listWrap = document.createElement('div');
+  listWrap.style.cssText='margin-bottom:10px;';
+  
+  if(dates.length === 0){
+    listWrap.innerHTML='<div style="font-size:12px;color:var(--muted2);margin-bottom:6px;">Keine Fälligkeiten eingetragen.</div>';
+  } else {
+    dates.forEach(d=>{
+      const row = document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;';
+      const dp = d.datum.split('-');
+      const dStr = dp[2]+'.'+dp[1]+'.'+dp[0];
+      const isPast = d.datum < today;
+      const isToday = d.datum === today;
+      const col = d.erledigt ? 'var(--muted2)' : isToday ? 'var(--amber)' : isPast ? 'var(--red)' : 'var(--text)';
+      
+      row.innerHTML = `<span style="color:${col};flex:1;">${d.erledigt?'✓ ':''}${dStr}${isToday?' ← Heute!':isPast&&!d.erledigt?' ← Überfällig!':''}</span>`;
+      
+      if(!d.erledigt){
+        const doneBtn = document.createElement('button');
+        doneBtn.className='btn-edit';
+        doneBtn.title='Als erledigt markieren';
+        doneBtn.textContent='✓';
+        doneBtn.style.color='var(--green)';
+        doneBtn.onclick = ()=>markFaelligErledigt(d.id, fundId);
+        row.appendChild(doneBtn);
+      }
+      const delBtn = document.createElement('button');
+      delBtn.className='btn-del';
+      delBtn.textContent='✕';
+      delBtn.onclick = ()=>delFaelligkeit(d.id, fundId);
+      row.appendChild(delBtn);
+      listWrap.appendChild(row);
+    });
+  }
+  wrap.appendChild(listWrap);
+
+  // Turnus-Generator
+  const genWrap = document.createElement('div');
+  genWrap.style.cssText='background:var(--s2);border-radius:8px;padding:10px;margin-bottom:8px;';
+  genWrap.innerHTML=`
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Turnus generieren</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      <select class="ci" id="sf-turnus-${fundId}" style="flex:1;min-width:120px;font-size:12px;padding:5px 8px;">
+        <option value="einmalig">Einmalig</option>
+        <option value="monatlich">Monatlich</option>
+        <option value="quartalsweise">Quartalsweise</option>
+        <option value="halbjaehrlich">Halbjährlich</option>
+        <option value="jaehrlich">Jährlich</option>
+      </select>
+      <input class="ci" id="sf-startdate-${fundId}" type="date" style="flex:1;min-width:130px;font-size:12px;padding:5px 8px;" placeholder="Startdatum">
+      <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="genFaelligkeiten('${fundId}')">Generieren</button>
+    </div>`;
+  wrap.appendChild(genWrap);
+
+  // Einzelne Fälligkeit hinzufügen
+  const addWrap = document.createElement('div');
+  addWrap.style.cssText='display:flex;gap:6px;align-items:center;';
+  addWrap.innerHTML=`
+    <input class="ci" id="sf-newdate-${fundId}" type="date" style="flex:1;font-size:12px;padding:5px 8px;">
+    <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="addFaelligkeit('${fundId}')">+ Datum</button>`;
+  wrap.appendChild(addWrap);
+
+  return wrap;
+}
+
+async function genFaelligkeiten(fundId){
+  const turnus = document.getElementById('sf-turnus-'+fundId)?.value;
+  const start = document.getElementById('sf-startdate-'+fundId)?.value;
+  if(!start){ alert('Bitte Startdatum wählen.'); return; }
+  const dates = generateFaelligkeiten(start, turnus);
+  const rows = dates.map(d=>({fund_id:fundId, datum:d, erledigt:false}));
+  const{error}=await sb.from('sinking_fund_faelligkeiten').insert(rows);
+  if(error){console.error(error);setSyncErr();return;}
+  if(!sfFaelligkeiten[fundId]) sfFaelligkeiten[fundId]=[];
+  rows.forEach(r=>sfFaelligkeiten[fundId].push({...r,id:r.datum+fundId}));
+  sfFaelligkeiten[fundId].sort((a,b)=>a.datum.localeCompare(b.datum));
+  renderFunds();setSyncOk();
+}
+
 async function saveFund(id){
   const name=document.getElementById('esf-n-'+id).value.trim();
-  const mo=parseFloat(document.getElementById('esf-m-'+id).value);
+  const mo=parseFloat(document.getElementById('esf-m-'+id).value)||0;
   const goal=parseFloat(document.getElementById('esf-g-'+id).value);
-  const due=document.getElementById('esf-d-'+id).value.trim()||'laufend';
-  if(!name||isNaN(mo)||isNaN(goal))return;
-  await sb.from('sinking_funds').update({name,monatlich:Math.round(mo*100)/100,ziel:Math.round(goal*100)/100,faelligkeit:due}).eq('id',id);
+  if(!name||isNaN(goal))return;
+  await sb.from('sinking_funds').update({name,monatlich:Math.round(mo*100)/100,ziel:Math.round(goal*100)/100}).eq('id',id);
   const f=funds.find(x=>x.id===id);
-  if(f){f.name=name;f.monatlich=Math.round(mo*100)/100;f.ziel=Math.round(goal*100)/100;f.faelligkeit=due;}
+  if(f){f.name=name;f.monatlich=Math.round(mo*100)/100;f.ziel=Math.round(goal*100)/100;}
   renderFunds();setSyncOk();
 }
 
@@ -484,6 +704,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
 sb.channel('sf-sync')
   .on('postgres_changes',{event:'*',schema:'public',table:'sinking_funds'},()=>loadFunds())
   .on('postgres_changes',{event:'*',schema:'public',table:'sinking_fund_buchungen'},()=>loadFunds())
+  .on('postgres_changes',{event:'*',schema:'public',table:'sinking_fund_faelligkeiten'},()=>loadFunds())
   .subscribe();
 
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sb-overlay').classList.add('open');}

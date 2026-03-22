@@ -296,7 +296,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 const SUPABASE_URL='https://qhflajqbrzuxxxiqzlyi.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let currentUser=null, kalEvents=[], sfFunds=[], einnahmen=[];
+let currentUser=null, kalEvents=[], sfFunds=[], sfFaelligTermine=[], einnahmen=[];
 let calYear=new Date().getFullYear(), calMonth=new Date().getMonth();
 let selectedDate=null;
 let chatMsgs=[];
@@ -339,9 +339,10 @@ async function loadAndRender(){
     const[rk,rs,re]=await Promise.all([
       sb.from('kalender').select('*').gte('datum',startDate).lte('datum',endDate),
       sb.from('sinking_funds').select('*'),
+      sb.from('sinking_fund_faelligkeiten').select('*').eq('erledigt',false).order('datum'),
       sb.from('einnahmen').select('*').eq('monat',calMonth+1).eq('jahr',calYear),
     ]);
-    kalEvents=rk.data||[];sfFunds=rs.data||[];einnahmen=re.data||[];
+    kalEvents=rk.data||[];sfFunds=rs.data||[];sfFaelligTermine=rfl?.data||[];einnahmen=re.data||[];
     renderCalendar();setSyncOk();
   }catch(e){setSyncErr();}
 }
@@ -389,14 +390,19 @@ function getEventsForDay(iso){
   kalEvents.filter(e=>e.datum===iso).forEach(e=>evs.push({...e,quelle:'manuell'}));
   // Einnahmen
   einnahmen.filter(e=>e.datum===iso).forEach(e=>evs.push({typ:'einnahme',titel:e.bezeichnung,betrag:e.betrag,quelle:'einnahme',id:e.id}));
-  // Sinking Fund Fälligkeiten
-  sfFunds.filter(f=>f.faelligkeit===iso).forEach(f=>{
-    const pct=f.ziel>0?Math.round(Number(f.angespart)/Number(f.ziel)*100):0;
-    const titel=f.name+' fällig';
-    const notiz=`Angespart: € ${Number(f.angespart).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})} / Ziel: € ${Number(f.ziel).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})} (${pct}%)`;
-    evs.push({typ:'sf',titel,notiz,betrag:null,quelle:'sinking',id:'sf-'+f.id});
+  // Sinking Fund Fälligkeiten — aus neuer Tabelle
+  sfFaelligTermine.filter(fl=>fl.datum===iso).forEach(fl=>{
+    const fund=sfFunds.find(f=>f.id===fl.fund_id);
+    if(!fund)return;
+    const pct=fund.ziel>0?Math.round(Number(fund.angespart)/Number(fund.ziel)*100):0;
+    const notiz='Angespart: € '+Number(fund.angespart).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' / Ziel: € '+Number(fund.ziel).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' ('+pct+'%)';
+    evs.push({typ:'sf',titel:fund.name+' fällig',notiz,betrag:null,quelle:'sinking',id:'sf-'+fl.id});
   });
-  return evs;
+  // Fallback: altes faelligkeit-Textfeld
+  sfFunds.filter(f=>f.faelligkeit===iso&&!sfFaelligTermine.find(fl=>fl.fund_id===f.id&&fl.datum===iso)).forEach(f=>{
+    evs.push({typ:'sf',titel:f.name+' fällig',notiz:'',betrag:null,quelle:'sinking',id:'sf-old-'+f.id});
+  });
+    return evs;
 }
 
 function dayCell(d,iso,otherMonth,today){
@@ -600,6 +606,7 @@ function onLogin(user){
   sb.channel('kal-data-sync')
     .on('postgres_changes',{event:'*',schema:'public',table:'kalender'},()=>loadMonth())
     .on('postgres_changes',{event:'*',schema:'public',table:'sinking_funds'},()=>loadMonth())
+    .on('postgres_changes',{event:'*',schema:'public',table:'sinking_fund_faelligkeiten'},()=>loadMonth())
     .subscribe();
 
   initPresence(getDisplayName(user));
