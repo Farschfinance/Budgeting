@@ -60,8 +60,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .rb{display:flex;justify-content:space-between;align-items:center;}
 .track{height:5px;background:var(--s3);border-radius:3px;margin:8px 0 4px;}
 .fill{height:100%;border-radius:3px;}
-.sfcard{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px;}
-.sfgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+.sfcard{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px;transition:border-color .2s;}
+.sfgrid{display:flex;flex-direction:column;gap:8px;}
 .ci{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
 .ci:focus{border-color:var(--purple);}
 .ci::placeholder{color:var(--muted2);}
@@ -272,40 +272,57 @@ async function loadFunds(){
   }
 }
 
-// Buchungshistorie als DOM-Elemente (kein verschachteltes Template-Literal!)
-function buildHistorie(fundId){
-  const buchungen = sfBuchungen[fundId] || [];
-  const wrap = document.createElement('div');
-  wrap.className = 'list-scroll';
-  if(!buchungen.length){
-    wrap.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:6px 0;">Noch keine Buchungen.</div>';
-    return wrap;
+// ── SINKING FUNDS RENDER ────────────────────────────────────────
+
+function turnusToMonths(t){return{einmalig:0,monatlich:1,quartalsweise:3,halbjaehrlich:6,jaehrlich:12}[t]||0;}
+
+function generateFaelligkeiten(startDate,turnus,count=8){
+  const months=turnusToMonths(turnus);
+  const dates=[];
+  let d=new Date(startDate+'T12:00:00');
+  dates.push(localISO(d));
+  if(months===0)return dates;
+  for(let i=1;i<count;i++){
+    d=new Date(d);
+    d.setMonth(d.getMonth()+months);
+    dates.push(localISO(d));
   }
-  buchungen.forEach(b=>{
-    const isEin = Number(b.betrag) > 0;
-    const row = document.createElement('div');
-    row.className = 'hist-row';
-    const left = document.createElement('div');
-    left.innerHTML = '<span style="color:'+(isEin?'var(--green)':'var(--amber)')+';">'+(isEin?'+':'−')+' € '+fmtN(Math.abs(b.betrag))+'</span>'
-      +(b.bezeichnung?'<span style="color:var(--muted);margin-left:8px;font-size:12px;">'+esc(b.bezeichnung)+'</span>':'');
-    const right = document.createElement('div');
-    right.style.cssText='display:flex;align-items:center;gap:6px;';
-    const dateSpan = document.createElement('span');
-    dateSpan.style.cssText='color:var(--muted2);font-size:11px;';
-    // Format date nicely: YYYY-MM-DD → DD.MM.YYYY
-    const dp = (b.datum||'').split('-');
-    dateSpan.textContent = dp.length===3 ? dp[2]+'.'+dp[1]+'.'+dp[0] : (b.datum||'');
-    const delBtn = document.createElement('button');
-    delBtn.className='btn-del';
-    delBtn.textContent='✕';
-    delBtn.onclick = ()=>delSfBuchung(b.id, fundId, b.betrag);
-    right.appendChild(dateSpan);
-    right.appendChild(delBtn);
-    row.appendChild(left);
-    row.appendChild(right);
-    wrap.appendChild(row);
-  });
-  return wrap;
+  return dates;
+}
+
+function updateNewFundDue(){
+  const turnus=document.getElementById('sf-turnus')?.value;
+  const due=document.getElementById('sf-due')?.value;
+  const prev=document.getElementById('sf-due-preview');
+  if(!prev)return;
+  if(!due){prev.textContent='';return;}
+  const dates=generateFaelligkeiten(due,turnus,4);
+  prev.textContent='→ '+dates.map(d=>d.split('-').reverse().slice(0,2).join('.')).join(', ')+'…';
+}
+
+function nextFaelligkeit(fundId){
+  const today=localISO(new Date());
+  const dates=(sfFaelligkeiten[fundId]||[]).filter(f=>!f.erledigt&&f.datum>=today);
+  return dates.length>0?dates[0]:null;
+}
+
+function progressToNext(f){
+  const next=nextFaelligkeit(f.id);
+  const basePct=f.ziel>0?Math.min(100,Math.round(Number(f.angespart)/Number(f.ziel)*1000)/10):0;
+  if(!next)return{pct:basePct,label:'',urgent:false};
+  const today=new Date();
+  const nextDate=new Date(next.datum+'T12:00:00');
+  const diffDays=Math.max(0,Math.round((nextDate-today)/86400000));
+  const diffMonths=Math.max(1,Math.round(diffDays/30));
+  const needed=Math.max(0,Number(f.ziel)-Number(f.angespart));
+  const moNoetig=needed>0?Math.ceil(needed/diffMonths*100)/100:0;
+  const dp=next.datum.split('-');
+  const dStr=dp[2]+'.'+dp[1]+'.'+dp[0];
+  const urgent=diffDays<14;
+  const label=diffDays===0?'⚠ Heute fällig!':
+    diffDays<8?'⚠ '+dStr+' ('+diffDays+' Tage)':
+    dStr+(moNoetig>0?' · noch '+fmtEur(moNoetig)+'/Mo':' · Ziel erreicht ✓');
+  return{pct:basePct,label,urgent,dStr,diffDays,moNoetig};
 }
 
 function renderFunds(){
@@ -319,261 +336,236 @@ function renderFunds(){
     grid.innerHTML='<div style="color:var(--muted);font-size:13px;">Noch keine Sinking Funds.</div>';
     return;
   }
-
-  // Render mit DOM-Methoden statt verschachtelten Template-Literals
   grid.innerHTML='';
+
   funds.forEach(f=>{
     const prog=progressToNext(f);
-    const p=prog.pct;
-    const col=p>75?'var(--green)':p>40?'var(--cyan)':'var(--pl)';
+    const col=prog.pct>75?'var(--green)':prog.pct>40?'var(--cyan)':'var(--pl)';
+    const card=document.createElement('div');
+    card.className='sfcard';
+    card.style.marginBottom='8px';
 
-    const wrapper=document.createElement('div');
-    wrapper.innerHTML=`
-      <div class="sfcard">
-        <div class="rb" style="margin-bottom:6px;">
-          <div style="font-size:13px;font-weight:500;">${esc(f.name)}</div>
-          <div style="display:flex;align-items:center;gap:4px;">
-            <div style="font-size:11px;color:var(--muted);">${esc(f.faelligkeit||'')}</div>
-            <button class="btn-edit" onclick="toggleEdit('esf-${f.id}')">✏️</button>
-            <button class="btn-del" onclick="delFund('${f.id}')">✕</button>
-          </div>
+    // ── KOPFZEILE (immer sichtbar) ──────────────────────────────
+    const header=document.createElement('div');
+    header.style.cssText='display:flex;align-items:center;gap:10px;cursor:pointer;padding:2px 0;';
+    header.innerHTML=`
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:14px;font-weight:600;">${esc(f.name)}</span>
+          ${prog.urgent?'<span style="font-size:10px;background:rgba(224,168,48,0.2);color:var(--amber);border-radius:10px;padding:1px 7px;">⚠ bald fällig</span>':''}
         </div>
-        <div class="rb" style="margin-bottom:4px;">
-          <span style="font-size:18px;font-weight:600;color:${col};">${fmtEur(f.angespart)}</span>
-          <span style="font-size:12px;color:var(--muted);">/ ${fmtEur(f.ziel)}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;font-weight:700;color:${col};">${fmtEur(f.angespart)}</span>
+          <span style="font-size:11px;color:var(--muted);">/ ${fmtEur(f.ziel)}</span>
+          <span style="font-size:11px;color:var(--muted);">${fmtN(prog.pct)} %</span>
         </div>
-        <div class="track"><div class="fill" style="width:${p}%;background:${col};"></div></div>
-        <div class="rb" style="font-size:11px;color:var(--muted);margin-top:3px;">
-          <span>${fmtN(p)} %</span><span>+${fmtEur(f.monatlich)} / Mo</span>
+        <div style="height:4px;background:var(--s3);border-radius:2px;margin-top:5px;">
+          <div style="height:100%;width:${prog.pct}%;background:${col};border-radius:2px;transition:width .3s;"></div>
         </div>
-        <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="toggleEdit('sf-ein-${f.id}')">+ Einzahlung</button>
-          <button class="btn" style="font-size:12px;padding:5px 12px;background:rgba(224,85,119,0.15);border-color:var(--red);color:var(--red);" onclick="toggleEdit('sf-aus-${f.id}')">− Entnahme</button>
-        </div>
-        <div class="edit-row" id="sf-ein-${f.id}" style="margin-top:8px;">
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-            <input class="ci" id="sf-ein-amt-${f.id}" type="number" min="0.01" step="0.01" placeholder="Betrag €" style="width:110px;">
-            <input class="ci" id="sf-ein-bez-${f.id}" maxlength="60" placeholder="Bezeichnung (opt.)" style="flex:1;min-width:120px;">
-            <input class="ci" id="sf-ein-dat-${f.id}" type="date" style="width:140px;">
-            <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="addSfBuchung('${f.id}',1)">✓</button>
-          </div>
-        </div>
-        <div class="edit-row" id="sf-aus-${f.id}" style="margin-top:8px;">
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-            <input class="ci" id="sf-aus-amt-${f.id}" type="number" min="0.01" step="0.01" placeholder="Betrag €" style="width:110px;">
-            <input class="ci" id="sf-aus-bez-${f.id}" maxlength="60" placeholder="Bezeichnung (opt.)" style="flex:1;min-width:120px;">
-            <input class="ci" id="sf-aus-dat-${f.id}" type="date" style="width:140px;">
-            <button class="btn" style="font-size:12px;padding:5px 12px;background:rgba(224,85,119,0.15);border-color:var(--red);color:var(--red);" onclick="addSfBuchung('${f.id}',-1)">✓</button>
-          </div>
-        </div>
-        <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Buchungshistorie</div>
-          <div id="hist-${f.id}"></div>
-        </div>
-        <div id="faellig-${f.id}"></div>
+        ${prog.label?`<div style="font-size:11px;margin-top:4px;color:${prog.urgent?'var(--amber)':'var(--muted)'};">📅 ${esc(prog.label)}</div>`:''}
       </div>
-      <div class="edit-row" id="esf-${f.id}">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-          <input class="ci" id="esf-n-${f.id}" value="${esc(f.name)}" maxlength="40" placeholder="Name" style="flex:2;min-width:140px;">
-          <input class="ci" id="esf-m-${f.id}" type="number" value="${Number(f.monatlich)}" min="1" max="9999" placeholder="€/Monat" style="flex:1;min-width:90px;">
-          <input class="ci" id="esf-g-${f.id}" type="number" value="${Number(f.ziel)}" min="1" max="99999" placeholder="Ziel €" style="flex:1;min-width:90px;">
-          <!-- Fälligkeiten werden direkt im Fälligkeiten-Bereich verwaltet -->
-        </div>
-        <div class="edit-actions">
-          <button class="btn-save" onclick="saveFund('${f.id}')">✓ Speichern</button>
-          <button class="btn-cancel" onclick="toggleEdit('esf-${f.id}')">Abbrechen</button>
-        </div>
+      <div style="display:flex;gap:4px;align-items:center;" onclick="event.stopPropagation()">
+        <button class="btn-edit" onclick="toggleEdit('esf-${f.id}')" title="Bearbeiten">✏️</button>
+        <button class="btn-del" onclick="delFund('${f.id}')" title="Löschen">✕</button>
+        <span id="sf-chevron-${f.id}" style="color:var(--muted);font-size:12px;transition:transform .2s;display:inline-block;">▼</span>
       </div>`;
 
-    // Buchungshistorie als echte DOM-Elemente einhängen
-    const histSlot = wrapper.querySelector('#hist-'+f.id);
-    if(histSlot) histSlot.replaceWith(buildHistorie(f.id));
+    header.addEventListener('click',()=>toggleSfDetail(f.id));
+    card.appendChild(header);
 
-    // Fälligkeiten-Section einhängen
-    const faelligSlot = wrapper.querySelector('#faellig-'+f.id);
-    if(faelligSlot) faelligSlot.replaceWith(buildFaelligkeitenSection(f.id));
+    // ── EDIT FORM ───────────────────────────────────────────────
+    const editRow=document.createElement('div');
+    editRow.className='edit-row';
+    editRow.id='esf-'+f.id;
+    editRow.innerHTML=`
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        <input class="ci" id="esf-n-${f.id}" value="${esc(f.name)}" maxlength="40" placeholder="Name" style="flex:2;min-width:140px;">
+        <input class="ci" id="esf-m-${f.id}" type="number" value="${Number(f.monatlich)}" min="0" max="9999" placeholder="€/Monat" style="flex:1;min-width:90px;">
+        <input class="ci" id="esf-g-${f.id}" type="number" value="${Number(f.ziel)}" min="1" max="99999" placeholder="Ziel €" style="flex:1;min-width:90px;">
+      </div>
+      <div class="edit-actions">
+        <button class="btn-save" onclick="saveFund('${f.id}')">✓ Speichern</button>
+        <button class="btn-cancel" onclick="toggleEdit('esf-${f.id}')">Abbrechen</button>
+      </div>`;
+    card.appendChild(editRow);
 
-    grid.appendChild(wrapper);
+    // ── DETAIL-BEREICH (aufklappbar) ────────────────────────────
+    const detail=document.createElement('div');
+    detail.id='sf-detail-'+f.id;
+    detail.style.cssText='display:none;border-top:1px solid var(--border);margin-top:10px;padding-top:12px;';
+
+    // Einzahlung / Entnahme
+    const buchWrap=document.createElement('div');
+    buchWrap.innerHTML=`
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+        <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="toggleEdit('sf-ein-${f.id}')">+ Einzahlung</button>
+        <button class="btn" style="font-size:12px;padding:5px 12px;background:rgba(224,85,119,0.15);border-color:var(--red);color:var(--red);" onclick="toggleEdit('sf-aus-${f.id}')">− Entnahme</button>
+      </div>
+      <div class="edit-row" id="sf-ein-${f.id}" style="margin-bottom:8px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <input class="ci" id="sf-ein-amt-${f.id}" type="number" min="0.01" step="0.01" placeholder="Betrag €" style="width:110px;">
+          <input class="ci" id="sf-ein-bez-${f.id}" maxlength="60" placeholder="Bezeichnung (opt.)" style="flex:1;min-width:120px;">
+          <input class="ci" id="sf-ein-dat-${f.id}" type="date" style="width:140px;">
+          <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="addSfBuchung('${f.id}',1)">✓</button>
+        </div>
+      </div>
+      <div class="edit-row" id="sf-aus-${f.id}" style="margin-bottom:8px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <input class="ci" id="sf-aus-amt-${f.id}" type="number" min="0.01" step="0.01" placeholder="Betrag €" style="width:110px;">
+          <input class="ci" id="sf-aus-bez-${f.id}" maxlength="60" placeholder="Bezeichnung (opt.)" style="flex:1;min-width:120px;">
+          <input class="ci" id="sf-aus-dat-${f.id}" type="date" style="width:140px;">
+          <button class="btn" style="font-size:12px;padding:5px 12px;background:rgba(224,85,119,0.15);border-color:var(--red);color:var(--red);" onclick="addSfBuchung('${f.id}',-1)">✓</button>
+        </div>
+      </div>`;
+    detail.appendChild(buchWrap);
+
+    // Buchungshistorie
+    const histSection=document.createElement('div');
+    histSection.style.cssText='margin-bottom:14px;';
+    histSection.innerHTML='<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Buchungshistorie</div>';
+    histSection.appendChild(buildHistorie(f.id));
+    detail.appendChild(histSection);
+
+    // Fälligkeiten
+    detail.appendChild(buildFaelligkeitenSection(f.id));
+
+    card.appendChild(detail);
+    grid.appendChild(card);
   });
 }
 
-// Turnus → Monate zwischen Fälligkeiten
-function turnusToMonths(t){ return{einmalig:0,monatlich:1,quartalsweise:3,halbjaehrlich:6,jaehrlich:12}[t]||0; }
+function toggleSfDetail(fundId){
+  const detail=document.getElementById('sf-detail-'+fundId);
+  const chevron=document.getElementById('sf-chevron-'+fundId);
+  if(!detail)return;
+  const isOpen=detail.style.display==='none';
+  detail.style.display=isOpen?'block':'none';
+  if(chevron)chevron.style.transform=isOpen?'rotate(180deg)':'rotate(0deg)';
+}
 
-// Generiere nächste N Fälligkeitsdaten ab einem Startdatum
-function generateFaelligkeiten(startDate, turnus, count=8){
-  const months = turnusToMonths(turnus);
-  const dates = [];
-  let d = new Date(startDate+'T12:00:00');
-  dates.push(localISO(d));
-  if(months === 0) return dates; // einmalig
-  for(let i=1;i<count;i++){
-    d = new Date(d);
-    d.setMonth(d.getMonth() + months);
-    dates.push(localISO(d));
+function buildHistorie(fundId){
+  const buchungen=sfBuchungen[fundId]||[];
+  const wrap=document.createElement('div');
+  wrap.className='list-scroll';
+  if(!buchungen.length){
+    wrap.innerHTML='<div style="color:var(--muted);font-size:12px;padding:6px 0;">Noch keine Buchungen.</div>';
+    return wrap;
   }
-  return dates;
-}
-
-// Preview der nächsten Fälligkeit beim Anlegen
-function updateNewFundDue(){
-  const turnus = document.getElementById('sf-turnus')?.value;
-  const due = document.getElementById('sf-due')?.value;
-  const prev = document.getElementById('sf-due-preview');
-  if(!prev) return;
-  if(!due){ prev.textContent=''; return; }
-  const dates = generateFaelligkeiten(due, turnus, 4);
-  prev.textContent = '→ '+dates.map(d=>d.split('-').reverse().slice(0,2).join('.')).join(', ')+(dates.length>1?'…':'');
-}
-
-async function addFund(){
-  const name=validateStr(document.getElementById('sf-name').value,40);
-  const moRaw=document.getElementById('sf-mo').value;
-  const mo=moRaw?validateAmt(moRaw,0,9999)||0:0;
-  const goal=validateAmt(document.getElementById('sf-goal').value,0.01,99999);
-  const due=document.getElementById('sf-due').value;
-  const turnus=document.getElementById('sf-turnus').value;
-  if(!name||!goal){showErr('sf-err');return;}
-  hideErr('sf-err');
-
-  // Monatsbetrag auto-berechnen wenn nicht manuell gesetzt
-  let monatlich = mo;
-  if(!monatlich && due){
-    const months = turnusToMonths(turnus);
-    const today = new Date();
-    const dueDate = new Date(due+'T12:00:00');
-    const diffMonths = Math.max(1, (dueDate.getFullYear()-today.getFullYear())*12 + dueDate.getMonth()-today.getMonth());
-    monatlich = Math.ceil(goal / diffMonths * 100) / 100;
-  }
-
-  const res=await sb.from('sinking_funds').insert({
-    name, monatlich:Math.round(monatlich*100)/100, angespart:0, ziel:goal, faelligkeit:due||turnus
-  }).select().single();
-  if(res.error){setSyncErr();return;}
-  funds.push(res.data);
-
-  // Fälligkeiten in neue Tabelle eintragen
-  if(due){
-    const dates = generateFaelligkeiten(due, turnus);
-    const rows = dates.map(d=>({fund_id:res.data.id, datum:d, erledigt:false}));
-    await sb.from('sinking_fund_faelligkeiten').insert(rows);
-    sfFaelligkeiten[res.data.id] = dates.map(d=>({fund_id:res.data.id,datum:d,erledigt:false,id:d}));
-  }
-
-  await pushNotif('🎯 Neuer Sinking Fund: '+name+' ('+fmtEur(goal)+' / '+turnus+')','sinking');
-  document.getElementById('sf-name').value='';document.getElementById('sf-mo').value='';
-  document.getElementById('sf-goal').value='';document.getElementById('sf-due').value='';
-  document.getElementById('sf-due-preview').textContent='';
-  renderFunds();setSyncOk();
-}
-
-
-
-// Hilfsfunktion: nächste künftige Fälligkeit für einen Fund
-function nextFaelligkeit(fundId){
-  const today = localISO(new Date());
-  const dates = (sfFaelligkeiten[fundId]||[]).filter(f=>!f.erledigt && f.datum >= today);
-  return dates.length > 0 ? dates[0] : null;
-}
-
-// Berechne Fortschritt bis nächste Fälligkeit
-function progressToNext(f){
-  const next = nextFaelligkeit(f.id);
-  if(!next) return {pct:f.ziel>0?Math.min(100,Math.round(Number(f.angespart)/Number(f.ziel)*1000)/10):0, label:''};
-  const today = new Date();
-  const nextDate = new Date(next.datum+'T12:00:00');
-  const diffDays = Math.max(0, Math.round((nextDate-today)/86400000));
-  const diffMonths = Math.max(1, Math.round(diffDays/30));
-  const needed = Math.max(0, Number(f.ziel) - Number(f.angespart));
-  const moNoetig = needed > 0 ? Math.ceil(needed/diffMonths*100)/100 : 0;
-  const pct = f.ziel>0 ? Math.min(100, Math.round(Number(f.angespart)/Number(f.ziel)*1000)/10) : 0;
-  const dp = next.datum.split('-');
-  const dStr = dp[2]+'.'+dp[1]+'.'+dp[0];
-  const label = diffDays===0 ? '⚠ Heute fällig!' :
-    diffDays<8 ? '⚠ '+dStr+' ('+diffDays+' Tage)' :
-    dStr+(moNoetig>0?' · noch '+fmtEur(moNoetig)+'/Mo nötig':'');
-  return {pct, label, diffDays, moNoetig, dStr};
-}
-
-async function addFaelligkeit(fundId){
-  const inp = document.getElementById('sf-newdate-'+fundId);
-  const val = inp?.value;
-  if(!val) return;
-  const{error}=await sb.from('sinking_fund_faelligkeiten').insert({fund_id:fundId,datum:val,erledigt:false});
-  if(error){console.error(error);return;}
-  if(!sfFaelligkeiten[fundId]) sfFaelligkeiten[fundId]=[];
-  sfFaelligkeiten[fundId].push({fund_id:fundId,datum:val,erledigt:false,id:val+fundId});
-  sfFaelligkeiten[fundId].sort((a,b)=>a.datum.localeCompare(b.datum));
-  if(inp) inp.value='';
-  renderFunds();setSyncOk();
-}
-
-async function delFaelligkeit(faelligId, fundId){
-  await sb.from('sinking_fund_faelligkeiten').delete().eq('id',faelligId);
-  sfFaelligkeiten[fundId]=(sfFaelligkeiten[fundId]||[]).filter(x=>x.id!==faelligId);
-  renderFunds();setSyncOk();
-}
-
-async function markFaelligErledigt(faelligId, fundId){
-  await sb.from('sinking_fund_faelligkeiten').update({erledigt:true}).eq('id',faelligId);
-  const f = (sfFaelligkeiten[fundId]||[]).find(x=>x.id===faelligId);
-  if(f) f.erledigt=true;
-  renderFunds();setSyncOk();
+  buchungen.forEach(b=>{
+    const isEin=Number(b.betrag)>0;
+    const row=document.createElement('div');
+    row.className='hist-row';
+    const dp=(b.datum||'').split('-');
+    const dStr=dp.length===3?dp[2]+'.'+dp[1]+'.'+dp[0]:(b.datum||'');
+    const left=document.createElement('div');
+    left.innerHTML='<span style="color:'+(isEin?'var(--green)':'var(--amber)')+';">'+(isEin?'+':'−')+'\u00a0€\u00a0'+fmtN(Math.abs(b.betrag))+'</span>'
+      +(b.bezeichnung?'<span style="color:var(--muted);margin-left:8px;font-size:12px;">'+esc(b.bezeichnung)+'</span>':'');
+    const right=document.createElement('div');
+    right.style.cssText='display:flex;align-items:center;gap:6px;';
+    const dateSpan=document.createElement('span');
+    dateSpan.style.cssText='color:var(--muted2);font-size:11px;';
+    dateSpan.textContent=dStr;
+    const delBtn=document.createElement('button');
+    delBtn.className='btn-del';
+    delBtn.textContent='✕';
+    delBtn.onclick=()=>delSfBuchung(b.id,fundId,b.betrag);
+    right.appendChild(dateSpan);right.appendChild(delBtn);
+    row.appendChild(left);row.appendChild(right);
+    wrap.appendChild(row);
+  });
+  return wrap;
 }
 
 function buildFaelligkeitenSection(fundId){
-  const wrap = document.createElement('div');
-  wrap.style.cssText='margin-top:12px;border-top:1px solid var(--border);padding-top:10px;';
-  
-  const lbl = document.createElement('div');
-  lbl.style.cssText='font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;';
-  lbl.textContent='Fälligkeiten';
-  wrap.appendChild(lbl);
+  const wrap=document.createElement('div');
+  const today=localISO(new Date());
+  const dates=sfFaelligkeiten[fundId]||[];
 
-  const dates = sfFaelligkeiten[fundId]||[];
-  const today = localISO(new Date());
+  // Header
+  const hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
+  hdr.innerHTML='<span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Fälligkeiten</span>';
+  wrap.appendChild(hdr);
 
-  // Existierende Fälligkeiten
-  const listWrap = document.createElement('div');
-  listWrap.style.cssText='margin-bottom:10px;';
-  
-  if(dates.length === 0){
-    listWrap.innerHTML='<div style="font-size:12px;color:var(--muted2);margin-bottom:6px;">Keine Fälligkeiten eingetragen.</div>';
-  } else {
+  // Liste bestehender Fälligkeiten
+  if(dates.length){
+    const list=document.createElement('div');
+    list.className='list-scroll';
+    list.style.maxHeight='180px';
     dates.forEach(d=>{
-      const row = document.createElement('div');
-      row.style.cssText='display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;';
-      const dp = d.datum.split('-');
-      const dStr = dp[2]+'.'+dp[1]+'.'+dp[0];
-      const isPast = d.datum < today;
-      const isToday = d.datum === today;
-      const col = d.erledigt ? 'var(--muted2)' : isToday ? 'var(--amber)' : isPast ? 'var(--red)' : 'var(--text)';
-      
-      row.innerHTML = `<span style="color:${col};flex:1;">${d.erledigt?'✓ ':''}${dStr}${isToday?' ← Heute!':isPast&&!d.erledigt?' ← Überfällig!':''}</span>`;
-      
+      const row=document.createElement('div');
+      row.className='hist-row';
+      const dp=d.datum.split('-');
+      const dStr=dp[2]+'.'+dp[1]+'.'+dp[0];
+      const isPast=d.datum<today;
+      const isToday=d.datum===today;
+      const col=d.erledigt?'var(--muted2)':isToday?'var(--amber)':isPast?'var(--red)':'var(--text)';
+
+      // Editierbares Datum
+      const left=document.createElement('div');
+      left.style.cssText='display:flex;align-items:center;gap:6px;flex:1;';
+
+      // Toggle edit date mode
+      const dateSpan=document.createElement('span');
+      dateSpan.style.cssText='color:'+col+';font-size:13px;cursor:pointer;';
+      dateSpan.textContent=(d.erledigt?'✓ ':'')+dStr+(isToday?' ← Heute!':isPast&&!d.erledigt?' ← Überfällig':'');
+      dateSpan.title='Klicken zum Bearbeiten';
+
+      const dateInput=document.createElement('input');
+      dateInput.type='date';
+      dateInput.value=d.datum;
+      dateInput.className='ci';
+      dateInput.style.cssText='font-size:11px;padding:3px 6px;width:130px;display:none;';
+      dateInput.onchange=async()=>{
+        const newVal=dateInput.value;
+        if(!newVal)return;
+        const{error}=await sb.from('sinking_fund_faelligkeiten').update({datum:newVal}).eq('id',d.id);
+        if(!error){
+          d.datum=newVal;
+          sfFaelligkeiten[fundId].sort((a,b)=>a.datum.localeCompare(b.datum));
+        }
+        dateInput.style.display='none';
+        dateSpan.style.display='';
+        renderFunds();setSyncOk();
+      };
+      dateInput.onblur=()=>{dateInput.style.display='none';dateSpan.style.display='';};
+
+      dateSpan.onclick=()=>{dateSpan.style.display='none';dateInput.style.display='';dateInput.focus();};
+      left.appendChild(dateSpan);
+      left.appendChild(dateInput);
+      row.appendChild(left);
+
+      const right=document.createElement('div');
+      right.style.cssText='display:flex;align-items:center;gap:4px;';
       if(!d.erledigt){
-        const doneBtn = document.createElement('button');
+        const doneBtn=document.createElement('button');
         doneBtn.className='btn-edit';
         doneBtn.title='Als erledigt markieren';
         doneBtn.textContent='✓';
         doneBtn.style.color='var(--green)';
-        doneBtn.onclick = ()=>markFaelligErledigt(d.id, fundId);
-        row.appendChild(doneBtn);
+        doneBtn.onclick=()=>markFaelligErledigt(d.id,fundId);
+        right.appendChild(doneBtn);
       }
-      const delBtn = document.createElement('button');
+      const delBtn=document.createElement('button');
       delBtn.className='btn-del';
       delBtn.textContent='✕';
-      delBtn.onclick = ()=>delFaelligkeit(d.id, fundId);
-      row.appendChild(delBtn);
-      listWrap.appendChild(row);
+      delBtn.onclick=()=>delFaelligkeit(d.id,fundId);
+      right.appendChild(delBtn);
+      row.appendChild(right);
+      list.appendChild(row);
     });
+    wrap.appendChild(list);
+  } else {
+    const empty=document.createElement('div');
+    empty.style.cssText='font-size:12px;color:var(--muted2);margin-bottom:8px;';
+    empty.textContent='Keine Fälligkeiten eingetragen.';
+    wrap.appendChild(empty);
   }
-  wrap.appendChild(listWrap);
 
   // Turnus-Generator
-  const genWrap = document.createElement('div');
-  genWrap.style.cssText='background:var(--s2);border-radius:8px;padding:10px;margin-bottom:8px;';
-  genWrap.innerHTML=`
+  const genBox=document.createElement('div');
+  genBox.style.cssText='background:var(--s2);border-radius:8px;padding:10px;margin-top:8px;';
+  genBox.innerHTML=`
     <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Turnus generieren</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
       <select class="ci" id="sf-turnus-${fundId}" style="flex:1;min-width:120px;font-size:12px;padding:5px 8px;">
@@ -583,35 +575,67 @@ function buildFaelligkeitenSection(fundId){
         <option value="halbjaehrlich">Halbjährlich</option>
         <option value="jaehrlich">Jährlich</option>
       </select>
-      <input class="ci" id="sf-startdate-${fundId}" type="date" style="flex:1;min-width:130px;font-size:12px;padding:5px 8px;" placeholder="Startdatum">
+      <input class="ci" id="sf-startdate-${fundId}" type="date" style="flex:1;min-width:130px;font-size:12px;padding:5px 8px;">
       <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="genFaelligkeiten('${fundId}')">Generieren</button>
     </div>`;
-  wrap.appendChild(genWrap);
+  wrap.appendChild(genBox);
 
-  // Einzelne Fälligkeit hinzufügen
-  const addWrap = document.createElement('div');
-  addWrap.style.cssText='display:flex;gap:6px;align-items:center;';
-  addWrap.innerHTML=`
+  // Einzelnes Datum
+  const addRow=document.createElement('div');
+  addRow.style.cssText='display:flex;gap:6px;align-items:center;margin-top:8px;';
+  addRow.innerHTML=`
     <input class="ci" id="sf-newdate-${fundId}" type="date" style="flex:1;font-size:12px;padding:5px 8px;">
     <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="addFaelligkeit('${fundId}')">+ Datum</button>`;
-  wrap.appendChild(addWrap);
+  wrap.appendChild(addRow);
 
   return wrap;
 }
 
+async function addFaelligkeit(fundId){
+  const inp=document.getElementById('sf-newdate-'+fundId);
+  const val=inp?.value;
+  if(!val)return;
+  const{data,error}=await sb.from('sinking_fund_faelligkeiten').insert({fund_id:fundId,datum:val,erledigt:false}).select().single();
+  if(error){console.error(error);return;}
+  if(!sfFaelligkeiten[fundId])sfFaelligkeiten[fundId]=[];
+  // Use real DB id!
+  sfFaelligkeiten[fundId].push(data);
+  sfFaelligkeiten[fundId].sort((a,b)=>a.datum.localeCompare(b.datum));
+  if(inp)inp.value='';
+  renderFunds();setSyncOk();
+}
+
+async function delFaelligkeit(faelligId,fundId){
+  const{error}=await sb.from('sinking_fund_faelligkeiten').delete().eq('id',faelligId);
+  if(error){console.error('delFaelligkeit:',error);setSyncErr();return;}
+  sfFaelligkeiten[fundId]=(sfFaelligkeiten[fundId]||[]).filter(x=>x.id!==faelligId);
+  renderFunds();setSyncOk();
+}
+
+async function markFaelligErledigt(faelligId,fundId){
+  const{error}=await sb.from('sinking_fund_faelligkeiten').update({erledigt:true}).eq('id',faelligId);
+  if(!error){
+    const f=(sfFaelligkeiten[fundId]||[]).find(x=>x.id===faelligId);
+    if(f)f.erledigt=true;
+  }
+  renderFunds();setSyncOk();
+}
+
 async function genFaelligkeiten(fundId){
-  const turnus = document.getElementById('sf-turnus-'+fundId)?.value;
-  const start = document.getElementById('sf-startdate-'+fundId)?.value;
-  if(!start){ alert('Bitte Startdatum wählen.'); return; }
-  const dates = generateFaelligkeiten(start, turnus);
-  const rows = dates.map(d=>({fund_id:fundId, datum:d, erledigt:false}));
-  const{error}=await sb.from('sinking_fund_faelligkeiten').insert(rows);
+  const turnus=document.getElementById('sf-turnus-'+fundId)?.value;
+  const start=document.getElementById('sf-startdate-'+fundId)?.value;
+  if(!start){alert('Bitte Startdatum wählen.');return;}
+  const dates=generateFaelligkeiten(start,turnus);
+  const rows=dates.map(d=>({fund_id:fundId,datum:d,erledigt:false}));
+  const{data,error}=await sb.from('sinking_fund_faelligkeiten').insert(rows).select();
   if(error){console.error(error);setSyncErr();return;}
-  if(!sfFaelligkeiten[fundId]) sfFaelligkeiten[fundId]=[];
-  rows.forEach(r=>sfFaelligkeiten[fundId].push({...r,id:r.datum+fundId}));
+  if(!sfFaelligkeiten[fundId])sfFaelligkeiten[fundId]=[];
+  (data||[]).forEach(r=>sfFaelligkeiten[fundId].push(r));
   sfFaelligkeiten[fundId].sort((a,b)=>a.datum.localeCompare(b.datum));
   renderFunds();setSyncOk();
 }
+
+
 
 async function saveFund(id){
   const name=document.getElementById('esf-n-'+id).value.trim();
