@@ -186,19 +186,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <div class="sfgrid" id="sf-grid" style="margin-top:12px;"><div style="color:var(--muted);font-size:13px;">Lädt...</div></div>
   </div>
 
-  <!-- ANGESPART AKTUALISIEREN -->
-  <div class="card">
-    <div class="lbl" style="margin-bottom:12px;">Angespartes aktualisieren</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Wenn du den monatlichen Betrag aufs Tagesgeldkonto überwiesen hast, kannst du es hier markieren.</div>
-    <div class="ir">
-      <select style="background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;flex:2;" id="sf-update-sel"></select>
-      <input class="ci" id="sf-update-amt" type="number" placeholder="Betrag €" min="0.01" max="99999" step="0.01" style="flex:1;min-width:100px;">
-    </div>
-    <div style="display:flex;gap:8px;">
-      <button class="btn" onclick="updateAngespart(1)">+ Einzahlung</button>
-      <button style="background:rgba(224,85,119,0.12);border:1px solid rgba(224,85,119,0.4);border-radius:8px;color:var(--red);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;" onclick="updateAngespart(-1)">− Fund abgebucht / zurückgesetzt</button>
-    </div>
-  </div>
+
 </div>
 
 <script>
@@ -228,6 +216,42 @@ async function loadFunds(){
   }catch(e){setSyncErr();}
 }
 
+// Buchungshistorie als DOM-Elemente (kein verschachteltes Template-Literal!)
+function buildHistorie(fundId){
+  const buchungen = sfBuchungen[fundId] || [];
+  const wrap = document.createElement('div');
+  wrap.className = 'list-scroll';
+  if(!buchungen.length){
+    wrap.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:6px 0;">Noch keine Buchungen.</div>';
+    return wrap;
+  }
+  buchungen.forEach(b=>{
+    const isEin = Number(b.betrag) > 0;
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    const left = document.createElement('div');
+    left.innerHTML = '<span style="color:'+(isEin?'var(--green)':'var(--amber)')+';">'+(isEin?'+':'−')+' € '+fmtN(Math.abs(b.betrag))+'</span>'
+      +(b.bezeichnung?'<span style="color:var(--muted);margin-left:8px;font-size:12px;">'+esc(b.bezeichnung)+'</span>':'');
+    const right = document.createElement('div');
+    right.style.cssText='display:flex;align-items:center;gap:6px;';
+    const dateSpan = document.createElement('span');
+    dateSpan.style.cssText='color:var(--muted2);font-size:11px;';
+    // Format date nicely: YYYY-MM-DD → DD.MM.YYYY
+    const dp = (b.datum||'').split('-');
+    dateSpan.textContent = dp.length===3 ? dp[2]+'.'+dp[1]+'.'+dp[0] : (b.datum||'');
+    const delBtn = document.createElement('button');
+    delBtn.className='btn-del';
+    delBtn.textContent='✕';
+    delBtn.onclick = ()=>delSfBuchung(b.id, fundId, b.betrag);
+    right.appendChild(dateSpan);
+    right.appendChild(delBtn);
+    row.appendChild(left);
+    row.appendChild(right);
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+
 function renderFunds(){
   const totalMo=funds.reduce((a,f)=>a+Number(f.monatlich),0);
   const totalSaved=funds.reduce((a,f)=>a+Number(f.angespart),0);
@@ -235,18 +259,26 @@ function renderFunds(){
   document.getElementById('sf-saved').textContent=fmtEur(totalSaved);
 
   const grid=document.getElementById('sf-grid');
-  if(!funds.length){grid.innerHTML='<div style="color:var(--muted);font-size:13px;">Noch keine Sinking Funds.</div>';return;}
-  grid.innerHTML=funds.map(f=>{
+  if(!funds.length){
+    grid.innerHTML='<div style="color:var(--muted);font-size:13px;">Noch keine Sinking Funds.</div>';
+    return;
+  }
+
+  // Render mit DOM-Methoden statt verschachtelten Template-Literals
+  grid.innerHTML='';
+  funds.forEach(f=>{
     const p=f.ziel>0?Math.min(100,Math.round(Number(f.angespart)/Number(f.ziel)*1000)/10):0;
     const col=p>75?'var(--green)':p>40?'var(--cyan)':'var(--pl)';
-    return`<div>
+
+    const wrapper=document.createElement('div');
+    wrapper.innerHTML=`
       <div class="sfcard">
         <div class="rb" style="margin-bottom:6px;">
           <div style="font-size:13px;font-weight:500;">${esc(f.name)}</div>
           <div style="display:flex;align-items:center;gap:4px;">
-            <div style="font-size:11px;color:var(--red);">${esc(f.faelligkeit)}</div>
-            <button class="btn-edit" onclick="toggleEdit('esf-${esc(f.id)}')">✏️</button>
-            <button class="btn-del" onclick="delFund('${esc(f.id)}')">✕</button>
+            <div style="font-size:11px;color:var(--muted);">${esc(f.faelligkeit||'')}</div>
+            <button class="btn-edit" onclick="toggleEdit('esf-${f.id}')">✏️</button>
+            <button class="btn-del" onclick="delFund('${f.id}')">✕</button>
           </div>
         </div>
         <div class="rb" style="margin-bottom:4px;">
@@ -255,51 +287,52 @@ function renderFunds(){
         </div>
         <div class="track"><div class="fill" style="width:${p}%;background:${col};"></div></div>
         <div class="rb" style="font-size:11px;color:var(--muted);margin-top:3px;">
-          <span>${fmtN(p)}\u00a0%</span><span>+${fmtEur(f.monatlich)}\u00a0/ Mo</span>
+          <span>${fmtN(p)} %</span><span>+${fmtEur(f.monatlich)} / Mo</span>
         </div>
         <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="toggleForm('sf-ein-${esc(f.id)}')">+ Einzahlung</button>
-          <button class="btn" style="font-size:12px;padding:5px 12px;background:rgba(224,85,119,0.15);border-color:var(--red);color:var(--red);" onclick="toggleForm('sf-aus-${esc(f.id)}')">− Entnahme</button>
+          <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="toggleEdit('sf-ein-${f.id}')">+ Einzahlung</button>
+          <button class="btn" style="font-size:12px;padding:5px 12px;background:rgba(224,85,119,0.15);border-color:var(--red);color:var(--red);" onclick="toggleEdit('sf-aus-${f.id}')">− Entnahme</button>
         </div>
-        <div class="edit-row" id="sf-ein-${esc(f.id)}" style="margin-top:8px;">
+        <div class="edit-row" id="sf-ein-${f.id}" style="margin-top:8px;">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-            <input class="ci" id="sf-ein-amt-${esc(f.id)}" type="number" min="0.01" step="0.01" placeholder="Betrag €" style="width:110px;">
-            <input class="ci" id="sf-ein-bez-${esc(f.id)}" maxlength="60" placeholder="Bezeichnung" style="flex:1;min-width:120px;">
-            <input class="ci" id="sf-ein-dat-${esc(f.id)}" type="date" style="width:140px;">
-            <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="addSfBuchung('${esc(f.id)}',1)">✓</button>
+            <input class="ci" id="sf-ein-amt-${f.id}" type="number" min="0.01" step="0.01" placeholder="Betrag €" style="width:110px;">
+            <input class="ci" id="sf-ein-bez-${f.id}" maxlength="60" placeholder="Bezeichnung (opt.)" style="flex:1;min-width:120px;">
+            <input class="ci" id="sf-ein-dat-${f.id}" type="date" style="width:140px;">
+            <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="addSfBuchung('${f.id}',1)">✓</button>
           </div>
         </div>
-        <div class="edit-row" id="sf-aus-${esc(f.id)}" style="margin-top:8px;">
+        <div class="edit-row" id="sf-aus-${f.id}" style="margin-top:8px;">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-            <input class="ci" id="sf-aus-amt-${esc(f.id)}" type="number" min="0.01" step="0.01" placeholder="Betrag €" style="width:110px;">
-            <input class="ci" id="sf-aus-bez-${esc(f.id)}" maxlength="60" placeholder="Bezeichnung" style="flex:1;min-width:120px;">
-            <input class="ci" id="sf-aus-dat-${esc(f.id)}" type="date" style="width:140px;">
-            <button class="btn" style="font-size:12px;padding:5px 12px;background:rgba(224,85,119,0.15);border-color:var(--red);color:var(--red);" onclick="addSfBuchung('${esc(f.id)}',-1)">✓</button>
+            <input class="ci" id="sf-aus-amt-${f.id}" type="number" min="0.01" step="0.01" placeholder="Betrag €" style="width:110px;">
+            <input class="ci" id="sf-aus-bez-${f.id}" maxlength="60" placeholder="Bezeichnung (opt.)" style="flex:1;min-width:120px;">
+            <input class="ci" id="sf-aus-dat-${f.id}" type="date" style="width:140px;">
+            <button class="btn" style="font-size:12px;padding:5px 12px;background:rgba(224,85,119,0.15);border-color:var(--red);color:var(--red);" onclick="addSfBuchung('${f.id}',-1)">✓</button>
           </div>
         </div>
         <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Buchungshistorie</div>
-          <div class="list-scroll">\${(sfBuchungen[f.id]||[]).length===0?'<div style="color:var(--muted);font-size:12px;padding:6px 0;">Noch keine Buchungen.</div>':(sfBuchungen[f.id]||[]).map(b=>{const isEin=Number(b.betrag)>0;return\`<div class="hist-row"><div><span style="color:\${isEin?'var(--green)':'var(--amber)'};">\${isEin?'+':'-'}\u00a0€\u00a0\${fmtN(Math.abs(b.betrag))}</span><span style="color:var(--muted);margin-left:8px;font-size:12px;">\${esc(b.bezeichnung||'')}</span></div><div style="display:flex;align-items:center;gap:6px;"><span style="color:var(--muted2);font-size:11px;">\${esc(b.datum||'')}</span><button class="btn-del" onclick="delSfBuchung('\${esc(b.id)}','\${esc(f.id)}',\${Number(b.betrag)})">✕</button></div></div>\`;}).join('')}</div>
+          <div id="hist-${f.id}"></div>
         </div>
       </div>
-      <div class="edit-row" id="esf-${esc(f.id)}">
+      <div class="edit-row" id="esf-${f.id}">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-          <input class="ci" id="esf-n-${esc(f.id)}" value="${esc(f.name)}" maxlength="40" placeholder="Name" style="flex:2;min-width:140px;">
-          <input class="ci" id="esf-m-${esc(f.id)}" type="number" value="${Number(f.monatlich)}" min="1" max="9999" placeholder="€/Monat" style="flex:1;min-width:90px;">
-          <input class="ci" id="esf-g-${esc(f.id)}" type="number" value="${Number(f.ziel)}" min="1" max="99999" placeholder="Ziel €" style="flex:1;min-width:90px;">
-          <input class="ci" id="esf-d-${esc(f.id)}" value="${esc(f.faelligkeit)}" maxlength="20" placeholder="Fälligkeit" style="flex:1;min-width:120px;">
+          <input class="ci" id="esf-n-${f.id}" value="${esc(f.name)}" maxlength="40" placeholder="Name" style="flex:2;min-width:140px;">
+          <input class="ci" id="esf-m-${f.id}" type="number" value="${Number(f.monatlich)}" min="1" max="9999" placeholder="€/Monat" style="flex:1;min-width:90px;">
+          <input class="ci" id="esf-g-${f.id}" type="number" value="${Number(f.ziel)}" min="1" max="99999" placeholder="Ziel €" style="flex:1;min-width:90px;">
+          <input class="ci" id="esf-d-${f.id}" value="${esc(f.faelligkeit||'')}" maxlength="20" placeholder="Fälligkeit (YYYY-MM-DD)" style="flex:1;min-width:140px;">
         </div>
         <div class="edit-actions">
-          <button class="btn-save" onclick="saveFund('${esc(f.id)}')">✓ Speichern</button>
-          <button class="btn-cancel" onclick="toggleEdit('esf-${esc(f.id)}')">Abbrechen</button>
+          <button class="btn-save" onclick="saveFund('${f.id}')">✓ Speichern</button>
+          <button class="btn-cancel" onclick="toggleEdit('esf-${f.id}')">Abbrechen</button>
         </div>
-      </div>
-    </div>`;
-  }).join('');
+      </div>`;
 
-  // Update-Select befüllen
-  const sel=document.getElementById('sf-update-sel');
-  sel.innerHTML=funds.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('');
+    // Buchungshistorie als echte DOM-Elemente einhängen
+    const histSlot = wrapper.querySelector('#hist-'+f.id);
+    if(histSlot) histSlot.replaceWith(buildHistorie(f.id));
+
+    grid.appendChild(wrapper);
+  });
 }
 
 async function addFund(){
@@ -387,14 +420,7 @@ async function delSfBuchung(buchId, fundId, betrag){
 
 function localISO(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day;}
 
-async function updateAngespart(sign){
-  // Legacy-Wrapper für bestehende Buttons oben auf der Seite
-  const id=document.getElementById('sf-update-sel')?.value;
-  const amt=validateAmt(document.getElementById('sf-update-amt')?.value,0.01,99999);
-  if(!amt||!id)return;
-  await addSfBuchung(id, sign);
-  document.getElementById('sf-update-amt').value='';
-}
+
 
 async function doLogout(){await sb.auth.signOut();location.href='index.html';}
 function onLogin(user){
