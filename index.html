@@ -244,6 +244,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
           <div class="status-label">Sinking Funds</div>
           <div class="status-val" id="st-sf" style="color:var(--pl);">...</div>
         </div>
+        <div class="status-row">
+          <div class="status-icon">🪙</div>
+          <div class="status-label">Spartöpfe</div>
+          <div class="status-val" id="st-toepfe" style="color:var(--cyan);">...</div>
+        </div>
       </div>
     </div>
 
@@ -764,11 +769,12 @@ async function loadPeriodForDashboard(){
 
 async function loadDashboard() {
   try {
-    const [rc, rf, rsg, rg, rb, rk, ra] = await Promise.all([
+    const [rc, rf, rsg, rg, rb, rk, ra, rtp] = await Promise.all([
       sb.from('kategorien').select('*'),
       sb.from('fixkosten').select('*'),
       sb.from('sinking_funds').select('*'),
       sb.from('einnahmen').select('*').gte('datum',calcCurrentPeriod_idx().from).lte('datum',calcCurrentPeriod_idx().to),
+      sb.from('spartopf_buchungen').select('betrag,spartopf_id'),
       sb.from('bargeld').select('*'),
       sb.from('kalender').select('*').eq('datum', new Date().toISOString().split('T')[0]),
       sb.from('ausgaben').select('*').order('created_at',{ascending:false}).limit(5),
@@ -797,6 +803,12 @@ async function loadDashboard() {
     // SF
     const sfSaved = funds.reduce((a,f)=>a+Number(f.angespart),0);
     document.getElementById('st-sf').textContent = '\u20ac\u00a0'+fmtN(sfSaved)+' angespart';
+
+    // Spartöpfe Gesamt-Saldo
+    const topfBuchungen = rtp?.data||[];
+    const toepfeSaldo = Math.round(topfBuchungen.reduce((a,b)=>a+Number(b.betrag),0)*100)/100;
+    const stEl = document.getElementById('st-toepfe');
+    if(stEl) stEl.textContent = '\u20ac\u00a0'+fmtN(toepfeSaldo)+' angespart';
 
     // Score
     calcScore(pct, bargeldSaldo, 1700);

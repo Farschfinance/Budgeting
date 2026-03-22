@@ -379,18 +379,24 @@ async function loadStats(){
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:12},padding:12}}}}
     });
 
-    // Monatsverlauf
-    const mLabels=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
-    const mData=Array(12).fill(0);
-    ausgaben.forEach(a=>{
-      const m=new Date(a.created_at).getMonth();
-      mData[m]=Math.round((mData[m]+Number(a.betrag))*100)/100;
+    // Monatsverlauf — lade die letzten 12 Perioden aus DB
+    const last12Labels=[], last12Data=[];
+    const last12Queries=[];
+    for(let i=11;i>=0;i--){
+      const pp=calcStatPeriod(-i);
+      last12Labels.push(pp.label.replace(' '+new Date().getFullYear(),'').replace(' '+(new Date().getFullYear()-1),''));
+      last12Queries.push(sb.from('ausgaben').select('betrag').gte('created_at',pp.from+'T00:00:00').lte('created_at',pp.to+'T23:59:59'));
+    }
+    const last12Results=await Promise.all(last12Queries);
+    last12Results.forEach((r,i)=>{
+      const sum=Math.round((r.data||[]).reduce((a,b)=>a+Number(b.betrag),0)*100)/100;
+      last12Data.push(sum);
     });
     if(monthChart) monthChart.destroy();
     const ctx2=document.getElementById('month-chart').getContext('2d');
     monthChart=new Chart(ctx2,{
       type:'bar',
-      data:{labels:mLabels,datasets:[{label:'Ausgaben',data:mData,backgroundColor:'rgba(155,95,212,0.4)',borderColor:'#9B5FD4',borderWidth:1,borderRadius:4}]},
+      data:{labels:last12Labels,datasets:[{label:'Ausgaben',data:last12Data,backgroundColor:last12Data.map((_,i)=>i===11?'rgba(155,95,212,0.7)':'rgba(155,95,212,0.35)'),borderColor:'#9B5FD4',borderWidth:1,borderRadius:4}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'\u20ac\u00a0'+v}}}}
     });
 
@@ -418,7 +424,7 @@ async function loadStats(){
     }).join('')||'<div style="color:var(--muted);font-size:13px;">Keine Ausgaben diesen Monat.</div>';
 
     // Spartipps
-    buildTipps(catEntries, totalAus, totalEin);
+    buildTipps(catEntries, totalAus, totalEin, cats);
     setSyncOk();
   }catch(e){setSyncErr();console.error(e);}
 }
@@ -459,27 +465,62 @@ async function buildVergleich(){
   }).join('');
 }
 
-function buildTipps(catEntries, totalAus, totalEin){
+function buildTipps(catEntries, totalAus, totalEin, cats){
   const el=document.getElementById('tipps-content');
+  if(!el)return;
   const tipps=[];
-  const bilanz=totalEin-totalAus;
-  const puffer=1000;
+  const bilanz=Math.round((totalEin-totalAus)*100)/100;
 
-  if(bilanz<puffer){
-    const needed=Math.round((puffer-bilanz)*100)/100;
-    tipps.push(`Um euer Ziel von 1.000 € Puffer zu erreichen, müsst ihr noch <strong>${fmtEur(needed)}</strong> einsparen oder zusätzlich verdienen.`);
+  // Gesamtbudget aus Kategorien
+  const totalBudget=cats?cats.reduce((a,c)=>a+Number(c.budget||0),0):0;
+  const puffer=totalBudget>0?Math.round(totalBudget*0.1*100)/100:200;
+
+  // Tipp 1: Bilanz
+  if(bilanz<0){
+    tipps.push(`⚠ Diese Periode habt ihr <strong>${fmtEur(Math.abs(bilanz))}</strong> mehr ausgegeben als eingenommen. Schaut welche Kategorien über Budget liegen.`);
+  } else if(bilanz<puffer){
+    tipps.push(`Ihr habt <strong>${fmtEur(bilanz)}</strong> übrig — das sind ${totalBudget>0?Math.round(bilanz/totalBudget*100)+'%':''} eures Budgets. Versucht mindestens <strong>${fmtEur(puffer)}</strong> (10%) als Puffer zu behalten.`);
   } else {
-    tipps.push(`Super! Ihr habt diesen Monat bereits <strong>${fmtEur(bilanz)}</strong> übrig — ihr übersteigt euer Pufferziel von 1.000 €!`);
+    tipps.push(`✓ Gut gemacht! <strong>${fmtEur(bilanz)}</strong> übrig — ihr liegt deutlich im Plus. Davon könnten <strong>${fmtEur(Math.round(bilanz*0.5*100)/100)}</strong> auf Tagesgeld oder Spartopf.`);
   }
 
-  catEntries.slice(0,3).forEach(([name,amt])=>{
-    if(amt>300) tipps.push(`<strong>${esc(name)}</strong> ist mit <strong>${fmtEur(amt)}</strong> eine eurer größten Ausgabenkategorien — schaut ob hier Einsparpotenzial steckt.`);
-  });
+  // Tipp 2: Überbudget-Kategorien
+  if(cats){
+    const overBudget=cats.filter(c=>Number(c.budget)>0&&Number(c.spent)>Number(c.budget));
+    if(overBudget.length>0){
+      const worst=overBudget.sort((a,b)=>(Number(b.spent)-Number(b.budget))-(Number(a.spent)-Number(a.budget)))[0];
+      const over=Math.round((Number(worst.spent)-Number(worst.budget))*100)/100;
+      tipps.push(`<strong>${esc(worst.name)}</strong> ist um <strong>${fmtEur(over)}</strong> über Budget. Nächsten Monat hier gezielt einsparen.`);
+    }
+  }
 
-  if(totalAus>2500) tipps.push('Eure variablen Ausgaben liegen über 2.500 € — versucht nächsten Monat ein Wochenbudget von 500 € einzuhalten.');
-  tipps.push('Überweist monatlich direkt am Zahltag mindestens <strong>100 €</strong> auf ein Tagesgeldkonto — bevor ihr andere Ausgaben macht.');
+  // Tipp 3: Größte Ausgabenkategorie
+  if(catEntries.length>0){
+    const [topName, topAmt]=catEntries[0];
+    const topPct=totalAus>0?Math.round(topAmt/totalAus*100):0;
+    if(topPct>35){
+      tipps.push(`<strong>${esc(topName)}</strong> macht ${topPct}% eurer Ausgaben aus. Ist das so gewollt oder gibt es hier Einsparpotenzial?`);
+    }
+  }
 
-  el.innerHTML=tipps.map(t=>`<div class="tip-item"><div style="font-size:13px;line-height:1.6;">${t}</div></div>`).join('');
+  // Tipp 4: Vergleich zur Vorperiode (wird von buildVergleich gefüllt, hier Platzhalter)
+  if(totalAus>0&&totalBudget>0){
+    const pct=Math.round(totalAus/totalBudget*100);
+    if(pct>90){
+      tipps.push(`Ihr habt ${pct}% eures Gesamtbudgets ausgeschöpft. Noch <strong>${fmtEur(Math.max(0,totalBudget-totalAus))}</strong> übrig bis Periodenende.`);
+    } else if(pct<60){
+      tipps.push(`Ihr habt erst ${pct}% eures Budgets genutzt — super! Falls noch Ausgaben kommen, habt ihr genug Puffer.`);
+    }
+  }
+
+  // Tipp 5: Fixkosten-Warnung (falls in dieser Periode Fixkosten fällig waren)
+  if(totalAus===0&&totalEin===0){
+    tipps.push('Noch keine Buchungen in dieser Periode. Tragt eure Ausgaben regelmäßig ein für aussagekräftige Auswertungen.');
+  }
+
+  el.innerHTML=tipps.length
+    ? tipps.map(t=>`<div class="tip-item"><div style="font-size:13px;line-height:1.6;">${t}</div></div>`).join('')
+    : '<div style="color:var(--muted);font-size:13px;">Keine Tipps für diese Periode.</div>';
 }
 
 async function doLogout(){await sb.auth.signOut();location.href='index.html';}
