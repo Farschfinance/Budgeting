@@ -438,6 +438,9 @@ function onLogin(user){
   setSidebarPage('spartoepfe');
   
   loadToepfe();
+
+  loadNotifications();
+  subscribeNotifications();
 }
 document.addEventListener('DOMContentLoaded',async()=>{
   const res=await sb.auth.getSession();

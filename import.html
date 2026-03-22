@@ -693,6 +693,9 @@ function onLogin(user){
   loadCats();
   setSyncOk();
   setStep(1);
+
+  loadNotifications();
+  subscribeNotifications();
 }
 
 document.addEventListener('DOMContentLoaded',async()=>{

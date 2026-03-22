@@ -371,6 +371,9 @@ async function onLogin(user){
   const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
   setSidebarPage('schulden');
   await loadDebtState();
+
+  loadNotifications();
+  subscribeNotifications();
 }
 document.addEventListener('DOMContentLoaded',async()=>{
   const res=await sb.auth.getSession();

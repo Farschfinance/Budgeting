@@ -559,6 +559,9 @@ async function onLogin(user){
   setSidebarPage('statistik');
   await loadPeriodHistory();
   loadStats();
+
+  loadNotifications();
+  subscribeNotifications();
 }
 document.addEventListener('DOMContentLoaded',async()=>{
   const res=await sb.auth.getSession();

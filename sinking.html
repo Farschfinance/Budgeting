@@ -472,6 +472,9 @@ function onLogin(user){
   setSidebarPage('sinking');
   
   loadFunds();
+
+  loadNotifications();
+  subscribeNotifications();
 }
 document.addEventListener('DOMContentLoaded',async()=>{
   const res=await sb.auth.getSession();

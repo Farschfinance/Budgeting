@@ -953,6 +953,9 @@ function onLogin(user) {
   setSidebarPage('index');
   setDatum();
   loadPeriodForDashboard().then(()=>loadDashboard());
+
+  loadNotifications();
+  subscribeNotifications();
 }
 
 document.addEventListener('DOMContentLoaded',async()=>{

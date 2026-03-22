@@ -1103,6 +1103,10 @@ async function onLogin(user){
   loadAll();
   loadAusgaben();
   loadEinnahmen();
+
+  initPresence(getDisplayName(user));
+  loadNotifications();
+  subscribeNotifications();
 }
 document.addEventListener('DOMContentLoaded',async()=>{
   const res=await sb.auth.getSession();

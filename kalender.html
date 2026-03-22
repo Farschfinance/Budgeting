@@ -601,6 +601,10 @@ function onLogin(user){
     .on('postgres_changes',{event:'*',schema:'public',table:'kalender'},()=>loadMonth())
     .on('postgres_changes',{event:'*',schema:'public',table:'sinking_funds'},()=>loadMonth())
     .subscribe();
+
+  initPresence(getDisplayName(user));
+  loadNotifications();
+  subscribeNotifications();
 }
 
 document.addEventListener('DOMContentLoaded',async()=>{
