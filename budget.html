@@ -467,26 +467,31 @@ function calcPeriod(startDay, offset){
 let periodHistory = [];
 
 async function loadBudgetStartDay(){
-  // Versuche period_history (neueste Methode)
+  // Versuche period_history
   try {
-    const {data, error} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true});
+    const {data, error} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true}).order('created_at',{ascending:true});
     if(!error && data && data.length){
       periodHistory = data;
-      budgetStartDay = getStartDayForDate(new Date());
+      // Nimm den AKTUELLSTEN Eintrag der heute oder früher gilt
+      budgetStartDay = getStartDayForDate(localISO(new Date()));
+      // Sicherheits-Check: wenn result noch 1 und es gibt neuere Einträge, nimm den letzten
+      if(budgetStartDay === 1 && data.length > 0){
+        const latest = data[data.length-1];
+        budgetStartDay = parseInt(latest.start_day)||1;
+      }
       return;
     }
-  } catch(e){}
+  } catch(e){ console.warn('period_history nicht verfügbar:', e); }
 
-  // Fallback 1: app_settings Tabelle
+  // Fallback: app_settings
   try {
     const {data:s} = await sb.from('app_settings').select('value').eq('key','budget_start_day').single();
     if(s && s.value){
       budgetStartDay = parseInt(s.value)||1;
       return;
     }
-  } catch(e){}
+  } catch(e){ console.warn('app_settings nicht verfügbar:', e); }
 
-  // Fallback 2: Standard - Kalendermonat
   budgetStartDay = 1;
 }
 
@@ -540,7 +545,8 @@ function updateAusgabenTitle(){
   const sub=document.getElementById('ausgaben-periode-sub');
   if(sub){
     if(budgetStartDay!==1){
-      sub.textContent=p.from.split('-').reverse().join('.')+' – '+p.to.split('-').reverse().join('.');
+      const fmtPeriodDate=iso=>{if(!iso)return'';const[y,m,d]=iso.split('-');return d+'.'+m+'.'+y;};
+      sub.textContent=fmtPeriodDate(p.from)+' – '+fmtPeriodDate(p.to);
       sub.style.display='block';
     } else sub.style.display='none';
   }
@@ -571,7 +577,8 @@ async function loadWoche(){
   const sub=document.getElementById('woche-periode-sub');
   if(sub){
     if(budgetStartDay!==1){
-      sub.textContent=p.from.split('-').reverse().join('.')+' – '+p.to.split('-').reverse().join('.');
+      const fmtPeriodDate=iso=>{if(!iso)return'';const[y,m,d]=iso.split('-');return d+'.'+m+'.'+y;};
+      sub.textContent=fmtPeriodDate(p.from)+' – '+fmtPeriodDate(p.to);
       sub.style.display='block';
     } else sub.style.display='none';
   }
@@ -703,7 +710,7 @@ async function loadAll(){
       sb.from('kategorien').select('*').order('created_at'),
       sb.from('fixkosten').select('*').order('created_at'),
       sb.from('bargeld').select('*').order('datum',{ascending:false}),
-      sb.from('einnahmen').select('*').eq('monat',new Date().getMonth()+1).eq('jahr',new Date().getFullYear()).order('datum',{ascending:false}),
+      sb.from('einnahmen').select('*').order('datum',{ascending:false}).limit(5),
     ]);
     cats=rc.data||[];fixItems=rf.data||[];bargeldItems=rb.data||[];einnahmenItems=re.data||[];
     renderCats();renderFix();renderCash();renderEinnahmen();updateOverview();updateCatSel();setSyncOk();

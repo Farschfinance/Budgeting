@@ -300,9 +300,13 @@ async function savePassword(){
 let periodHistory = []; // [{start_day, gueltig_ab}] sortiert aufsteigend
 
 async function loadPeriod(){
-  const {data} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true});
+  const {data} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true}).order('created_at',{ascending:true});
   periodHistory = data || [];
-  const current = getStartDayForDate(new Date());
+  let current = getStartDayForDate(localISO(new Date()));
+  // Sicherheit: wenn noch 1 und Einträge vorhanden, nimm den letzten
+  if(current === 1 && periodHistory.length > 0){
+    current = parseInt(periodHistory[periodHistory.length-1].start_day)||1;
+  }
   const el = document.getElementById('start-day');
   if(el) el.value = current;
   renderPeriodHistory();
@@ -370,8 +374,19 @@ async function savePeriod(){
     errEl.style.display='block'; return;
   }
 
-  // Neuen Eintrag in History schreiben (gilt ab heute)
-  const {error} = await sb.from('period_history').insert({start_day:val, gueltig_ab:today});
+  // Neuen Eintrag schreiben - falls heute schon ein Eintrag existiert, ersetzen
+  // (verhindert Konflikte bei gleicher gueltig_ab)
+  const existingToday = periodHistory.find(e => e.gueltig_ab === today);
+  let insertError;
+  if(existingToday){
+    // Update bestehenden Eintrag von heute
+    const {error} = await sb.from('period_history').update({start_day:val}).eq('id',existingToday.id);
+    insertError = error;
+  } else {
+    const {error} = await sb.from('period_history').insert({start_day:val, gueltig_ab:today});
+    insertError = error;
+  }
+  const error = insertError;
   if(error){ errEl.textContent='Fehler: '+error.message; errEl.style.display='block'; return; }
 
   // Auch app_settings aktualisieren (für budget.html Kompatibilität)
