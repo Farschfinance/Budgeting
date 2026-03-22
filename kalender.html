@@ -510,14 +510,16 @@ async function sendMsg(){
 }
 
 async function delMsg(id){
-  await sb.from('kommentare').delete().eq('id',id);
+  const{error}=await sb.from('kommentare').delete().eq('id',id);
+  if(error){console.error('Delete error:',error);alert('Löschen fehlgeschlagen: '+error.message);return;}
   chatMsgs=chatMsgs.filter(m=>m.id!==id);
   renderChat(false);setSyncOk();
 }
 
 async function clearChat(){
   if(!confirm('Alle Nachrichten unwiderruflich löschen?'))return;
-  await sb.from('kommentare').delete().neq('id','00000000-0000-0000-0000-000000000000');
+  const{error}=await sb.from('kommentare').delete().neq('id','00000000-0000-0000-0000-000000000000');
+  if(error){console.error('Clear error:',error);alert('Leeren fehlgeschlagen: '+error.message);return;}
   chatMsgs=[];renderChat(false);setSyncOk();
 }
 
