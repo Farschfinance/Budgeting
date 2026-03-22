@@ -226,6 +226,33 @@ function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{m
 function fmtEur(n){const v=Math.round(Number(n)*100)/100;return v<0?'−\u00a0€\u00a0'+fmtN(Math.abs(v)):'\u20ac\u00a0'+fmtN(v);}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
 
+async function saveDebtState(){
+  const val = JSON.stringify({
+    current: debtState.current,
+    startDebt: debtState.startDebt,
+    income: debtState.income,
+    fixed: debtState.fixed,
+    variable: debtState.variable
+  });
+  await sb.from('app_settings').upsert({key:'schulden_state',value:val,updated_at:new Date().toISOString()});
+}
+
+async function loadDebtState(){
+  const {data} = await sb.from('app_settings').select('value').eq('key','schulden_state').single();
+  if(data){
+    try{
+      const saved = JSON.parse(data.value);
+      debtState = {...debtState, ...saved};
+    }catch(e){}
+  }
+  // Fill inputs with loaded values
+  document.getElementById('conf-income').value = debtState.income;
+  document.getElementById('conf-fixed').value = debtState.fixed;
+  document.getElementById('conf-variable').value = debtState.variable;
+  render();
+  setSyncOk();
+}
+
 function render(){
   const {current, startDebt, income, fixed, variable} = debtState;
   const freePerMonth = Math.round((income - fixed - variable)*100)/100;
@@ -290,15 +317,17 @@ function recalc(){
   const variable = parseFloat(document.getElementById('conf-variable').value)||2000;
   debtState = {...debtState, income, fixed, variable};
   render();
+  saveDebtState();
 }
 
 function updateDebt(){
   const val = parseFloat(document.getElementById('debt-new-val').value);
   if(isNaN(val))return;
   debtState.current = Math.round(val*100)/100;
-  if(val < debtState.startDebt) debtState.startDebt = debtState.current;
+  if(debtState.startDebt >= 0 || val < debtState.startDebt) debtState.startDebt = debtState.current;
   document.getElementById('debt-new-val').value='';
   render();
+  saveDebtState();
 }
 
 async function doLogout(){await sb.auth.signOut();location.href='index.html';}

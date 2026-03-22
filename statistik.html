@@ -148,15 +148,16 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 </nav>
 
 <div class="page">
-  <div class="filter-row">
-    <select id="sel-jahr" onchange="loadStats()"></select>
-    <select id="sel-monat" onchange="loadStats()">
-      <option value="0">Ganzes Jahr</option>
-      <option value="1">Januar</option><option value="2">Februar</option><option value="3">März</option>
-      <option value="4">April</option><option value="5">Mai</option><option value="6">Juni</option>
-      <option value="7">Juli</option><option value="8">August</option><option value="9">September</option>
-      <option value="10">Oktober</option><option value="11">November</option><option value="12">Dezember</option>
-    </select>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button onclick="changeStatOffset(-1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8592;</button>
+      <div style="text-align:center;">
+        <div id="stat-periode-title" style="font-size:18px;font-weight:600;color:var(--pl);min-width:160px;"></div>
+        <div id="stat-periode-sub" style="font-size:11px;color:var(--muted);display:none;"></div>
+      </div>
+      <button onclick="changeStatOffset(1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8594;</button>
+    </div>
+    <div id="stat-info" style="font-size:12px;color:var(--muted);"></div>
   </div>
 
   <!-- ZUSAMMENFASSUNG -->
@@ -234,40 +235,41 @@ function toggleSection(id){
 }
 
 function fillJahrFilter(){
-  const sel=document.getElementById('sel-jahr');
-  sel.innerHTML='';
-  const now=new Date().getFullYear();
-  for(let y=now;y>=now-3;y--){
-    const opt=document.createElement('option');
-    opt.value=y;opt.textContent=y;
-    if(y===now) opt.selected=true;
-    sel.appendChild(opt);
+  // Replaced by period navigation - no-op kept for compatibility
+}
+
+function changeStatOffset(dir){
+  statOffset+=dir;
+  loadStats();
+}
+
+function updateStatTitle(p){
+  const el=document.getElementById('stat-periode-title');
+  const sub=document.getElementById('stat-periode-sub');
+  const info=document.getElementById('stat-info');
+  if(el)el.textContent=p.label;
+  if(sub){
+    if(p.sd!==1){
+      const fmt=d=>d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+      sub.textContent=fmt(p.fromDate)+' – '+fmt(p.toDate);
+      sub.style.display='block';
+    } else sub.style.display='none';
   }
-  const ms=document.getElementById('sel-monat');
-  ms.value=new Date().getMonth()+1;
+  if(info) info.textContent='Starttag: '+p.sd+(statOffset===0?' · aktuelle Periode':statOffset<0?' · '+Math.abs(statOffset)+' Periode(n) zurück':' · '+statOffset+' Periode(n) vor');
 }
 
 async function loadStats(){
   try{
-    const jahr=parseInt(document.getElementById('sel-jahr').value);
-    const monat=parseInt(document.getElementById('sel-monat').value);
-    document.getElementById('year-label').textContent=jahr;
+    const p=calcStatPeriod(statOffset);
+    updateStatTitle(p);
+    document.getElementById('year-label').textContent=p.label;
 
-    let ausgabenQuery=sb.from('ausgaben').select('*,kategorie_id');
-    let einnahmenQuery=sb.from('einnahmen').select('*');
+    let ausgabenQuery=sb.from('ausgaben').select('*,kategorie_id')
+      .gte('created_at',p.from+'T00:00:00').lte('created_at',p.to+'T23:59:59');
+    let einnahmenQuery=sb.from('einnahmen').select('*')
+      .gte('datum',p.from).lte('datum',p.to);
 
-    if(monat>0){
-      const startDate=`${jahr}-${String(monat).padStart(2,'0')}-01T00:00:00`;
-      const lastDay=new Date(jahr,monat,0).getDate();
-      const endDate=`${jahr}-${String(monat).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}T23:59:59`;
-      ausgabenQuery=ausgabenQuery.gte('created_at',startDate).lte('created_at',endDate);
-      einnahmenQuery=einnahmenQuery.eq('monat',monat).eq('jahr',jahr);
-    } else {
-      const startDate=`${jahr}-01-01T00:00:00`;
-      const endDate=`${jahr}-12-31T23:59:59`;
-      ausgabenQuery=ausgabenQuery.gte('created_at',startDate).lte('created_at',endDate);
-      einnahmenQuery=einnahmenQuery.eq('jahr',jahr);
-    }
+    {
 
     const [ra,re,rc]=await Promise.all([ausgabenQuery,einnahmenQuery,sb.from('kategorien').select('*')]);
     const ausgaben=ra.data||[];
