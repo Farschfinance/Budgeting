@@ -794,7 +794,7 @@ async function loadPeriodForDashboard(){
 
 async function loadDashboard() {
   try {
-    const [rc, rf, rsg, rg, rb, rk, ra, rtp] = await Promise.all([
+    const [rc, rf, rsg, rg, rsp, rbg, rk, ra] = await Promise.all([
       sb.from('kategorien').select('*'),
       sb.from('fixkosten').select('*'),
       sb.from('sinking_funds').select('*'),
@@ -807,7 +807,7 @@ async function loadDashboard() {
 
     const cats = rc.data || [];
     const funds = rsg.data || [];
-    const bargeldBuchungen = rb.data || [];
+    const bargeldBuchungen = rbg.data || [];
     const ausgaben = ra.data || [];
     const kalHeute = rk.data || [];
 
@@ -830,7 +830,7 @@ async function loadDashboard() {
     document.getElementById('st-sf').textContent = '\u20ac\u00a0'+fmtN(sfSaved)+' angespart';
 
     // Spartöpfe Gesamt-Saldo
-    const topfBuchungen = rtp?.data||[];
+    const topfBuchungen = rsp?.data||[];
     const toepfeSaldo = Math.round(topfBuchungen.reduce((a,b)=>a+Number(b.betrag),0)*100)/100;
     const stEl = document.getElementById('st-toepfe');
     if(stEl) stEl.textContent = '\u20ac\u00a0'+fmtN(toepfeSaldo)+' angespart';
