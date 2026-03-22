@@ -938,7 +938,8 @@ async function saveFix(id){
   const name=vs(document.getElementById('ef-n-'+id).value,40);
   const amt=va(document.getElementById('ef-a-'+id).value,0.01,99999);
   if(!name||!amt)return;
-  await sb.from('fixkosten').update({name,betrag:amt}).eq('id',id);
+  const{error:fe}=await sb.from('fixkosten').update({name,betrag:amt}).eq('id',id);
+  if(fe){setSyncErr();console.error('saveFix:',fe);return;}
   const f=fixItems.find(x=>x.id===id);if(f){f.name=name;f.betrag=amt;}
   renderFix();updateOverview();setSyncOk();
 }
@@ -994,7 +995,8 @@ async function saveCash(id){
   const datum=document.getElementById('ecash-dt-'+id).value||todayISO();
   if(isNaN(amt))return;
   const fa=Math.round(amt*100)/100;
-  await sb.from('bargeld').update({bezeichnung:bez,betrag:fa,datum}).eq('id',id);
+  const{error:ce}=await sb.from('bargeld').update({bezeichnung:bez,betrag:fa,datum}).eq('id',id);
+  if(ce){setSyncErr();console.error('saveCash:',ce);return;}
   const b=bargeldItems.find(x=>x.id===id);if(b){b.bezeichnung=bez;b.betrag=fa;b.datum=datum;}
   renderCash();updateOverview();setSyncOk();
 }
@@ -1052,9 +1054,10 @@ async function saveEinnahme(id){
   const datum=document.getElementById('eein-dt-'+id).value||todayISO();
   if(!bez||!amt)return;
   const d=new Date(datum);
-  await sb.from('einnahmen').update({bezeichnung:bez,betrag:amt,kategorie:kat,datum,monat:d.getMonth()+1,jahr:d.getFullYear()}).eq('id',id);
+  const{error:ee}=await sb.from('einnahmen').update({bezeichnung:bez,betrag:amt,kategorie:kat,datum,monat:d.getMonth()+1,jahr:d.getFullYear()}).eq('id',id);
+  if(ee){setSyncErr();console.error('saveEinnahme:',ee);return;}
   const e=einnahmenItems.find(x=>x.id===id);if(e){e.bezeichnung=bez;e.betrag=amt;e.kategorie=kat;e.datum=datum;}
-  renderEinnahmen();updateOverview();setSyncOk();
+  loadEinnahmen();updateOverview();setSyncOk();
 }
 async function addEinnahme(){
   const bez=vs(document.getElementById('ein-bezeichnung').value,60);

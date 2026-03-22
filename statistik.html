@@ -191,10 +191,14 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   </div>
 
   <!-- ZUSAMMENFASSUNG -->
-  <div class="g3" style="margin-bottom:12px;" id="summary-grid">
+  <div class="g3" style="margin-bottom:8px;" id="summary-grid">
     <div class="sbox"><div class="slbl">Einnahmen</div><div class="num-md" id="sum-ein" style="color:var(--green);">...</div></div>
-    <div class="sbox"><div class="slbl">Ausgaben</div><div class="num-md" id="sum-aus" style="color:var(--red);">...</div></div>
-    <div class="sbox"><div class="slbl">Bilanz</div><div class="num-md" id="sum-bil">...</div></div>
+    <div class="sbox"><div class="slbl">Variable Ausgaben</div><div class="num-md" id="sum-aus" style="color:var(--red);">...</div></div>
+    <div class="sbox"><div class="slbl">Bilanz (variabel)</div><div class="num-md" id="sum-bil">...</div></div>
+  </div>
+  <div id="sum-fix-sf" style="margin-bottom:12px;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Feste Verpflichtungen</div>
+    <div style="color:var(--muted);font-size:13px;">Lädt…</div>
   </div>
 
   <!-- AUSGABEN NACH KATEGORIE -->
@@ -359,20 +363,46 @@ async function loadStats(){
     let einnahmenQuery=sb.from('einnahmen').select('*')
       .gte('datum',p.from).lte('datum',p.to);
 
-    const [ra,re,rc]=await Promise.all([ausgabenQuery,einnahmenQuery,sb.from('kategorien').select('*')]);
+    const [ra,re,rc,rf,rs]=await Promise.all([
+      ausgabenQuery,
+      einnahmenQuery,
+      sb.from('kategorien').select('*'),
+      sb.from('fixkosten').select('*'),
+      sb.from('sinking_funds').select('monatlich,name')
+    ]);
     const ausgaben=ra.data||[];
     const einnahmen=re.data||[];
     const cats=rc.data||[];
+    const fixkosten=rf.data||[];
+    const sfFunds=rs.data||[];
 
     const totalAus=ausgaben.reduce((a,b)=>a+Number(b.betrag),0);
     const totalEin=einnahmen.reduce((a,b)=>a+Number(b.betrag),0);
     const bilanz=Math.round((totalEin-totalAus)*100)/100;
+
+    const totalFix=fixkosten.reduce((a,f)=>a+Number(f.betrag),0);
+    const totalSF=sfFunds.reduce((a,f)=>a+Number(f.monatlich),0);
+    const totalKommitiert=Math.round((totalAus+totalFix+totalSF)*100)/100;
+    const verfuegbar=Math.round((totalEin-totalKommitiert)*100)/100;
 
     document.getElementById('sum-ein').textContent=fmtEur(totalEin);
     document.getElementById('sum-aus').textContent=fmtEur(totalAus);
     const bilEl=document.getElementById('sum-bil');
     bilEl.textContent=fmtEur(bilanz,true);
     bilEl.style.color=bilanz>=0?'var(--green)':'var(--red)';
+
+    // Fixkosten + SF Übersicht
+    const fixSfEl=document.getElementById('sum-fix-sf');
+    if(fixSfEl){
+      fixSfEl.innerHTML=`
+        <div class="sbox" style="grid-column:1/-1;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;">
+            <div><div style="color:var(--muted);margin-bottom:2px;">Fixkosten / Mo</div><div style="font-weight:600;color:var(--amber);">${fmtEur(totalFix)}</div></div>
+            <div><div style="color:var(--muted);margin-bottom:2px;">Sinking Funds / Mo</div><div style="font-weight:600;color:var(--cyan);">${fmtEur(totalSF)}</div></div>
+            <div><div style="color:var(--muted);margin-bottom:2px;">Tatsächlich verfügbar</div><div style="font-weight:600;color:${verfuegbar>=0?'var(--green)':'var(--red)'};">${fmtEur(verfuegbar)}</div></div>
+          </div>
+        </div>`;
+    }
 
     // Kategorien-Auswertung
     const catMap={};
@@ -449,7 +479,7 @@ async function loadStats(){
     }).join('')||'<div style="color:var(--muted);font-size:13px;">Keine Ausgaben diesen Monat.</div>';
 
     // Spartipps
-    buildTipps(catEntries, totalAus, totalEin, cats);
+    buildTipps(catEntries, totalAus, totalEin, cats, totalFix, totalSF);
     setSyncOk();
   }catch(e){setSyncErr();console.error(e);}
 }
@@ -490,7 +520,7 @@ async function buildVergleich(){
   }).join('');
 }
 
-function buildTipps(catEntries, totalAus, totalEin, cats){
+function buildTipps(catEntries, totalAus, totalEin, cats, totalFix=0, totalSF=0){
   const el=document.getElementById('tipps-content');
   if(!el)return;
   const tipps=[];

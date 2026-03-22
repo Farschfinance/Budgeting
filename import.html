@@ -177,7 +177,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <div class="info">
     <strong>Volksbank Stuttgart — CSV Export</strong><br>
     Online-Banking → Konto → Umsätze → <strong>Exportieren → CSV</strong> → Zeitraum wählen → Herunterladen.<br>
-    Das Format ist Tab-getrennt (.csv) — einfach die heruntergeladene Datei hier ablegen.<br>
+    <strong style="color:var(--green);">Datenschutz:</strong> Als Beschreibung wird nur der Empfängername übernommen — kein Verwendungszweck. Du kannst die Beschreibung vor dem Import manuell anpassen.<br>
     Die Datei wird <strong>nur in deinem Browser</strong> verarbeitet — sie verlässt nie dein Gerät.
   </div>
 
@@ -354,8 +354,8 @@ function parseVolksbankCSV(text){
     const betrag = parseBetrag(betragRaw);
     if(isNaN(betrag) || betrag === 0) continue;
 
-    const beschreibung = [empf, zweck].filter(Boolean).join(' · ').substring(0,80)
-      || buchtyp || '(kein Text)';
+    // Standardmäßig nur Empfängername, kein Verwendungszweck (Datenschutz)
+    const beschreibung = empf.substring(0,80) || buchtyp || '(kein Text)';
 
     parsed.push({
       datum,

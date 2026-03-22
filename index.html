@@ -801,7 +801,7 @@ async function loadDashboard() {
       sb.from('einnahmen').select('*').gte('datum',calcCurrentPeriod_idx().from).lte('datum',calcCurrentPeriod_idx().to),
       sb.from('spartopf_buchungen').select('betrag,spartopf_id'),
       sb.from('bargeld').select('*'),
-      sb.from('kalender').select('*').eq('datum', new Date().toISOString().split('T')[0]),
+      sb.from('kalender').select('*').eq('datum', (()=>{const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');})()),
       sb.from('ausgaben').select('*').order('created_at',{ascending:false}).limit(5),
     ]);
 
@@ -882,7 +882,7 @@ async function loadDashboard() {
       return `<div class="crow">
         <div style="flex:1;font-size:13px;">${esc(f.name)}</div>
         <div style="flex:2;padding:0 10px;"><div class="track" style="margin:0;"><div class="fill" style="width:${p}%;background:${col};"></div></div></div>
-        <div style="font-size:12px;color:${col};min-width:90px;text-align:right;">${fmtN(p)}\u00a0% · ${esc(f.faelligkeit)}</div>
+        <div style="font-size:12px;color:${col};min-width:90px;text-align:right;">${fmtN(p)}\u00a0%${f.faelligkeit&&f.faelligkeit!=='laufend'?' · '+esc(f.faelligkeit):''}</div>
       </div>`;
     }).join('');
     document.getElementById('sf-overview').innerHTML = sfHTML || '<div class="empty-hint">Noch keine Sinking Funds.</div>';
