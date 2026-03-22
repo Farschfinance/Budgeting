@@ -717,13 +717,55 @@ function calcScore(pct, bargeld, schulden) {
   document.getElementById('score-sub').textContent = sub;
 }
 
+
+let periodHistory_idx=[];
+let budgetStartDay_idx=1;
+
+function localISO_idx(d){
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
+function getStartDayForDate_idx(iso){
+  let r=1;
+  for(const e of periodHistory_idx){if(e.gueltig_ab<=iso)r=e.start_day;else break;}
+  return r;
+}
+function calcCurrentPeriod_idx(){
+  const sd=budgetStartDay_idx;
+  const now=new Date();
+  const day=now.getDate();
+  let baseMonth=now.getMonth(),baseYear=now.getFullYear();
+  if(day<sd){baseMonth--;if(baseMonth<0){baseMonth=11;baseYear--;}}
+  const fromDate=new Date(baseYear,baseMonth,sd);
+  let toMonth=baseMonth+1,toYear=baseYear;
+  if(toMonth>11){toMonth=0;toYear++;}
+  const toDate=new Date(toYear,toMonth,sd-1);
+  return{from:localISO_idx(fromDate),to:localISO_idx(toDate)};
+}
+async function loadPeriodForDashboard(){
+  try{
+    const{data,error}=await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true}).order('created_at',{ascending:true});
+    if(!error&&data&&data.length){
+      periodHistory_idx=data;
+      budgetStartDay_idx=getStartDayForDate_idx(localISO_idx(new Date()));
+      if(budgetStartDay_idx===1&&data.length>0)budgetStartDay_idx=parseInt(data[data.length-1].start_day)||1;
+      return;
+    }
+  }catch(e){}
+  try{
+    const{data:s}=await sb.from('app_settings').select('value').eq('key','budget_start_day').single();
+    if(s&&s.value){budgetStartDay_idx=parseInt(s.value)||1;return;}
+  }catch(e){}
+  budgetStartDay_idx=1;
+}
+
 async function loadDashboard() {
   try {
     const [rc, rf, rsg, rg, rb, rk, ra] = await Promise.all([
       sb.from('kategorien').select('*'),
       sb.from('fixkosten').select('*'),
       sb.from('sinking_funds').select('*'),
-      sb.from('einnahmen').select('*').eq('monat', new Date().getMonth()+1).eq('jahr', new Date().getFullYear()),
+      sb.from('einnahmen').select('*').gte('datum',calcCurrentPeriod_idx().from).lte('datum',calcCurrentPeriod_idx().to),
       sb.from('bargeld').select('*'),
       sb.from('kalender').select('*').eq('datum', new Date().toISOString().split('T')[0]),
       sb.from('ausgaben').select('*').order('created_at',{ascending:false}).limit(5),
@@ -869,7 +911,7 @@ function onLogin(user) {
   const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
   setSidebarPage('index');
   setDatum();
-  loadDashboard();
+  loadPeriodForDashboard().then(()=>loadDashboard());
 }
 
 document.addEventListener('DOMContentLoaded',async()=>{

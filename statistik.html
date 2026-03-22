@@ -424,15 +424,14 @@ async function loadStats(){
 
 async function buildVergleich(){
   const el=document.getElementById('vergleich-content');
-  const now=new Date();
-  const thisMon=now.getMonth()+1, thisYear=now.getFullYear();
-  const prevMon=thisMon===1?12:thisMon-1;
-  const prevYear=thisMon===1?thisYear-1:thisYear;
+  // Aktuelle und vorherige PERIODE (nicht Kalendermonat)
+  const pCurr=calcStatPeriod(0);
+  const pPrev=calcStatPeriod(-1);
 
   const [rc,ra1,ra2]=await Promise.all([
     sb.from('kategorien').select('*'),
-    sb.from('ausgaben').select('*').gte('created_at',`${thisYear}-${String(thisMon).padStart(2,'0')}-01`).lte('created_at',`${thisYear}-${String(thisMon).padStart(2,'0')}-31T23:59:59`),
-    sb.from('ausgaben').select('*').gte('created_at',`${prevYear}-${String(prevMon).padStart(2,'0')}-01`).lte('created_at',`${prevYear}-${String(prevMon).padStart(2,'0')}-31T23:59:59`),
+    sb.from('ausgaben').select('*').gte('created_at',pCurr.from+'T00:00:00').lte('created_at',pCurr.to+'T23:59:59'),
+    sb.from('ausgaben').select('*').gte('created_at',pPrev.from+'T00:00:00').lte('created_at',pPrev.to+'T23:59:59'),
   ]);
   const cats=rc.data||[];
   const thisAus=ra1.data||[];
@@ -443,10 +442,8 @@ async function buildVergleich(){
   prevAus.forEach(a=>{const c=cats.find(x=>x.id===a.kategorie_id);const n=c?c.name:'Sonstiges';prevMap[n]=(prevMap[n]||0)+Number(a.betrag);});
 
   const allCats=[...new Set([...Object.keys(thisMap),...Object.keys(prevMap)])];
-  const MONATE=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-
   el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr 80px;gap:6px;font-size:11px;color:var(--muted);padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">
-    <span>Kategorie</span><span style="text-align:right;">${MONATE[prevMon-1]}</span><span style="text-align:right;">${MONATE[thisMon-1]}</span><span style="text-align:right;">Diff</span>
+    <span>Kategorie</span><span style="text-align:right;">${pPrev.label}</span><span style="text-align:right;">${pCurr.label}</span><span style="text-align:right;">Diff</span>
   </div>`+allCats.map(name=>{
     const prev=Math.round((prevMap[name]||0)*100)/100;
     const curr=Math.round((thisMap[name]||0)*100)/100;

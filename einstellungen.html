@@ -207,22 +207,28 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
       <strong style="color:var(--text);">Beispiel:</strong> Starttag 26 → der Budget-Monat "März" läuft vom 26. Feb bis 25. März.
     </div>
 
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-      <div style="flex:1;min-width:140px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+      <div>
         <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Starttag (1–28)</label>
         <input class="ci" id="start-day" type="number" min="1" max="28" placeholder="z.B. 26" style="font-size:18px;font-weight:600;text-align:center;">
       </div>
-      <div style="flex:2;background:var(--s2);border-radius:8px;padding:12px;min-width:180px;">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Vorschau · aktuell</div>
-        <div style="font-size:13px;font-weight:500;" id="period-preview">—</div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Gültig ab (rückwirkend möglich)</label>
+        <input class="ci" id="gueltig-ab" type="date">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Standard: heute. Zurückdatieren für rückwirkende Korrekturen.</div>
       </div>
     </div>
 
-    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
-      ⚠️ Gilt für beide Nutzer gleichzeitig. Änderungen wirken sich auf alle Auswertungen aus.
+    <div style="background:var(--s2);border-radius:8px;padding:12px;margin-bottom:14px;">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Vorschau für eingestelltes Datum</div>
+      <div style="font-size:13px;font-weight:500;" id="period-preview">—</div>
     </div>
 
-    <div class="success" id="period-success">✓ Gespeichert! Gilt ab heute für alle neuen Auswertungen.</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+      ⚠️ Gilt für beide Nutzer gleichzeitig. Rückwirkende Änderungen korrigieren historische Auswertungen.
+    </div>
+
+    <div class="success" id="period-success">✓ Gespeichert!</div>
     <div class="err" id="period-err">Bitte eine Zahl zwischen 1 und 28 eingeben.</div>
     <button class="btn" onclick="savePeriod()">Periode speichern</button>
 
@@ -328,7 +334,10 @@ function getStartDayForDate(date){
 function updatePeriodPreview(day){
   const el = document.getElementById('period-preview');
   if(!el) return;
-  const p = calcPeriodForDay(day, new Date(), 0);
+  // Vorschau basierend auf dem eingegebenen Gültigkeitsdatum
+  const gueltigInput = document.getElementById('gueltig-ab');
+  const refDate = gueltigInput && gueltigInput.value ? new Date(gueltigInput.value+'T12:00:00') : new Date();
+  const p = calcPeriodForDay(day, refDate, 0);
   el.textContent = p.label + ' · ' + fmtDateDE(p.fromDate) + ' – ' + fmtDateDE(p.toDate);
 }
 
@@ -367,23 +376,17 @@ async function savePeriod(){
   errEl.style.display='none'; okEl.style.display='none';
   if(isNaN(val)||val<1||val>28){ errEl.style.display='block'; return; }
 
-  const today = localISO(new Date());
-  const current = getStartDayForDate(new Date());
-  if(val === current){
-    errEl.textContent='Das ist bereits der aktuelle Starttag.';
-    errEl.style.display='block'; return;
-  }
+  // Datum aus Eingabe nehmen, oder heute als Standard
+  const gueltigAb = document.getElementById('gueltig-ab').value || localISO(new Date());
 
-  // Neuen Eintrag schreiben - falls heute schon ein Eintrag existiert, ersetzen
-  // (verhindert Konflikte bei gleicher gueltig_ab)
-  const existingToday = periodHistory.find(e => e.gueltig_ab === today);
+  // Prüfen ob für dieses Datum schon ein Eintrag existiert → dann updaten
+  const existing = periodHistory.find(e => e.gueltig_ab === gueltigAb);
   let insertError;
-  if(existingToday){
-    // Update bestehenden Eintrag von heute
-    const {error} = await sb.from('period_history').update({start_day:val}).eq('id',existingToday.id);
+  if(existing){
+    const {error} = await sb.from('period_history').update({start_day:val}).eq('id',existing.id);
     insertError = error;
   } else {
-    const {error} = await sb.from('period_history').insert({start_day:val, gueltig_ab:today});
+    const {error} = await sb.from('period_history').insert({start_day:val, gueltig_ab:gueltigAb});
     insertError = error;
   }
   const error = insertError;
@@ -392,6 +395,7 @@ async function savePeriod(){
   // Auch app_settings aktualisieren (für budget.html Kompatibilität)
   await sb.from('app_settings').upsert({key:'budget_start_day',value:String(val),updated_at:new Date().toISOString()});
 
+  okEl.textContent='✓ Gespeichert! Gültig ab '+gueltigAb.split('-').reverse().join('.')+' · Starttag '+val+'.';
   okEl.style.display='block';
   await loadPeriod();
 }
@@ -424,8 +428,8 @@ function renderPeriodHistory(){
 }
 
 document.addEventListener('input', e => {
-  if(e.target.id==='start-day'){
-    const v = parseInt(e.target.value);
+  if(e.target.id==='start-day'||e.target.id==='gueltig-ab'){
+    const v = parseInt(document.getElementById('start-day')?.value||'0');
     if(v>=1&&v<=28) updatePeriodPreview(v);
   }
 });
@@ -441,6 +445,9 @@ function onLogin(user){
   // Feld vorausfüllen
   const existingName=user?.user_metadata?.display_name||'';
   document.getElementById('display-name').value=existingName;
+  // Gültig-ab Datum auf heute vorausfüllen
+  const gabEl=document.getElementById('gueltig-ab');
+  if(gabEl)gabEl.value=localISO(new Date());
   document.getElementById('preview-badge').textContent='👤 '+(existingName||user.email.split('@')[0]);
   document.getElementById('current-name-hint').textContent=existingName?'Aktuell: '+existingName:'Noch kein Name gesetzt';
 
