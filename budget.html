@@ -22,6 +22,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .nav-sync{font-size:11px;border-radius:20px;padding:3px 10px;}
 .nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
 .nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
+.nav-partner{font-size:11px;color:var(--green);background:rgba(61,217,138,0.12);border:1px solid rgba(61,217,138,0.3);border-radius:20px;padding:3px 10px;display:none;white-space:nowrap;}
+.nav-partner.visible{display:block;}
 .nav-out{font-size:11px;color:var(--muted2);background:transparent;border:1px solid var(--border);border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .nav-out:hover{color:var(--red);border-color:rgba(224,85,119,0.4);}
 .page{max-width:900px;margin:0 auto;padding:16px;}
@@ -33,6 +35,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .track{height:5px;background:var(--s3);border-radius:3px;margin:8px 0 4px;}
 .fill{height:100%;border-radius:3px;}
 .crow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.list-scroll{max-height:380px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
+.list-scroll::-webkit-scrollbar{width:4px;}
+.list-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 .crow:last-child{border-bottom:none;}
 .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 .ci{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
@@ -169,6 +174,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   </div>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
+    <div class="nav-partner" id="partner-badge"></div>
     <div class="nav-sync ok" id="sync-badge">● Live</div>
     <button class="nav-out" onclick="doLogout()">Abmelden</button>
   </div>
@@ -305,7 +311,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
         </div>
         <div id="ausgaben-monat-sum" style="font-size:13px;color:var(--amber);font-weight:500;"></div>
       </div>
-      <div id="ausgaben-list"></div>
+      <div class="list-scroll"><div id="ausgaben-list"></div></div>
     </div>
   </div>
 
@@ -331,7 +337,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
         </div>
         <div id="ein-monat-sum" style="font-size:13px;color:var(--green);font-weight:500;"></div>
       </div>
-      <div id="einnahmen-list"></div>
+      <div class="list-scroll"><div id="einnahmen-list"></div></div>
     </div>
   </div>
 
@@ -368,7 +374,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
         <div id="f-err" class="ferr">Bitte Bezeichnung und Betrag eingeben.</div>
         <button class="btn" onclick="addFix()">Hinzufügen</button>
       </div>
-      <div id="fix-list"></div>
+      <div class="list-scroll"><div id="fix-list"></div></div>
     </div>
   </div>
 
@@ -1081,6 +1087,26 @@ function openSidebar(){document.getElementById('sidebar').classList.add('open');
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-overlay').classList.remove('open');}
 function setSidebarPage(page){document.querySelectorAll('.sidebar-link').forEach(l=>{l.classList.toggle('on',l.dataset.page===page);});}
 
+
+// ── ONLINE PRESENCE ─────────────────────────────────────────────
+let presenceChannel=null;
+function initPresence(myName){
+  presenceChannel=sb.channel('online-users',{config:{presence:{key:myName}}});
+  presenceChannel
+    .on('presence',{event:'sync'},()=>{
+      const state=presenceChannel.presenceState();
+      const others=Object.entries(state)
+        .filter(([k])=>k!==myName)
+        .map(([k,v])=>{const i=Array.isArray(v)?v[0]:v;return i?.name||k;});
+      const badge=document.getElementById('partner-badge');
+      if(!badge)return;
+      if(others.length>0){badge.textContent='● '+others.join(', ')+' ist auch online';badge.classList.add('visible');}
+      else{badge.textContent='';badge.classList.remove('visible');}
+    })
+    .subscribe(async(s)=>{
+      if(s==='SUBSCRIBED') await presenceChannel.track({name:myName,ts:Date.now()});
+    });
+}
 </script>
 </body>
 </html>
