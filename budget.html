@@ -165,6 +165,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="statistik.html">Statistik</a>
     <a class="nav-link" href="schulden.html">Schulden</a>
       <a class="nav-link" href="einstellungen.html">⚙️</a>
+      <a class="nav-link" href="import.html">📥</a>
   </div>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
@@ -452,15 +453,27 @@ function calcPeriod(startDay, offset){
 let periodHistory = [];
 
 async function loadBudgetStartDay(){
-  const {data} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true});
-  periodHistory = data || [];
-  // Fallback: app_settings
-  if(!periodHistory.length){
+  // Versuche period_history (neueste Methode)
+  try {
+    const {data, error} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true});
+    if(!error && data && data.length){
+      periodHistory = data;
+      budgetStartDay = getStartDayForDate(new Date());
+      return;
+    }
+  } catch(e){}
+
+  // Fallback 1: app_settings Tabelle
+  try {
     const {data:s} = await sb.from('app_settings').select('value').eq('key','budget_start_day').single();
-    budgetStartDay = s ? parseInt(s.value)||1 : 1;
-  } else {
-    budgetStartDay = getStartDayForDate(new Date());
-  }
+    if(s && s.value){
+      budgetStartDay = parseInt(s.value)||1;
+      return;
+    }
+  } catch(e){}
+
+  // Fallback 2: Standard - Kalendermonat
+  budgetStartDay = 1;
 }
 
 // Gibt den Starttag zurück der für ein bestimmtes Datum gültig war
@@ -1019,7 +1032,7 @@ async function delEinnahme(id){
 
 // ── AUTH ─────────────────────────────────────────────────────
 async function doLogout(){await sb.auth.signOut();location.href='index.html';}
-function onLogin(user){
+async function onLogin(user){
   currentUser=user;
   const nb=document.getElementById('nav-user');if(nb)nb.textContent='👤 '+getDisplayName(user);
   const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
@@ -1028,11 +1041,13 @@ function onLogin(user){
   document.getElementById('e-date').value=todayISO();
   document.getElementById('cash-datum').value=todayISO();
   document.getElementById('ein-datum').value=todayISO();
-  loadBudgetStartDay().then(()=>{
-    updateAusgabenTitle();
-    updateEinTitle();
-    loadAll();loadAusgaben();loadEinnahmen();
-  });
+  // Wichtig: erst startDay laden, DANN alles andere initialisieren
+  await loadBudgetStartDay();
+  updateAusgabenTitle();
+  updateEinTitle();
+  loadAll();
+  loadAusgaben();
+  loadEinnahmen();
 }
 document.addEventListener('DOMContentLoaded',async()=>{
   const res=await sb.auth.getSession();
