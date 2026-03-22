@@ -336,13 +336,13 @@ async function loadAndRender(){
     const startDate=`${calYear}-${String(calMonth+1).padStart(2,'0')}-01`;
     const lastDay=new Date(calYear,calMonth+1,0).getDate();
     const endDate=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-    const[rk,rs,re]=await Promise.all([
+    const[rk,rs,rfl,re]=await Promise.all([
       sb.from('kalender').select('*').gte('datum',startDate).lte('datum',endDate),
       sb.from('sinking_funds').select('*'),
       sb.from('sinking_fund_faelligkeiten').select('*').eq('erledigt',false).order('datum'),
       sb.from('einnahmen').select('*').eq('monat',calMonth+1).eq('jahr',calYear),
     ]);
-    kalEvents=rk.data||[];sfFunds=rs.data||[];sfFaelligTermine=rfl?.data||[];einnahmen=re.data||[];
+    kalEvents=rk.data||[];sfFunds=rs.data||[];sfFaelligTermine=rfl.data||[];einnahmen=re.data||[];
     renderCalendar();setSyncOk();
   }catch(e){setSyncErr();}
 }
