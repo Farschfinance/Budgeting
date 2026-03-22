@@ -332,6 +332,13 @@ function fmtDateDE(dt){
   return dt.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
 }
 
+function localISO(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
+
 function calcPeriodForDay(startDay, ref, offset){
   const d = ref || new Date();
   const day = d.getDate();
@@ -345,7 +352,7 @@ function calcPeriodForDay(startDay, ref, offset){
   let toMonth=baseMonth+1, toYear=baseYear;
   if(toMonth>11){toMonth=0;toYear++;}
   const toDate = new Date(toYear, toMonth, startDay-1);
-  return { from:fromDate.toISOString().split('T')[0], to:toDate.toISOString().split('T')[0],
+  return { from:localISO(fromDate), to:localISO(toDate),
            label:ML[toMonth]+' '+toYear, fromDate, toDate };
 }
 
@@ -356,7 +363,7 @@ async function savePeriod(){
   errEl.style.display='none'; okEl.style.display='none';
   if(isNaN(val)||val<1||val>28){ errEl.style.display='block'; return; }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localISO(new Date());
   const current = getStartDayForDate(new Date());
   if(val === current){
     errEl.textContent='Das ist bereits der aktuelle Starttag.';

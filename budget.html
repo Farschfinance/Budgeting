@@ -418,33 +418,47 @@ let budgetStartDay=1; // Wird aus Supabase geladen
 
 // Berechnet Perioden-Start und -Ende basierend auf Starttag + "Monat-Offset"
 // offset=0 → aktuelle Periode, offset=-1 → vorherige, offset=+1 → nächste
+function localISO(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
+
 function calcPeriod(startDay, offset){
   const now = new Date();
   const day = now.getDate();
-  // Basis-Monat bestimmen
   let baseMonth = now.getMonth();
   let baseYear = now.getFullYear();
   if(day < startDay){
-    // Noch nicht in neuer Periode → Basis ist letzter Monat
     baseMonth--;
     if(baseMonth < 0){ baseMonth=11; baseYear--; }
   }
-  // Offset anwenden
   baseMonth += offset;
   while(baseMonth > 11){ baseMonth-=12; baseYear++; }
   while(baseMonth < 0){ baseMonth+=12; baseYear--; }
-  // Von: startDay des baseMonth
+
   const fromDate = new Date(baseYear, baseMonth, startDay);
-  // Bis: startDay-1 des folgenden Monats
   let toMonth = baseMonth+1, toYear = baseYear;
   if(toMonth>11){ toMonth=0; toYear++; }
   const toDate = new Date(toYear, toMonth, startDay-1);
-  // Label = Monat in dem die meisten Tage liegen
-  const labelMonth = toMonth;
-  const labelYear = toYear;
+
+  // Label = Monat mit den MEISTEN Tagen in der Periode
+  // Tage in baseMonth: Monatsende - startDay + 1
+  // Tage in toMonth: startDay - 1
+  const daysInBase = new Date(baseYear, baseMonth+1, 0).getDate() - startDay + 1;
+  const daysInTo = startDay - 1;
+  let labelMonth, labelYear;
+  if(daysInBase >= daysInTo){
+    labelMonth = baseMonth;
+    labelYear = baseYear;
+  } else {
+    labelMonth = toMonth;
+    labelYear = toYear;
+  }
   return {
-    from: fromDate.toISOString().split('T')[0],
-    to: toDate.toISOString().split('T')[0],
+    from: localISO(fromDate),
+    to: localISO(toDate),
     label: MONATE_LANG[labelMonth]+' '+labelYear,
     fromDate, toDate
   };
@@ -478,7 +492,7 @@ async function loadBudgetStartDay(){
 
 // Gibt den Starttag zurück der für ein bestimmtes Datum gültig war
 function getStartDayForDate(date){
-  const iso = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+  const iso = typeof date === 'string' ? date : localISO(date);
   let result = 1;
   for(const entry of periodHistory){
     if(entry.gueltig_ab <= iso) result = entry.start_day;
@@ -499,7 +513,7 @@ function toggleForm(id){document.getElementById(id).classList.toggle('show');}
 function toggleEdit(id){document.getElementById(id).classList.toggle('show');}
 function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
 function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
-function todayISO(){return new Date().toISOString().split('T')[0];}
+function todayISO(){return localISO(new Date());}
 function fmtDate(iso){if(!iso)return'';const d=new Date(iso+'T12:00:00');return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
 function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}

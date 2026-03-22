@@ -230,6 +230,66 @@ Chart.defaults.borderColor='rgba(140,100,200,0.15)';
 
 const CAT_COLORS=['#9B5FD4','#3DD9C5','#3DD98A','#E05577','#E0A830','#C490F0','#3DD9C5','#85B7EB'];
 
+let periodHistory=[];
+let statOffset=0;
+
+function localISO(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
+
+async function loadPeriodHistory(){
+  try{
+    const {data,error}=await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true});
+    if(!error&&data&&data.length){ periodHistory=data; return; }
+  }catch(e){}
+  try{
+    const {data:s}=await sb.from('app_settings').select('value').eq('key','budget_start_day').single();
+    if(s&&s.value){
+      periodHistory=[{start_day:parseInt(s.value)||1, gueltig_ab:'2000-01-01'}];
+      return;
+    }
+  }catch(e){}
+  periodHistory=[{start_day:1, gueltig_ab:'2000-01-01'}];
+}
+
+function getStartDayForDate(iso){
+  let result=1;
+  for(const e of periodHistory){if(e.gueltig_ab<=iso)result=e.start_day;else break;}
+  return result;
+}
+
+function calcStatPeriod(offset){
+  const now=new Date();
+  const todayISO=localISO(now);
+  const sd=getStartDayForDate(todayISO);
+  const day=now.getDate();
+  const ML=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  let baseMonth=now.getMonth(), baseYear=now.getFullYear();
+  if(day<sd){ baseMonth--; if(baseMonth<0){baseMonth=11;baseYear--;} }
+  baseMonth+=offset;
+  while(baseMonth>11){baseMonth-=12;baseYear++;}
+  while(baseMonth<0){baseMonth+=12;baseYear--;}
+  const fromDate=new Date(baseYear,baseMonth,sd);
+  let toMonth=baseMonth+1,toYear=baseYear;
+  if(toMonth>11){toMonth=0;toYear++;}
+  const toDate=new Date(toYear,toMonth,sd-1);
+  // Label = Monat mit den meisten Tagen
+  const daysInBase=new Date(baseYear,baseMonth+1,0).getDate()-sd+1;
+  const daysInTo=sd-1;
+  const labelMonth=daysInBase>=daysInTo?baseMonth:toMonth;
+  const labelYear=daysInBase>=daysInTo?baseYear:toYear;
+  return{
+    from:localISO(fromDate),
+    to:localISO(toDate),
+    label:ML[labelMonth]+' '+labelYear,
+    fromDate,toDate,sd
+  };
+}
+
+
 function toggleSection(id){
   const el=document.getElementById(id);
   el.classList.toggle('show');
