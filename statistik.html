@@ -274,17 +274,25 @@ function localISO(d){
 
 async function loadPeriodHistory(){
   try{
-    const {data,error}=await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true});
-    if(!error&&data&&data.length){ periodHistory=data; return; }
-  }catch(e){}
+    const {data,error}=await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true}).order('created_at',{ascending:true});
+    if(!error&&data&&data.length){
+      periodHistory=data;
+      console.log('[Statistik] period_history geladen:', data.map(e=>e.start_day+'@'+e.gueltig_ab).join(', '));
+      const sd=getStartDayForDate(localISO(new Date()));
+      console.log('[Statistik] Starttag für heute:', sd);
+      return;
+    }
+  }catch(e){ console.warn('period_history Fehler:',e); }
   try{
     const {data:s}=await sb.from('app_settings').select('value').eq('key','budget_start_day').single();
     if(s&&s.value){
       periodHistory=[{start_day:parseInt(s.value)||1, gueltig_ab:'2000-01-01'}];
+      console.log('[Statistik] Fallback app_settings: start_day='+s.value);
       return;
     }
   }catch(e){}
   periodHistory=[{start_day:1, gueltig_ab:'2000-01-01'}];
+  console.warn('[Statistik] Fallback: start_day=1');
 }
 
 function getStartDayForDate(iso){
@@ -591,7 +599,7 @@ async function onLogin(user){
   const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
   setSidebarPage('statistik');
   await loadPeriodHistory();
-  loadStats();
+  await loadStats();
 
   loadNotifications();
   subscribeNotifications();
