@@ -159,6 +159,15 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   .hamburger{display:block;}
   .nav-sync{display:none;}
 }
+/* Desktop medium: verstecke Live-Badge damit Bell sichtbar bleibt */
+@media(max-width:1050px) and (min-width:701px){
+  .nav-sync{display:none;}
+}
+/* Desktop: hide Live-badge on medium screens to make room for bell */
+@media(max-width:1050px) and (min-width:701px){
+  .nav-sync{display:none;}
+  .nav-out{padding:3px 8px;font-size:10px;}
+}
 @media(max-width:600px){
   .page{padding:10px;}
   .card{padding:12px;}
@@ -717,7 +726,10 @@ function showNotifToast(n){
 }
 
 async function pushNotif(nachricht,typ='info'){
-  await sb.from('notifications').insert({nachricht,autor:myName(),typ});
+  try{
+    const{error}=await sb.from('notifications').insert({nachricht,autor:myName(),typ});
+    if(error)console.warn('pushNotif error:',error.message);
+  }catch(e){console.warn('pushNotif failed:',e);}
 }
 </script>
 </body>

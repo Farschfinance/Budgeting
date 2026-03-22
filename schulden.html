@@ -98,6 +98,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   .nav-sync{display:none;}
   .nav-right{gap:6px;}
 }
+/* Desktop medium: verstecke Live-Badge damit Bell sichtbar bleibt */
+@media(max-width:1050px) and (min-width:701px){
+  .nav-sync{display:none;}
+}
 /* ── RESPONSIVE FIXES ───────────────────────────── */
 @media(max-width:600px){
   .page{padding:10px;}
@@ -493,7 +497,10 @@ function showNotifToast(n){
 }
 
 async function pushNotif(nachricht,typ='info'){
-  await sb.from('notifications').insert({nachricht,autor:myName(),typ});
+  try{
+    const{error}=await sb.from('notifications').insert({nachricht,autor:myName(),typ});
+    if(error)console.warn('pushNotif error:',error.message);
+  }catch(e){console.warn('pushNotif failed:',e);}
 }
 </script>
 </body>

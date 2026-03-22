@@ -108,7 +108,11 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 /* RESULT */
 .result-box{display:none;background:rgba(61,217,138,0.08);border:1px solid rgba(61,217,138,0.3);border-radius:10px;padding:16px;margin-top:12px;}
 
-@media(max-width:700px){.nav-links{display:none;}.hamburger{display:block;}}
+@media(max-width:700px){.nav-links{display:none;}
+/* Desktop medium: verstecke Live-Badge damit Bell sichtbar bleibt */
+@media(max-width:1050px) and (min-width:701px){
+  .nav-sync{display:none;}
+}.hamburger{display:block;}}
 @media(max-width:600px){.page{padding:10px;}.steps{flex-wrap:wrap;}.stats-bar{gap:10px;}.preview-wrap{font-size:12px;}td,th{padding:6px 8px;}}
 </style>
 </head>
@@ -758,7 +762,9 @@ async function clearNotifications(){
 }
 
 function subscribeNotifications(){
-  sb.channel('notif-live')
+  // Eindeutiger Kanalname pro Tab verhindert Duplikate
+  const chanName='notif-live-'+Math.random().toString(36).slice(2,7);
+  sb.channel(chanName)
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},payload=>{
       notifData.unshift(payload.new);
       if(notifData.length>10)notifData=notifData.slice(0,10);
@@ -785,7 +791,10 @@ function showNotifToast(n){
 }
 
 async function pushNotif(nachricht,typ='info'){
-  await sb.from('notifications').insert({nachricht,autor:myName(),typ});
+  try{
+    const{error}=await sb.from('notifications').insert({nachricht,autor:myName(),typ});
+    if(error)console.warn('pushNotif error:',error.message);
+  }catch(e){console.warn('pushNotif failed:',e);}
 }
 </script>
 </body>

@@ -113,6 +113,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   .nav-sync{display:none;}
   .nav-right{gap:6px;}
 }
+/* Desktop medium: verstecke Live-Badge damit Bell sichtbar bleibt */
+@media(max-width:1050px) and (min-width:701px){
+  .nav-sync{display:none;}
+}
 /* ── RESPONSIVE FIXES ───────────────────────────── */
 @media(max-width:600px){
   .page{padding:10px;}
@@ -217,6 +221,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser=null, funds=[], sfBuchungen={};
 
 function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
+function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
 function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});}
 function fmtEur(n){const v=Math.round(Number(n)*100)/100;return v<0?'−\u00a0€\u00a0'+fmtN(Math.abs(v)):'\u20ac\u00a0'+fmtN(v);}
@@ -597,7 +602,10 @@ function showNotifToast(n){
 }
 
 async function pushNotif(nachricht,typ='info'){
-  await sb.from('notifications').insert({nachricht,autor:myName(),typ});
+  try{
+    const{error}=await sb.from('notifications').insert({nachricht,autor:myName(),typ});
+    if(error)console.warn('pushNotif error:',error.message);
+  }catch(e){console.warn('pushNotif failed:',e);}
 }
 </script>
 </body>
