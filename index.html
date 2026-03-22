@@ -316,75 +316,261 @@ function userName(){return currentUser?getDisplayName(currentUser):'?';}
 function showErr(id){document.getElementById(id).style.display='block';}
 function hideErr(id){document.getElementById(id).style.display='none';}
 
-// ── TIPP DES TAGES via Claude AI ─────────────────────────
-// Cache-Key enthält das Datum → täglich ein neuer Tipp, kein unnötiger API-Call
-const TIPP_CACHE_KEY = 'kassenz_tipp_';
-
-// Fallback-Tipps falls API nicht erreichbar
-const FALLBACK_TIPPS = [
-  "Überweise dir am Zahltag zuerst den Sparbetrag — bevor du andere Ausgaben tätigst.",
-  "24-Stunden-Regel: Vor ungeplanten Käufen über 30 € einen Tag warten.",
-  "Meal-Planning spart 15–20 % der Lebensmittelkosten.",
-  "Abos prüfen: Was nutzt du wirklich? Streaming, Apps, Zeitschriften.",
-  "Notgroschen von 1.000 € auf dem Tagesgeldkonto verhindert Budgetsprenger.",
-  "Grundpreis vergleichen — €/100g oder €/Liter, nicht den Packungspreis.",
-  "Reparieren statt wegwerfen — YouTube hilft bei fast jedem Haushaltsgerät.",
+const TIPPS_365 = [
+  'Starte das neue Jahr mit einem vollständigen Überblick: Liste alle Einnahmen, Fixkosten und Schulden auf einem Blatt auf.',
+  'Überprüfe zum Jahresbeginn alle laufenden Abos — Streaming, Zeitschriften, Apps. Kündige was du kaum genutzt hast.',
+  'Erstelle einen Jahresplan für große Ausgaben: Urlaub, Autoreparatur, Geburtstage. So überrascht dich nichts.',
+  'Die 1%-Regel: Was kostet 1% deines Jahreseinkommens? Alles darunter ist eine kleine Ausgabe — darüber braucht es Überlegung.',
+  'Berechne deinen Stundenlohn nach Steuern — dann siehst du sofort wie viele Arbeitsstunden ein Kauf kostet.',
+  'Richte für jedes Sparziel ein eigenes Unterkonto ein. Viele Banken bieten kostenlose Unterkonten an.',
+  'Verhandle im Januar Versicherungen neu — der Jahresbeginn ist ein guter Moment für Vertragsüberprüfungen.',
+  'Energiekosten prüfen: Heizkörper entlüften spart bis zu 15% Heizkosten.',
+  'Nutze den Januar für Inventur: Was liegt ungenutzt herum und könnte verkauft werden?',
+  'Setze ein realistisches Jahressparzie — konkret und messbar, z.B. \'3.600 € bis Dezember\' statt \'mehr sparen\'.',
+  'Überprüfe deinen Handytarif — die meisten Anbieter haben seit deinem Vertragsabschluss günstigere Tarife.',
+  'Wechsle jetzt den Stromanbieter wenn dein Vertrag ausläuft — Wechselprämien sind oft mehrere hundert Euro wert.',
+  'Erstelle eine Liste aller Passwörter für Finanzkonten und bewahre sie sicher auf — nicht im Browser gespeichert.',
+  'Informiere dich über Steuerabzüge: Homeoffice, Fahrkosten, Handwerkerleistungen — vieles ist absetzbar.',
+  'Zahle Jahresbeiträge auf einmal — oft 5-10% günstiger als monatlich.',
+  'Überprüfe deine Krankenversicherung: Manche Kassen zahlen Bonusprogramme von bis zu 150 € zurück.',
+  'Starte ein Sparglas für Kleingeld — am Jahresende oft 50-150 € angespart.',
+  'Sichte alle Garantie- und Gewährleistungsunterlagen — was ist noch gültig, was kann weg?',
+  'Richte eine automatische Umbuchung am Zahltag ein: Erst sparen, dann ausgeben.',
+  'Prüfe ob dein Girokonto noch kostenlos ist — viele Banken haben Bedingungen geändert.',
+  'Berechne was dich das Auto pro Monat wirklich kostet: Kredit, Versicherung, Steuer, Kraftstoff, Wartung zusammen.',
+  'Melde dich für Price-Alerts bei Produkten an die du regelmäßig kaufst — viele Shops bieten das kostenlos an.',
+  'Trenne Wünsche von Bedürfnissen schriftlich — schreibe einen Monat lang auf welche Kategorie jede Ausgabe ist.',
+  'Überprüfe ob du alle Familienmitglieder korrekt bei Versicherungen angegeben hast.',
+  'Nutze Bibliotheken statt Bücher zu kaufen — spart 200-500 € im Jahr für Vielleser.',
+  'Prüfe deine Rentenpunkte im Rentenbescheid — Fehler sind häufiger als man denkt.',
+  'Rechne aus was ein Latte Macchiato täglich übers Jahr kostet: 3,50 € × 260 Werktage = 910 €.',
+  'Vergleiche Lebensmittelpreise nicht nach Packung sondern nach Gramm oder Liter.',
+  'Überprüfe deine Hausrat- und Haftpflichtversicherung auf Aktualität — Unterversicherung ist teuer.',
+  'Nutze den letzten Januartag für eine erste Monatsbilanz: Was hat gut funktioniert?',
+  'Valentinstag muss nicht teuer sein — ein selbstgekochtes Dinner ist oft bedeutungsvoller als ein Restaurant.',
+  'Heizkosten senken: Stoßlüften statt Dauerkippen spart bis zu 200 € im Jahr.',
+  'Thermostatkopf reparieren oder austauschen — defekte Thermostate verschwenden viel Energie.',
+  'Überprüfe deine Wohngebäudeversicherung — oft stark unterversichert.',
+  'Kaufe Winterkleidung jetzt im Ausverkauf für nächstes Jahr — bis zu 70% günstiger.',
+  'Richte einen Tag pro Woche ohne Online-Shopping-Apps ein.',
+  'Prüfe ob du Anspruch auf Wohngeld hast — viele Berechtigte stellen den Antrag nie.',
+  'Besorge Heizpellets oder Brennholz im Sommer — im Winter bis zu 30% teurer.',
+  'Führe ein Ausgaben-Journal für zwei Wochen — handschriftlich, jede Ausgabe sofort notiert.',
+  'Nutze Cashback-Portale beim Online-Shopping: Shoop, Payback oder Bankbonus.',
+  'Prüfe ob dein Arbeitgeber vermögenswirksame Leistungen zahlt — viele Arbeitnehmer kennen ihren Anspruch nicht.',
+  'Reparaturcafés in der Nähe suchen: Ehrenamtliche Helfer reparieren Elektrogeräte kostenlos oder günstig.',
+  'Kaufe Marmelade, Saucen und Konserven in Großpackungen wenn du sie regelmäßig nutzt.',
+  'Führe eine Anti-Budget-Liste: Was hast du diesen Monat NICHT gekauft obwohl du es wolltest?',
+  'Überprüfe Zeitschriftenabos — viele Inhalte gibt es kostenlos online oder in der Bibliothek.',
+  'Berechne den Break-even für Energiesparmaßnahmen: LED-Birne kostet 3 € und spart 8 € im Jahr.',
+  'Prüfe ob deine Bank Zinsen auf das Girokonto zahlt — manche Direktbanken bieten inzwischen 1-2%.',
+  'Stelle den Kühlschrank auf 7°C und den Gefrierschrank auf -18°C — optimal ohne Energieverschwendung.',
+  'Überprüfe alle Monatsabbuchungen unter 5 € — diese werden am häufigsten vergessen.',
+  'Koche doppelte Mengen und friere ein — spart Energie und verhindert teure Spontankäufe.',
+  'Nutze Bibliothek-Apps wie Libby für kostenlose eBooks und Hörbücher.',
+  'Kaufe Geburtstagskarten in Bulk statt einzeln — deutlich günstiger pro Stück.',
+  'Überprüfe Lebensmittel im Kühlschrank nach dem FIFO-Prinzip: First In, First Out.',
+  'Stelle Lastschriften so ein dass sie erst Ende des Monats abgebucht werden — verbessert die Liquidität.',
+  'Besorge Erkältungsmittel außerhalb der Erkältungssaison — deutlich günstiger.',
+  'Nutze staatliche Förderungen für Handwerkerleistungen — 20% von bis zu 6.000 € absetzbar.',
+  'Frühjahrsputz: Räume alle Kontoauszüge der letzten 10 Jahre aus — du brauchst nur 3 Jahre.',
+  'Verkaufe ausgemistetes auf Kleinanzeigen oder beim Flohmarkt — oft 100-500 € möglich.',
+  'Prüfe Gartenzubehör auf Defekte bevor die Saison startet — Reparatur im Winter günstiger.',
+  'Kaufe Saatgut und Jungpflanzen frühzeitig — im April oft ausverkauft und teurer.',
+  'Reinige den Wäschetrockner-Filter — spart Strom und verlängert die Lebensdauer.',
+  'Erstelle einen Haushalts-Notfallplan: Was wenn das Einkommen wegfällt? Wie lange reichen die Reserven?',
+  'Kaufe Reinigungsmittel als Konzentrat — oft 5x günstiger als gebrauchsfertige Produkte.',
+  'Nutze die Spargelzeit für günstige regionale Küche — saisonal kaufen spart 30-50%.',
+  'Stelle Pflanzenwachstum auf Balkon oder Fensterbrett an — Kräuter sparen Supermarktkosten.',
+  'Kaufe Sonnencreme im Winter-Ausverkauf für den Sommer.',
+  'Repariere dein Fahrrad jetzt — im Frühjahr sind Fahrradwerkstätten überlastet und teurer.',
+  'Nutze Zu-verschenken-Gruppen auf Facebook oder Nebenan.de für Haushaltsartikel.',
+  'Prüfe ob dein Arbeitgeber Jobrad oder ÖPNV-Zuschüsse anbietet.',
+  'Erstelle einen Kleiner-Luxus-Fonds: 20-30 € monatlich für bewusste kleine Freuden.',
+  'Kaufe Ostergeschenke bereits nach Ostern für nächstes Jahr — bis zu 70% günstiger.',
+  'Prüfe deinen Versicherungsordner auf Doppelversicherungen — häufig bei Rechtsschutz oder Unfall.',
+  'Nutze Frühbucher-Rabatte für Sommerurlaub wenn die Destination bereits feststeht.',
+  'Lege dir ein Wettbewerbs-Spiel an: Welcher Monat war euer sparsamster? Führt eine Liste.',
+  'Reinige Heizungsanlage jetzt — spart bis zu 15% Heizkosten im nächsten Winter.',
+  'Steuererklärung bis Ende Juli abgeben — oder bis Oktober mit Steuerberater.',
+  'Nutze kostenlose Steuersoftware wie ELSTER statt teurer Steuerberater für unkomplizierte Fälle.',
+  'Homeoffice-Pauschale geltend machen: 6 € pro Tag, max. 1.260 € im Jahr.',
+  'Prüfe ob Fahrtkosten zur Arbeit als Werbungskosten geltend gemacht werden können.',
+  'Kaufe Gartengeräte nach der Saison — Rasenmäher im Herbst bis zu 60% günstiger.',
+  'Erstelle eine Ausgabenkategorie Unvorhergesehenes mit 50-100 € im Monat.',
+  'Nutze lokale Märkte für saisonales Gemüse — im April Spargel, Radieschen, Feldsalat.',
+  'Prüfe ob dein Arbeitgeber eine betriebliche Altersvorsorge anbietet — oft gibt es Arbeitgeberzuschüsse.',
+  'Kaufe Sommerkleidung in Größen für Kinder bereits jetzt — nächstes Jahr sind sie gewachsen.',
+  'Überprüfe ob du die Arbeitnehmer-Sparzulage nutzt wenn du vermögenswirksame Leistungen erhältst.',
+  'Kaufe Sonnenschirme und Gartenliegen direkt nach Ostern — bevor die Hochsaison beginnt.',
+  'Prüfe Mitgliedschaften bei Vereinen und Fitnessstudio auf tatsächliche Nutzung.',
+  'Erstelle ein Preisbuch für Artikel die du regelmäßig kaufst — erkenne so Sonderangebote sofort.',
+  'Überprüfe Telefon- und Internetvertrag auf bessere Alternativen — oft 20-40 € monatlich gespart.',
+  'Kaufe Schulbücher gebraucht — oft identisch mit neuem für ein Drittel des Preises.',
+  'Prüfe ob Kinderbetreuungskosten steuerlich absetzbar sind.',
+  'Reinige Waschmaschine und Geschirrspüler mit Zitronensäure — verlängert Lebensdauer.',
+  'Kaufe Sportartikel im April wenn neue Kollektionen kommen — Vorjahresware stark reduziert.',
+  'Nutze Carsharing für Fahrten unter 50 km statt Taxi oder eigenes Auto.',
+  'Jahreshalbzeit: Vergleiche Ist-Ausgaben mit Budget — wo liegen die größten Abweichungen?',
+  'Überprüfe ob dein Sparplan noch mit den Jahreszielen übereinstimmt — korrigiere jetzt.',
+  'Nutze Sommerausverkauf für Winterkleidung — beste Preise im Juni und Juli.',
+  'Prüfe Haushaltsgegenstände auf Verschleiß: Was muss bald ersetzt werden? Plane und spare jetzt.',
+  'Überprüfe Energieverbrauch mit der Jahreshälfte — stimmt die Abschlagszahlung noch?',
+  'Kaufe Schulmaterialien für September bereits jetzt im Angebot.',
+  'Nutze lange Sommertage für günstige Freizeitgestaltung ohne hohe Kosten.',
+  'Kaufe Winterheizöl jetzt im Sommer — bis zu 20% günstiger als im Herbst.',
+  'Nutze Stadtbibliothek für Kinderprogramm und Ferienangebote statt teurer Freizeitparks.',
+  'Überprüfe ob dein Depot wenn du Aktien oder ETFs hast — Jahreshälfte als Kontrollpunkt.',
+  'Kaufe Winterwäsche im Sommerausverkauf — Bettdecken, Kissen, Handtücher.',
+  'Nutze Sommer für günstige Renovierungsarbeiten — handwerklich selbst gemacht spart 60-80%.',
+  'Überprüfe Mietnebenkosten auf Korrektheit — Betriebskostenabrechnungen sind oft fehlerhaft.',
+  'Kaufe Winterschuhe im Sommerausverkauf für die ganze Familie.',
+  'Nutze Bring-a-friend-Aktionen bei Banken oder Versicherungen für Prämien.',
+  'Überprüfe alle Einzugsermächtigungen im Kontoauszug — jeden Monat eine unbekannte Abbuchung suchen.',
+  'Erstelle einen Plan für Schulferien-Betreuung — kurzfristige Lösungen sind teurer.',
+  'Prüfe ob du staatliche Förderung für Fahrrad oder E-Bike beantragen kannst.',
+  'Überprüfe alle aktiven Testversionen — viele laufen still in kostenpflichtige Abos über.',
+  'Urlaubsbudget täglich tracken — eine einfache Notiz auf dem Handy verhindert Überziehung.',
+  'Nutze Urlaubszeit für günstige Freizeitgestaltung zuhause: Tagesausflüge statt teurer Reisen.',
+  'Kaufe Sommerkleidung jetzt im Ausverkauf für nächstes Jahr.',
+  'Überprüfe Kreditkartenabrechnungen nach dem Urlaub auf Doppelbuchungen.',
+  'Nutze Ferienzeit für haushaltsnahe Dienstleistungen — Malerarbeiten selbst erledigen spart 60-80%.',
+  'Kaufe Schulrucksäcke und -taschen jetzt noch vor dem Ansturm im August.',
+  'Prüfe ob Ferienjobs für Kinder steuer- und sozialversicherungsfrei sind.',
+  'Überprüfe ob Haustierbetreuung über Bekannte günstiger als Tierpension ist.',
+  'Nutze lange Ferientage für einen Finanz-Check mit dem Partner — ruhig und ungestört.',
+  'Kaufe Schuluniformen oder Sportkleidung für Kinder im Ausverkauf.',
+  'Kaufe Schulbücher gebraucht über Schulbörsen im Juli — vor dem Run im August.',
+  'Überprüfe Kfz-Versicherung zum Stichtag 30. November — Kündigungsfrist beachten.',
+  'Nutze Familienkarten und Gruppentickets für Freizeitaktivitäten.',
+  'Kaufe Winterjacken und Stiefel im Sommerschlussverkauf.',
+  'Prüfe ob du Spenden die du tätigen möchtest noch in diesem Jahr absetzen kannst.',
+  'Überprüfe ob Kinder-Ersparnisse auf zinsbringende Konten ausgelagert sind.',
+  'Kaufe Schulhefte und Stifte jetzt bevor sie Ende August teurer werden.',
+  'Überprüfe ob alle Belege für Steuererklärung vorhanden und sortiert sind.',
+  'Nutze Freibadkarte statt täglich Eintritt zahlen — ab 6 Besuchen lohnt es sich.',
+  'Prüfe ob Beratungskosten beim Steuerberater von der Steuer absetzbar sind.',
+  'Erstelle nach dem Urlaub eine ehrliche Bilanz: Was hat mehr gekostet als geplant und warum?',
+  'Schulstartkosten begrenzen: Vieles vom Vorjahr noch brauchbar — Schüleretui, Lineal, Zirkel.',
+  'Nutze Ende-Sommer-Ausverkauf für Elektrogeräte — neue Modelle kommen im Herbst.',
+  'Kaufe Winterreifen im Sommer — 20-40 € pro Reifen günstiger als im Oktober.',
+  'Prüfe ob Schulbücher über Schulbibliothek kostenlos ausgeliehen werden können.',
+  'Nutze letzten Ferientag für Vorratskochen — günstig und zeitsparend für Schulwochen.',
+  'Prüfe ob Schülerabonnements für ÖPNV Zeitersparnis und Geldersparnis bieten.',
+  'Nutze Erntezeit für günstige Vorratskäufe: Tomaten einkochen, Pflaumen einfrieren.',
+  'Kaufe Holzpellets für Heizung im Sommer — günstiger als im Herbst.',
+  'Überprüfe alle Sparkonten auf aktuelle Zinsen — viele Banken haben Konditionen verbessert.',
+  'Nutze Ausverkauf-Apps um Schulbedarf unter Normalpreis zu kaufen.',
+  'Kaufe Haushaltsgeräte im August oder September — Black Friday ist oft nicht günstiger.',
+  'Prüfe ob Hortkosten steuerlich als Kinderbetreuungskosten absetzbar sind.',
+  'Nutze Ernte-Überschüsse von Nachbarn oder Kleingärtnern — Tausch statt Kauf.',
+  'Kaufe Weihnachtsgeschenke ab sofort wenn du gute Angebote siehst — vermeidet Dezemberstress.',
+  'Prüfe ob Benzinkosten durch Fahrgemeinschaft halbiert werden können.',
+  'Nutze Erntezeit für günstige Marmeladenproduktion — selbst gemacht deutlich günstiger.',
+  'Kaufe Winterschuhe für Kinder eine Nummer größer als aktuell — wachsen hinein.',
+  'Überprüfe ob neue Tarife beim Stromanbieter günstiger sind als dein aktueller.',
+  'Kaufe Thermowäsche für Winter im Sommerschlussverkauf.',
+  'Prüfe ob Arbeitnehmer-Pauschbetrag von 1.230 € in deiner Steuererklärung ausgeschöpft ist.',
+  'Erstelle Checkliste für Herbst: Heizung warten, Reifenwechsel buchen, Versicherungen prüfen.',
+  'Herbstzeit ist Heizungszeit: Warte Heizungsanlage jetzt — im Winter ausgebucht und teurer.',
+  'Überprüfe Kfz-Versicherung — Kündigungsfrist 30. November, Wechsel spart oft 100-300 € jährlich.',
+  'Nutze September-Angebote für Gartenpflege — Rasenmäher winterfest machen.',
+  'Kaufe Weihnachtsgeschenke im Herbst — keine Engpässe, bessere Preise, kein Stress.',
+  'Überprüfe ob du ein Steuererstattung für das laufende Jahr abschätzen kannst.',
+  'Nutze Herbstmärkte für günstige regionale Produkte: Kürbis, Äpfel, Birnen.',
+  'Kaufe Heizöl oder Pellets jetzt — Oktober und November sind teurer.',
+  'Prüfe ob Tages- und Festgeldkonten auf aktuelle Marktkonditionen angepasst sind.',
+  'Überprüfe ob Reisepass oder Perso verlängert werden muss — Wartezeiten im Winter kürzer.',
+  'Kaufe Winterjacken jetzt im Herbst-Angebot — vor der Hochsaison.',
+  'Überprüfe ob Haushaltsgegenstände vor Winter gewartet werden müssen — Dachrinnen, Außenleitungen.',
+  'Kaufe Adventsdeko im Herbst — im Dezember oft doppelt so teuer.',
+  'Prüfe ob Boni oder Sonderzahlungen zum Jahresende für Tilgung genutzt werden können.',
+  'Überprüfe ob Jahresabonnements für Zeitung oder Software noch genutzt werden.',
+  'Kaufe Sportausrüstung im Herbst — neue Skier, Winterschuhe oft 30-50% günstiger.',
+  'Prüfe ob Stromzähler selbst abgelesen werden kann — Abschlag anpassen wenn Verbrauch sinkt.',
+  'Überprüfe Handyvertrag — meist günstigere Optionen nach 24 Monaten Bindung.',
+  'Nutze Herbstrabatte auf Elektronikartikel — Händler machen Platz für Weihnachtssortiment.',
+  'Kaufe Weihnachtskarten und Geschenkpapier bereits im Oktober — günstiger als im Dezember.',
+  'Prüfe ob alle Belege für Jahressteuererklärung gesammelt sind.',
+  'Nutze Herbstzeit für Überprüfung aller Finanzverträge des Jahres.',
+  'Oktober-Check: Sind alle Jahresziele noch erreichbar? Was muss angepasst werden?',
+  'Kfz-Versicherung kündigen wenn günstigerer Anbieter gefunden — Frist 30. November.',
+  'Prüfe ob Winterreifen noch ausreichend Profil haben — Mindesttiefe 4 mm empfohlen.',
+  'Kaufe Winterstiefel im Oktober-Angebot bevor Größen ausverkauft sind.',
+  'Nutze Herbstrabatte für Elektrogeräte — neues Sortiment für Weihnachten kommt.',
+  'Erstelle konkreten Weihnachtsgeschenkplan mit Budgetlimit pro Person.',
+  'Kaufe Weihnachtsdekoration im Oktober — spätestens November teurer.',
+  'Prüfe ob Jahressonderzahlung oder Weihnachtsgeld für Schulden oder Sparziele genutzt wird.',
+  'Nutze Black-Friday-Vorbereitung: Wunschliste erstellen, Preise jetzt notieren.',
+  'Kaufe Skipässe oder Wintersportkarten als Frühbucher — bis zu 30% günstiger.',
+  'Überprüfe ob du noch Urlaubstage nehmen musst — Verfall am Jahresende prüfen.',
+  'Nutze Lesezirkel oder Bibliothek für Herbst-Schmöker statt Buchkauf.',
+  'Erstelle Plan für Weihnachtsessen — selbst kochen spart gegenüber Restaurant 60-80%.',
+  'Kaufe Non-Food-Artikel wie Toilettenpapier und Waschmittel auf Vorrat wenn günstig.',
+  'Überprüfe ob Jahresbeiträge für Vereine noch in diesem Jahr geleistet werden.',
+  'Nutze Messe-Saison für günstige Direkteinkäufe bei Herstellern.',
+  'Kaufe Adventskalender für Kinder im Oktober — im November teurer und schlechtere Auswahl.',
+  'Überprüfe ob private Rentenversicherung auf Rendite und Kosten geprüft wurde.',
+  'Nutze Oktober für ehrliche Jahresbilanz — Was hat funktioniert? Was nicht?',
+  'Kaufe Glühweinzutaten für Zuhause statt teuren Marktbesuch.',
+  'Überprüfe ob Sparpläne für ETFs oder Fonds optimiert werden können.',
+  'Nutze Herbstrabatte auf Sport-Abonnements — viele Studios mit Oktober-Aktionen.',
+  'Kaufe Winterjacken für Kinder jetzt — im Dezember oft vergriffen.',
+  'Erstelle Jahres-Finanzrückblick: Was war die beste finanzielle Entscheidung dieses Jahr?',
+  'Black Friday: Kaufe nur was auf deiner Wunschliste steht — nicht was billig aussieht.',
+  'Prüfe Preise vor Black Friday genau — manche Rabatte sind vorher künstlich erhöht worden.',
+  'Nutze Cyber Monday für digitale Produkte statt physische — keine Versandkosten.',
+  'Kaufe Weihnachtsgeschenke gezielt an Black Friday statt impulsiv.',
+  'Überprüfe ob du Amazon Prime oder ähnliche Dienste wirklich nutzt.',
+  'Prüfe ob Jahresendbonus für außerordentliche Schuldentilgung genutzt werden kann.',
+  'Nutze November für Abschluss der Steuererklärung — Deadline oft verlängerbar.',
+  'Kaufe Adventskalender-Füller für nächstes Jahr im November-Angebot.',
+  'Überprüfe ob noch steuerlich abzugsfähige Ausgaben getätigt werden sollten.',
+  'Nutze Cyber-Week für günstige Buchungen: Urlaub, Konzerte, Theater.',
+  'Prüfe ob Jahres-Kreditkartengebühren sich gelohnt haben.',
+  'Überprüfe ob monatliche Sparpläne für Jahresabschluss angepasst werden sollten.',
+  'Nutze November für Kfz-Versicherungsvergleich — Wechsel spart oft 150-400 €.',
+  'Prüfe ob Weiterbildungskosten noch in diesem Jahr gebucht werden sollten.',
+  'Überprüfe ob alle Versicherungen zum Jahresende auf dem neuesten Stand sind.',
+  'Prüfe ob Mietkaution auf einem verzinsten Konto liegt.',
+  'Nutze Schwarze Woche für Investitionen in langlebige Qualitätsgegenstände.',
+  'Prüfe ob Haushaltshilfe oder Pflegedienst steuerlich absetzbar ist.',
+  'Überprüfe ob du noch in diesem Jahr für die Altersvorsorge einzahlen solltest.',
+  'Prüfe ob noch Spenden in diesem Jahr getätigt werden sollten — absetzbar bis 20% des Einkommens.',
+  'Überprüfe ob Gutscheine und Geschenkkarten nicht verfallen.',
+  'Prüfe ob Jahres-Ausgaben-Analyse auf Kategorien zeigt wo Einsparpotential liegt.',
+  'Erstelle Dezember-Budget mit festen Posten: Geschenke, Essen, Feiern.',
+  'Dezember-Budget schützen: Lege Weihnachtsausgaben fest und halte dich dran.',
+  'Selbst backen statt kaufen: Plätzchen und Gebäck sind günstiger und persönlicher.',
+  'Prüfe ob Restguthaben auf Prepaid-Karten oder Gutscheinen aufgebraucht werden.',
+  'Überprüfe ob alle steuerlich relevanten Belege für nächstes Jahr gesammelt werden.',
+  'Nutze Weihnachtszeit für gemeinsame Finanzplanung als Paar oder Familie.',
+  'Kaufe Neujahrs-Einkäufe vor Silvester — Sekt im Advent oft günstiger.',
+  'Prüfe ob Weihnachtsgeschenke mit Wunschliste organisiert sind — vermeidet Doppelgeschenke.',
+  'Nutze Feiertage für ausführliches Jahres-Finanzgespräch mit dem Partner.',
+  'Kaufe Silvester-Accessoires nach Silvester für nächstes Jahr.',
+  'Prüfe ob Resturlaub noch in diesem Jahr genommen werden muss.',
+  'Überprüfe ob alle Daueraufträge und Abos korrekt laufen.',
+  'Nutze ruhige Zeit zwischen Weihnachten und Neujahr für Finanzplanung des neuen Jahres.',
+  'Prüfe ob Weihnachtsgeld für Schulden, Notgroschen oder Investition genutzt werden soll.',
+  'Überprüfe ob Jahres-Sparziel erreicht wurde — feiern wenn ja, analysieren wenn nein.',
+  'Nutze Weihnachtszeit für Dankbarkeit über das was ihr habt — nicht für neuen Konsum.',
+  'Kaufe Adventskalender nach Weihnachten für nächstes Jahr.',
+  'Prüfe ob Jahresbilanz zeigt: Mehr verdient als ausgegeben? Was war der Überschuss?',
+  'Überprüfe ob neue Sparkonditionen für das neue Jahr eingeholt werden sollten.',
+  'Nutze Silvester für finanziellen Neujahrsvorsatz — konkret und messbar formulieren.',
+  'Prüfe ob Jahres-Mitgliedsbeiträge für Vereine zu Beginn nächsten Jahres fällig werden.',
+  'Überprüfe ob Weihnachtsgeschenke im Budget geblieben sind — ehrliche Bilanz.',
+  'Nutze zwischen-den-Jahren-Ruhe für Lesen über Finanzen — viele gute kostenlose Ressourcen.',
+  'Prüfe ob alle nötigen Steuerunterlagen für das neue Jahr vorbereitet sind.',
+  'Überprüfe ob dein Notgroschen noch 3 Monatsausgaben abdeckt.',
+  'Nutze Jahresabschluss für Überprüfung aller Versicherungen auf Notwendigkeit.',
+  'Prüfe ob Sparziele für das neue Jahr mit dem Partner abgestimmt sind.',
+  'Überprüfe ob du alle staatlichen Förderungen genutzt hast: Riester, Wohn-Riester, KfW.',
+  'Nutze letzten Tag des Jahres für ehrliche finanzielle Selbstreflexion.',
+  'Schreibe drei konkrete finanzielle Ziele für das neue Jahr auf und teile sie.',
+  'Das Wichtigste: Finanzielle Stabilität ist ein Marathon, kein Sprint. Bleibt konsequent — ihr schafft das!',
 ];
-
-async function loadTippDesTagges() {
-  const today = new Date().toISOString().split('T')[0];
-  const cacheKey = TIPP_CACHE_KEY + today;
-
-  // Cache prüfen: heute schon einen Tipp geladen?
-  const cached = localStorage.getItem(cacheKey);
-  if (cached) {
-    document.getElementById('tip-text').textContent = cached;
-    return;
-  }
-
-  // Placeholder anzeigen
-  document.getElementById('tip-text').textContent = '✨ Lade Tipp des Tages…';
-
-  try {
-    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(),0,0)) / 86400000);
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 120,
-        system: 'Du bist ein freundlicher Finanzberater für deutsche Haushalte. Antworte NUR mit einem einzigen praktischen Finanztipp auf Deutsch. Kein "Tipp:" davor, kein Emoji am Anfang, keine Nummerierung. Einfach ein direkter, hilfreicher Satz oder zwei. Sei konkret und alltagsnah. Variere den Fokus täglich.',
-        messages: [{
-          role: 'user',
-          content: `Gib mir den Finanztipp für Tag ${dayOfYear} des Jahres. Sei kreativ und abwechslungsreich — kein Tipp soll wie ein anderer klingen.`
-        }]
-      })
-    });
-
-    if (!response.ok) throw new Error('API ' + response.status);
-    const data = await response.json();
-    const tipp = data.content?.[0]?.text?.trim();
-
-    if (tipp && tipp.length > 10) {
-      localStorage.setItem(cacheKey, tipp);
-      // Alte Cache-Einträge aufräumen (älter als 3 Tage)
-      for (const key of Object.keys(localStorage)) {
-        if (key.startsWith(TIPP_CACHE_KEY) && key !== cacheKey) {
-          const keyDate = key.replace(TIPP_CACHE_KEY, '');
-          const diff = (new Date(today) - new Date(keyDate)) / 86400000;
-          if (diff > 3) localStorage.removeItem(key);
-        }
-      }
-      document.getElementById('tip-text').textContent = tipp;
-    } else {
-      throw new Error('Leere Antwort');
-    }
-  } catch(e) {
-    // Fallback: fester Tipp aus Array
-    const fallback = FALLBACK_TIPPS[new Date().getDate() % FALLBACK_TIPPS.length];
-    document.getElementById('tip-text').textContent = fallback;
-  }
-}
 
 function setDatum() {
   const now = new Date();
@@ -392,8 +578,12 @@ function setDatum() {
   const monate = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
   document.getElementById('today-date').textContent = now.getDate()+'. '+monate[now.getMonth()]+' '+now.getFullYear();
   document.getElementById('today-name').textContent = tage[now.getDay()];
-  // Tipp asynchron laden (zeigt zuerst Fallback, dann KI-Tipp)
-  loadTippDesTagges();
+  // Tipp des Tages: Tag des Jahres (1-365) als Index
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now - start;
+  const dayOfYear = Math.floor(diff / 86400000);
+  const idx = (dayOfYear - 1) % TIPPS_365.length;
+  document.getElementById('tip-text').textContent = TIPPS_365[Math.max(0,idx)];
 }
 
 function calcScore(pct, bargeld, schulden) {
