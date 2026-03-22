@@ -382,8 +382,9 @@ async function loadStats(){
 
     const totalFix=fixkosten.reduce((a,f)=>a+Number(f.betrag),0);
     const totalSF=sfFunds.reduce((a,f)=>a+Number(f.monatlich),0);
-    const totalKommitiert=Math.round((totalAus+totalFix+totalSF)*100)/100;
-    const verfuegbar=Math.round((totalEin-totalKommitiert)*100)/100;
+    // Verfügbar = Einnahmen − variable Ausgaben − Fixkosten − SF-Sparbeträge
+    // Alle Werte beziehen sich auf eine Periode (~1 Monat)
+    const verfuegbar=Math.round((totalEin-totalAus-totalFix-totalSF)*100)/100;
 
     document.getElementById('sum-ein').textContent=fmtEur(totalEin);
     document.getElementById('sum-aus').textContent=fmtEur(totalAus);
@@ -395,11 +396,13 @@ async function loadStats(){
     const fixSfEl=document.getElementById('sum-fix-sf');
     if(fixSfEl){
       fixSfEl.innerHTML=`
-        <div class="sbox" style="grid-column:1/-1;">
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;">
-            <div><div style="color:var(--muted);margin-bottom:2px;">Fixkosten / Mo</div><div style="font-weight:600;color:var(--amber);">${fmtEur(totalFix)}</div></div>
-            <div><div style="color:var(--muted);margin-bottom:2px;">Sinking Funds / Mo</div><div style="font-weight:600;color:var(--cyan);">${fmtEur(totalSF)}</div></div>
-            <div><div style="color:var(--muted);margin-bottom:2px;">Tatsächlich verfügbar</div><div style="font-weight:600;color:${verfuegbar>=0?'var(--green)':'var(--red)'};">${fmtEur(verfuegbar)}</div></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;">
+          <div><div style="color:var(--muted);margin-bottom:2px;">Fixkosten / Mo</div><div style="font-weight:600;color:var(--amber);">${fmtEur(totalFix)}</div></div>
+          <div><div style="color:var(--muted);margin-bottom:2px;">SF Sparbetrag / Mo</div><div style="font-weight:600;color:var(--cyan);">${fmtEur(totalSF)}</div></div>
+          <div>
+            <div style="color:var(--muted);margin-bottom:2px;">Verfügbar nach Fix+SF</div>
+            <div style="font-weight:600;color:${verfuegbar>=0?'var(--green)':'var(--red)'};">${fmtEur(verfuegbar)}</div>
+            <div style="font-size:10px;color:var(--muted2);margin-top:2px;">Einnahmen − Ausgaben − Fixkosten − SF</div>
           </div>
         </div>`;
     }
@@ -527,7 +530,7 @@ function buildTipps(catEntries, totalAus, totalEin, cats, totalFix=0, totalSF=0)
   const bilanz=Math.round((totalEin-totalAus)*100)/100;
 
   // Gesamtbudget aus Kategorien
-  const totalBudget=cats?cats.reduce((a,c)=>a+Number(c.budget||0),0):0;
+  const totalBudget=cats?cats.filter(c=>c.aktiv!==false).reduce((a,c)=>a+Number(c.budget||0),0):0;
   const puffer=totalBudget>0?Math.round(totalBudget*0.1*100)/100:200;
 
   // Tipp 1: Bilanz
@@ -541,7 +544,7 @@ function buildTipps(catEntries, totalAus, totalEin, cats, totalFix=0, totalSF=0)
 
   // Tipp 2: Überbudget-Kategorien
   if(cats){
-    const overBudget=cats.filter(c=>Number(c.budget)>0&&Number(c.spent)>Number(c.budget));
+    const overBudget=cats.filter(c=>c.aktiv!==false&&Number(c.budget)>0&&Number(c.spent)>Number(c.budget));
     if(overBudget.length>0){
       const worst=overBudget.sort((a,b)=>(Number(b.spent)-Number(b.budget))-(Number(a.spent)-Number(a.budget)))[0];
       const over=Math.round((Number(worst.spent)-Number(worst.budget))*100)/100;

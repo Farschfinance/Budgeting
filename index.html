@@ -812,8 +812,8 @@ async function loadDashboard() {
     const kalHeute = rk.data || [];
 
     // Budget
-    const totalBudget = cats.reduce((a,c)=>a+Number(c.budget),0);
-    const totalSpent  = cats.reduce((a,c)=>a+Number(c.spent),0);
+    const totalBudget = cats.filter(c=>c.aktiv!==false).reduce((a,c)=>a+Number(c.budget),0);
+    const totalSpent  = cats.filter(c=>c.aktiv!==false).reduce((a,c)=>a+Number(c.spent),0);
     const left        = Math.round((totalBudget-totalSpent)*100)/100;
     const pct         = totalBudget>0 ? Math.min(100,Math.round(totalSpent/totalBudget*1000)/10) : 0;
     const leftCol     = left<0?'var(--red)':left<totalBudget*0.2?'var(--amber)':'var(--green)';
@@ -841,7 +841,7 @@ async function loadDashboard() {
 
     // Budget-Balken
     const budgetHTML = cats.slice(0,4).map(c=>{
-      const p=c.budget>0?Math.min(100,Math.round(Number(c.spent)/Number(c.budget)*1000)/10):0;
+      const p=c.aktiv!==false&&c.budget>0?Math.min(100,Math.round(Number(c.spent)/Number(c.budget)*1000)/10):0;
       const col=p>90?'var(--red)':p>70?'var(--amber)':'var(--green)';
       return `<div style="margin-bottom:10px;">
         <div class="rb"><span style="font-size:13px;">${esc(c.name)}</span><span style="font-size:12px;color:${col};font-weight:500;">${fmtEur(Number(c.budget)-Number(c.spent))} übrig</span></div>

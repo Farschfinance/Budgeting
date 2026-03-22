@@ -478,7 +478,7 @@ async function processCSV(text){
 /* ── PREVIEW RENDER ─────────────────────────────────────── */
 function renderPreview(){
   const tbody=document.getElementById('preview-body');
-  const catOpts=cats.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+  const catOpts=cats.filter(c=>c.aktiv!==false).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
 
   tbody.innerHTML=rows.map(r=>{
     const isDup=r.status==='dup';
@@ -537,7 +537,7 @@ function setAction(id, action){
   // Cat-Zelle aktualisieren
   const catCell=document.getElementById('cat-'+id)?.closest('td');
   if(catCell){
-    const catOpts=cats.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+    const catOpts=cats.filter(c=>c.aktiv!==false).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
     catCell.innerHTML=action==='ausgabe'
       ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Kategorie —</option>${catOpts}</select>`
       :`<span style="color:var(--muted);font-size:12px;">—</span>`;
