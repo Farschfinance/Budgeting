@@ -172,7 +172,8 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <!-- INFO -->
   <div class="info">
     <strong>Volksbank Stuttgart — CSV Export</strong><br>
-    Online-Banking → Konto → Umsätze → <strong>Export → CSV</strong> → Zeitraum wählen → Exportieren.<br>
+    Online-Banking → Konto → Umsätze → <strong>Exportieren → CSV</strong> → Zeitraum wählen → Herunterladen.<br>
+    Das Format ist Tab-getrennt (.csv) — einfach die heruntergeladene Datei hier ablegen.<br>
     Die Datei wird <strong>nur in deinem Browser</strong> verarbeitet — sie verlässt nie dein Gerät.
   </div>
 
@@ -282,35 +283,75 @@ function fingerprint(datum, betrag, empfaenger){
 // Volksbank Format: Semikolon, ISO-Latin-1, Anführungszeichen optional
 // Spalten: Datum;Valuta;Betrag;Währung;Zahler/Empfänger;Verwendungszweck;Buchungstext;Kundenreferenz;Ursprung;Kontoauszugsnummer
 function parseVolksbankCSV(text){
-  // Decode Latin-1 to UTF-8 is handled by FileReader with encoding
-  const lines = text.split(/\r?\n/).filter(l=>l.trim().length>0);
-  if(lines.length < 2) return [];
+  const allLines = text.split(/\r?\n/);
+  if(allLines.length < 2) return [];
 
-  // Prüfe ob erste Zeile Header ist
-  const firstLine = lines[0].toLowerCase();
-  const hasHeader = firstLine.includes('datum') || firstLine.includes('betrag') || firstLine.includes('valuta');
-  const dataLines = hasHeader ? lines.slice(1) : lines;
+  // Trennzeichen ermitteln: Tab oder Semikolon?
+  const firstLine = allLines[0];
+  const sep = firstLine.includes('\t') ? '\t' : ';';
 
+  // Header-Zeile finden — enthält "Buchungstag" oder "Datum"
+  let headerIdx = -1;
+  for(let i = 0; i < Math.min(allLines.length, 15); i++){
+    const lower = allLines[i].toLowerCase();
+    if(lower.includes('buchungstag') || lower.includes('"datum"') || 
+       (lower.includes('datum') && lower.includes('betrag'))){
+      headerIdx = i;
+      break;
+    }
+  }
+  if(headerIdx < 0){ headerIdx = 0; } // Fallback: erste Zeile als Header
+
+  // Spalten-Mapping aus Header
+  const headers = allLines[headerIdx].split(sep).map(h=>
+    h.replace(/"/g,'').replace(/'/g,'').trim().toLowerCase()
+  );
+
+  // Spalten-Indizes bestimmen
+  const idx = (terms) => {
+    for(const t of terms){
+      const i = headers.findIndex(h => h.includes(t));
+      if(i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const colDatum   = idx(['buchungstag','datum']);
+  const colBetrag  = idx(['betrag']);
+  const colEmpf    = idx(['name zahlungsbeteiligter','zahler','empf','name']);
+  const colZweck   = idx(['verwendungszweck','verwendung']);
+  const colBuchtyp = idx(['buchungstext','buchungsart','buchung']);
+
+  // Keine sinnvollen Spalten → Fehlschlag
+  if(colDatum < 0 || colBetrag < 0){
+    return [];
+  }
+
+  const dataLines = allLines.slice(headerIdx + 1);
   const parsed = [];
+
   for(const line of dataLines){
-    // Semikolon-Split mit Anführungszeichen-Handling
-    const cols = splitCSVLine(line, ';');
-    if(cols.length < 5) continue;
+    const trimmed = line.trim();
+    if(!trimmed) continue;
+    // Zeile nur aus Trennzeichen → leer
+    if(trimmed.replace(new RegExp(sep === '\t' ? '\\t' : sep, 'g'), '').trim() === '') continue;
 
-    const datum     = parseDate(cols[0]);
-    const betragRaw = cols[2] || cols[6] || ''; // Spalte 3 (Index 2) = Betrag
-    const empf      = (cols[4]||'').trim();
-    const zweck     = (cols[5]||'').trim();
-    const buchtyp   = (cols[6]||'').trim();
+    const cols = trimmed.split(sep).map(c => c.replace(/^"|"$/g,'').trim());
+    if(cols.length < 3) continue;
 
-    if(!datum || !betragRaw) continue;
+    const datum     = parseDate(cols[colDatum] || '');
+    const betragRaw = colBetrag >= 0 ? cols[colBetrag] : '';
+    const empf      = colEmpf >= 0 ? (cols[colEmpf]||'').trim() : '';
+    const zweck     = colZweck >= 0 ? (cols[colZweck]||'').trim() : '';
+    const buchtyp   = colBuchtyp >= 0 ? (cols[colBuchtyp]||'').trim() : '';
 
-    // Betrag: deutsches Format "1.234,56" → number
+    if(!datum) continue;
+
     const betrag = parseBetrag(betragRaw);
     if(isNaN(betrag) || betrag === 0) continue;
 
-    // Beschreibung zusammenbauen
-    const beschreibung = [empf, zweck].filter(Boolean).join(' · ').substring(0,80);
+    const beschreibung = [empf, zweck].filter(Boolean).join(' · ').substring(0,80)
+      || buchtyp || '(kein Text)';
 
     parsed.push({
       datum,
@@ -318,12 +359,13 @@ function parseVolksbankCSV(text){
       isAusgabe: betrag < 0,
       empfaenger: empf.substring(0,60),
       verwendungszweck: zweck.substring(0,80),
-      beschreibung: beschreibung || buchtyp.substring(0,60) || '(kein Text)',
+      beschreibung: beschreibung.substring(0,80),
       fp: fingerprint(datum, betrag, empf),
     });
   }
   return parsed;
 }
+
 
 function splitCSVLine(line, sep){
   const cols=[];let cur='',inQ=false;
@@ -338,21 +380,30 @@ function splitCSVLine(line, sep){
 }
 
 function parseDate(raw){
-  // DD.MM.YYYY oder YYYY-MM-DD
-  raw=(raw||'').trim().replace(/"/g,'');
+  // DD.MM.YYYY oder YYYY-MM-DD, mit oder ohne Anführungszeichen
+  raw=(raw||'').trim().replace(/"/g,'').replace(/'/g,'').trim();
   if(/^\d{2}\.\d{2}\.\d{4}$/.test(raw)){
     const[d,m,y]=raw.split('.');
     return`${y}-${m}-${d}`;
   }
   if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  // D.M.YYYY
+  const dm = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if(dm) return`${dm[3]}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;
   return null;
 }
 
 function parseBetrag(raw){
-  // "1.234,56" → 1234.56 oder "-123,45" → -123.45
-  let s=String(raw).replace(/"/g,'').trim();
-  // Tausenderpunkt entfernen, Komma → Punkt
-  s=s.replace(/\./g,'').replace(',','.');
+  let s=String(raw||'').replace(/"/g,'').replace(/'/g,'').trim();
+  if(!s) return NaN;
+  // Entferne alles nach erstem Leerzeichen (z.B. Währungsangabe "EUR" dahinter)
+  s=s.split(/\s/)[0];
+  // Deutsches Format: 1.234,56 oder -45,90 oder -20
+  if(s.includes(',') && s.includes('.')){
+    s=s.replace(/\./g,'').replace(',','.');
+  } else if(s.includes(',')){
+    s=s.replace(',','.');
+  }
   return parseFloat(s);
 }
 
@@ -376,7 +427,9 @@ function handleFile(file){
 async function processCSV(text){
   const parsed=parseVolksbankCSV(text);
   if(!parsed.length){
-    alert('Keine gültigen Buchungen gefunden. Bitte prüfe ob es eine Volksbank CSV-Datei ist.');
+    // Debug: zeige erste 3 Zeilen der Datei
+    const preview = text.split(/\r?\n/).slice(0,5).join('\n');
+    alert('Keine gültigen Buchungen gefunden.\n\nErste Zeilen der Datei:\n' + preview + '\n\nBitte stelle sicher dass es eine Volksbank-Kontoauszugsdatei ist (CSV-Format, Semikolon-getrennt).');
     return;
   }
 
