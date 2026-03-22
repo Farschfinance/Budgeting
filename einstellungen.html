@@ -197,6 +197,40 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     </div>
   </div>
 
+  <!-- BUDGET-PERIODE -->
+  <div class="card">
+    <div class="lbl">Budget-Periode</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6;">
+      Legt fest ab welchem Tag euer "Monat" beginnt — also wann das Gehalt typischerweise da ist.<br>
+      <strong style="color:var(--text);">Beispiel:</strong> Starttag 26 → der Budget-Monat "März" läuft vom 26. Feb bis 25. März.
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+      <div style="flex:1;min-width:140px;">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Starttag (1–28)</label>
+        <input class="ci" id="start-day" type="number" min="1" max="28" placeholder="z.B. 26" style="font-size:18px;font-weight:600;text-align:center;">
+      </div>
+      <div style="flex:2;background:var(--s2);border-radius:8px;padding:12px;min-width:180px;">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Vorschau · aktuell</div>
+        <div style="font-size:13px;font-weight:500;" id="period-preview">—</div>
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+      ⚠️ Gilt für beide Nutzer gleichzeitig. Änderungen wirken sich auf alle Auswertungen aus.
+    </div>
+
+    <div class="success" id="period-success">✓ Gespeichert! Gilt ab heute für alle neuen Auswertungen.</div>
+    <div class="err" id="period-err">Bitte eine Zahl zwischen 1 und 28 eingeben.</div>
+    <button class="btn" onclick="savePeriod()">Periode speichern</button>
+
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Änderungs-History</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Historische Auswertungen verwenden automatisch den damals gültigen Starttag.</div>
+      <div id="period-history-list"><div style="color:var(--muted);font-size:13px;">Lädt…</div></div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -259,6 +293,113 @@ async function savePassword(){
   document.getElementById('pw-confirm').value='';
 }
 
+// ── BUDGET-PERIODE MIT HISTORY ────────────────────────
+let periodHistory = []; // [{start_day, gueltig_ab}] sortiert aufsteigend
+
+async function loadPeriod(){
+  const {data} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true});
+  periodHistory = data || [];
+  const current = getStartDayForDate(new Date());
+  const el = document.getElementById('start-day');
+  if(el) el.value = current;
+  renderPeriodHistory();
+  updatePeriodPreview(current);
+}
+
+// Gibt den Starttag zurück der für ein bestimmtes Datum gilt
+function getStartDayForDate(date){
+  const iso = date.toISOString().split('T')[0];
+  // Letzten Eintrag finden dessen gueltig_ab <= date
+  let result = 1;
+  for(const entry of periodHistory){
+    if(entry.gueltig_ab <= iso) result = entry.start_day;
+    else break;
+  }
+  return result;
+}
+
+function updatePeriodPreview(day){
+  const el = document.getElementById('period-preview');
+  if(!el) return;
+  const p = calcPeriodForDay(day, new Date(), 0);
+  el.textContent = p.label + ' · ' + fmtDateDE(p.fromDate) + ' – ' + fmtDateDE(p.toDate);
+}
+
+function fmtDateDE(dt){
+  return dt.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+function calcPeriodForDay(startDay, ref, offset){
+  const d = ref || new Date();
+  const day = d.getDate();
+  const ML = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  let baseMonth = d.getMonth(), baseYear = d.getFullYear();
+  if(day < startDay){ baseMonth--; if(baseMonth<0){baseMonth=11;baseYear--;} }
+  baseMonth += offset;
+  while(baseMonth>11){baseMonth-=12;baseYear++;}
+  while(baseMonth<0){baseMonth+=12;baseYear--;}
+  const fromDate = new Date(baseYear, baseMonth, startDay);
+  let toMonth=baseMonth+1, toYear=baseYear;
+  if(toMonth>11){toMonth=0;toYear++;}
+  const toDate = new Date(toYear, toMonth, startDay-1);
+  return { from:fromDate.toISOString().split('T')[0], to:toDate.toISOString().split('T')[0],
+           label:ML[toMonth]+' '+toYear, fromDate, toDate };
+}
+
+async function savePeriod(){
+  const val = parseInt(document.getElementById('start-day').value);
+  const errEl = document.getElementById('period-err');
+  const okEl = document.getElementById('period-success');
+  errEl.style.display='none'; okEl.style.display='none';
+  if(isNaN(val)||val<1||val>28){ errEl.style.display='block'; return; }
+
+  const today = new Date().toISOString().split('T')[0];
+  const current = getStartDayForDate(new Date());
+  if(val === current){
+    errEl.textContent='Das ist bereits der aktuelle Starttag.';
+    errEl.style.display='block'; return;
+  }
+
+  // Neuen Eintrag in History schreiben (gilt ab heute)
+  const {error} = await sb.from('period_history').insert({start_day:val, gueltig_ab:today});
+  if(error){ errEl.textContent='Fehler: '+error.message; errEl.style.display='block'; return; }
+
+  // Auch app_settings aktualisieren (für budget.html Kompatibilität)
+  await sb.from('app_settings').upsert({key:'budget_start_day',value:String(val),updated_at:new Date().toISOString()});
+
+  okEl.style.display='block';
+  await loadPeriod();
+}
+
+async function deletePeriodEntry(id){
+  if(periodHistory.length<=1){ alert('Du kannst den einzigen Eintrag nicht löschen.'); return; }
+  if(!confirm('Diesen History-Eintrag löschen?')) return;
+  await sb.from('period_history').delete().eq('id',id);
+  await loadPeriod();
+}
+
+function renderPeriodHistory(){
+  const el = document.getElementById('period-history-list');
+  if(!el) return;
+  const sorted = [...periodHistory].reverse(); // neueste zuerst
+  el.innerHTML = sorted.map((e,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div style="flex:1;">
+        <span style="font-size:14px;font-weight:600;color:var(--pl);">ab Tag ${e.start_day}</span>
+        <span style="font-size:12px;color:var(--muted);margin-left:8px;">gültig ab ${fmtDateDE(new Date(e.gueltig_ab+'T12:00:00'))}</span>
+        ${i===0?'<span style="font-size:10px;background:rgba(61,217,138,0.15);color:var(--green);border-radius:10px;padding:1px 8px;margin-left:6px;">aktuell</span>':''}
+      </div>
+      ${i>0||sorted.length>1?`<button onclick="deletePeriodEntry('${e.id}')" style="background:transparent;border:none;color:var(--muted2);cursor:pointer;font-size:13px;">✕</button>`:''}
+    </div>`).join('');
+}
+
+document.addEventListener('input', e => {
+  if(e.target.id==='start-day'){
+    const v = parseInt(e.target.value);
+    if(v>=1&&v<=28) updatePeriodPreview(v);
+  }
+});
+
 function onLogin(user){
   currentUser=user;
   const displayName=getDisplayName(user);
@@ -278,6 +419,7 @@ function onLogin(user){
   document.getElementById('info-name').textContent=displayName;
   const created=new Date(user.created_at).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
   document.getElementById('info-created').textContent=created;
+  loadPeriod();
 }
 
 async function doLogout(){await sb.auth.signOut();location.href='index.html';}

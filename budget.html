@@ -255,6 +255,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <div class="stab" onclick="showTab('einnahmen',this)">Einnahmen</div>
     <div class="stab" onclick="showTab('bargeld',this)">Bargeld</div>
     <div class="stab" onclick="showTab('fixkosten',this)">Fixkosten</div>
+    <div class="stab" onclick="showTab('woche',this);loadWoche();">📅 Woche</div>
   </div>
 
   <div id="sp-ausgaben" class="sp on">
@@ -297,7 +298,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <button onclick="changeMonat(-1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8592;</button>
-          <div id="ausgaben-monat-title" style="font-size:18px;font-weight:600;color:var(--pl);min-width:160px;text-align:center;"></div>
+          <div style="text-align:center;"><div id="ausgaben-monat-title" style="font-size:18px;font-weight:600;color:var(--pl);"></div><div id="ausgaben-periode-sub" style="font-size:11px;color:var(--muted);display:none;"></div></div>
           <button onclick="changeMonat(1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8594;</button>
         </div>
         <div id="ausgaben-monat-sum" style="font-size:13px;color:var(--amber);font-weight:500;"></div>
@@ -368,6 +369,39 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
       <div id="fix-list"></div>
     </div>
   </div>
+
+  <!-- WOCHENAUSWERTUNG -->
+  <div id="sp-woche" class="sp">
+    <!-- Monat-Navigator -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="changeWocheMonat(-1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8592;</button>
+        <div style="text-align:center;"><div id="woche-monat-title" style="font-size:18px;font-weight:600;color:var(--pl);"></div><div id="woche-periode-sub" style="font-size:11px;color:var(--muted);display:none;"></div></div>
+        <button onclick="changeWocheMonat(1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8594;</button>
+      </div>
+      <div id="woche-gesamt-badge" style="font-size:13px;color:var(--amber);font-weight:500;"></div>
+    </div>
+    <!-- Budget-Anteil Info -->
+    <div class="card" style="padding:12px 16px;margin-bottom:12px;">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;" id="woche-budget-summary">
+        <div style="background:var(--s2);border-radius:8px;padding:10px;">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Monatsbudget</div>
+          <div style="font-size:16px;font-weight:600;color:var(--pl);" id="wb-total">—</div>
+        </div>
+        <div style="background:var(--s2);border-radius:8px;padding:10px;">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Ø pro Woche</div>
+          <div style="font-size:16px;font-weight:600;color:var(--cyan);" id="wb-per-week">—</div>
+        </div>
+        <div style="background:var(--s2);border-radius:8px;padding:10px;">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Wochen im Monat</div>
+          <div style="font-size:16px;font-weight:600;color:var(--text);" id="wb-weeks">—</div>
+        </div>
+      </div>
+    </div>
+    <!-- Wochen-Karten -->
+    <div id="woche-list"></div>
+  </div>
+
 </div>
 
 <script>
@@ -375,9 +409,70 @@ const SUPABASE_URL='https://qhflajqbrzuxxxiqzlyi.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let currentUser=null,cats=[],fixItems=[],bargeldItems=[],einnahmenItems=[],currentAusgaben=[];
-let ausMonat=new Date().getMonth()+1, ausJahr=new Date().getFullYear();
-let einMonat=new Date().getMonth()+1, einJahr=new Date().getFullYear();
+let ausOffset=0; // 0=aktuelle Periode, -1=vorherige, +1=nächste
+let einOffset=0;
 const MONATE_LANG=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+let budgetStartDay=1; // Wird aus Supabase geladen
+
+// Berechnet Perioden-Start und -Ende basierend auf Starttag + "Monat-Offset"
+// offset=0 → aktuelle Periode, offset=-1 → vorherige, offset=+1 → nächste
+function calcPeriod(startDay, offset){
+  const now = new Date();
+  const day = now.getDate();
+  // Basis-Monat bestimmen
+  let baseMonth = now.getMonth();
+  let baseYear = now.getFullYear();
+  if(day < startDay){
+    // Noch nicht in neuer Periode → Basis ist letzter Monat
+    baseMonth--;
+    if(baseMonth < 0){ baseMonth=11; baseYear--; }
+  }
+  // Offset anwenden
+  baseMonth += offset;
+  while(baseMonth > 11){ baseMonth-=12; baseYear++; }
+  while(baseMonth < 0){ baseMonth+=12; baseYear--; }
+  // Von: startDay des baseMonth
+  const fromDate = new Date(baseYear, baseMonth, startDay);
+  // Bis: startDay-1 des folgenden Monats
+  let toMonth = baseMonth+1, toYear = baseYear;
+  if(toMonth>11){ toMonth=0; toYear++; }
+  const toDate = new Date(toYear, toMonth, startDay-1);
+  // Label = Monat in dem die meisten Tage liegen
+  const labelMonth = toMonth;
+  const labelYear = toYear;
+  return {
+    from: fromDate.toISOString().split('T')[0],
+    to: toDate.toISOString().split('T')[0],
+    label: MONATE_LANG[labelMonth]+' '+labelYear,
+    fromDate, toDate
+  };
+}
+
+let periodHistory = [];
+
+async function loadBudgetStartDay(){
+  const {data} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true});
+  periodHistory = data || [];
+  // Fallback: app_settings
+  if(!periodHistory.length){
+    const {data:s} = await sb.from('app_settings').select('value').eq('key','budget_start_day').single();
+    budgetStartDay = s ? parseInt(s.value)||1 : 1;
+  } else {
+    budgetStartDay = getStartDayForDate(new Date());
+  }
+}
+
+// Gibt den Starttag zurück der für ein bestimmtes Datum gültig war
+function getStartDayForDate(date){
+  const iso = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+  let result = 1;
+  for(const entry of periodHistory){
+    if(entry.gueltig_ab <= iso) result = entry.start_day;
+    else break;
+  }
+  return result;
+}
+let wocheOffset=0;
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
 function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});}
@@ -396,26 +491,178 @@ function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textC
 function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
 // MONATE already declared above
 
+function getStartDayForOffset(offset){
+  // For a given offset, determine which startDay was valid at the START of that period
+  // We approximate by calculating the period with current startDay first,
+  // then finding the correct startDay from history for that period's from-date
+  const pApprox = calcPeriod(budgetStartDay, offset);
+  return periodHistory.length ? getStartDayForDate(pApprox.from) : budgetStartDay;
+}
+
+function calcPeriodWithHistory(offset){
+  const sd = getStartDayForOffset(offset);
+  return calcPeriod(sd, offset);
+}
+
 function updateAusgabenTitle(){
+  const p=calcPeriodWithHistory(ausOffset);
   const el=document.getElementById('ausgaben-monat-title');
-  if(el)el.textContent=MONATE_LANG[ausMonat-1]+' '+ausJahr;
+  if(el)el.textContent=p.label;
+  // Zeige Periode als Untertitel wenn Starttag != 1
+  const sub=document.getElementById('ausgaben-periode-sub');
+  if(sub){
+    if(budgetStartDay!==1){
+      sub.textContent=p.from.split('-').reverse().join('.')+' – '+p.to.split('-').reverse().join('.');
+      sub.style.display='block';
+    } else sub.style.display='none';
+  }
 }
 function updateEinTitle(){
+  const p=calcPeriodWithHistory(einOffset);
   const el=document.getElementById('ein-monat-title');
-  if(el)el.textContent=MONATE_LANG[einMonat-1]+' '+einJahr;
+  if(el)el.textContent=p.label;
 }
 function changeMonat(dir){
-  ausMonat+=dir;
-  if(ausMonat>12){ausMonat=1;ausJahr++;}
-  else if(ausMonat<1){ausMonat=12;ausJahr--;}
+  ausOffset+=dir;
   updateAusgabenTitle();loadAusgaben();
 }
 function changeEinMonat(dir){
-  einMonat+=dir;
-  if(einMonat>12){einMonat=1;einJahr++;}
-  else if(einMonat<1){einMonat=12;einJahr--;}
+  einOffset+=dir;
   updateEinTitle();loadEinnahmen();
 }
+function changeWocheMonat(dir){
+  wocheOffset+=dir;
+  loadWoche();
+}
+
+async function loadWoche(){
+  const p=calcPeriodWithHistory(wocheOffset);
+  const el=document.getElementById('woche-monat-title');
+  if(el)el.textContent=p.label;
+  // Zeige Periode als Untertitel wenn Starttag != 1
+  const sub=document.getElementById('woche-periode-sub');
+  if(sub){
+    if(budgetStartDay!==1){
+      sub.textContent=p.from.split('-').reverse().join('.')+' – '+p.to.split('-').reverse().join('.');
+      sub.style.display='block';
+    } else sub.style.display='none';
+  }
+  const s=p.from;
+  const e=p.to;
+  const{data}=await sb.from('ausgaben').select('*').gte('created_at',s+'T00:00:00').lte('created_at',e+'T23:59:59');
+  const ausgaben=data||[];
+
+  // Kalenderwochen berechnen (ISO-Woche Mo–So)
+  const weekMap={}; // wkKey -> {label, von, bis, items}
+  ausgaben.forEach(a=>{
+    const d=new Date(a.created_at);
+    // Montag dieser Woche
+    const day=d.getDay(); // 0=So
+    const diffToMon=day===0?-6:1-day;
+    const mon=new Date(d);mon.setDate(d.getDate()+diffToMon);mon.setHours(0,0,0,0);
+    const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+    const wkKey=mon.toISOString().split('T')[0];
+    if(!weekMap[wkKey]){
+      const vonStr=mon.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+      const bisStr=sun.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+      // KW-Nummer
+      const jan4=new Date(mon.getFullYear(),0,4);
+      const kw=Math.ceil(((mon-jan4)/86400000+jan4.getDay()+1)/7);
+      weekMap[wkKey]={label:`KW ${kw} · ${vonStr} – ${bisStr}`,von:new Date(mon),bis:new Date(sun),items:[]};
+    }
+    weekMap[wkKey].items.push(a);
+  });
+
+  // Wochen sortieren
+  const weeks=Object.entries(weekMap).sort((a,b)=>a[0].localeCompare(b[0]));
+
+  // Gesamtsumme
+  const gesamtMonat=Math.round(ausgaben.reduce((a,x)=>a+Number(x.betrag),0)*100)/100;
+  const badgeEl=document.getElementById('woche-gesamt-badge');
+  if(badgeEl)badgeEl.textContent=ausgaben.length+' Buchungen · gesamt − € '+fmtN(gesamtMonat);
+
+  // Budget-Infos
+  const budgetTotal=cats.reduce((a,c)=>a+Number(c.budget),0);
+  const weeksInMonth=weeks.length||4;
+  document.getElementById('wb-total').textContent=fmtEur(budgetTotal);
+  document.getElementById('wb-per-week').textContent=fmtEur(Math.round(budgetTotal/weeksInMonth*100)/100);
+  document.getElementById('wb-weeks').textContent=weeksInMonth+' Woche'+(weeksInMonth!==1?'n':'');
+
+  // Wochen rendern
+  const listEl=document.getElementById('woche-list');
+  if(!weeks.length){
+    listEl.innerHTML='<div class="card" style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">Keine Ausgaben in diesem Monat.</div>';
+    return;
+  }
+
+  listEl.innerHTML=weeks.map(([wkKey,wk])=>{
+    const weekTotal=Math.round(wk.items.reduce((a,x)=>a+Number(x.betrag),0)*100)/100;
+    const weekBudget=Math.round(budgetTotal/weeksInMonth*100)/100;
+    const pct=weekBudget>0?Math.min(100,Math.round(weekTotal/weekBudget*1000)/10):0;
+    const barCol=pct>100?'var(--red)':pct>80?'var(--amber)':'var(--green)';
+
+    // Kategorien-Summen
+    const catSums={};
+    wk.items.forEach(a=>{
+      const cat=cats.find(c=>c.id===a.kategorie_id);
+      const name=cat?cat.name:'Sonstiges';
+      const color=cat?cat.color:'#8878A8';
+      if(!catSums[name])catSums[name]={amt:0,color};
+      catSums[name].amt=Math.round((catSums[name].amt+Number(a.betrag))*100)/100;
+    });
+    const catEntries=Object.entries(catSums).sort((a,b)=>b[1].amt-a[1].amt);
+
+    const catHTML=catEntries.map(([name,{amt,color}])=>{
+      const catPct=weekTotal>0?Math.round(amt/weekTotal*1000)/10:0;
+      return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <div style="width:7px;height:7px;border-radius:50%;background:${esc(color)};flex-shrink:0;"></div>
+        <div style="flex:1;font-size:12px;">${esc(name)}</div>
+        <div style="font-size:11px;color:var(--muted);">${fmtN(catPct)} %</div>
+        <div style="font-size:12px;font-weight:500;color:var(--amber);">− € ${fmtN(amt)}</div>
+      </div>`;
+    }).join('');
+
+    // Einzelbuchungen
+    const buchHTML=wk.items.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(a=>{
+      const cat=cats.find(c=>c.id===a.kategorie_id);
+      const d=new Date(a.created_at).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'});
+      return`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;">
+        <div style="color:var(--muted2);min-width:70px;">${esc(d)}</div>
+        <div style="flex:1;color:var(--text);">${esc(a.beschreibung)}</div>
+        <div style="font-size:11px;color:var(--muted);background:var(--s3);padding:1px 6px;border-radius:8px;">${esc(cat?cat.name:'—')}</div>
+        <div style="font-weight:500;color:var(--amber);">− € ${fmtN(a.betrag)}</div>
+      </div>`;
+    }).join('');
+
+    return`<div class="card" style="margin-bottom:10px;">
+      <!-- Wochen-Header -->
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;flex-wrap:wrap;gap:4px;">
+        <div style="font-size:14px;font-weight:600;">${esc(wk.label)}</div>
+        <div style="font-size:18px;font-weight:600;color:${barCol};">− € ${fmtN(weekTotal)}</div>
+      </div>
+      <!-- Fortschrittsbalken vs. Wochenbudget -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="flex:1;height:6px;background:var(--s3);border-radius:3px;">
+          <div style="height:100%;width:${Math.min(100,pct)}%;background:${barCol};border-radius:3px;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);white-space:nowrap;">${fmtN(pct)} % von € ${fmtN(weekBudget)} Wochenbudget</div>
+      </div>
+      <!-- Kategorien -->
+      <div style="margin-bottom:8px;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Nach Kategorie</div>
+        ${catHTML||'<div style="color:var(--muted);font-size:12px;">—</div>'}
+      </div>
+      <!-- Toggle Einzelbuchungen -->
+      <details style="margin-top:6px;">
+        <summary style="font-size:12px;color:var(--muted);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:10px;">▶</span> ${wk.items.length} Einzelbuchung${wk.items.length!==1?'en':''}
+        </summary>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);">${buchHTML}</div>
+      </details>
+    </div>`;
+  }).join('');
+}
+
 function showTab(name,el){
   document.querySelectorAll('.sp').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.stab').forEach(t=>t.classList.remove('on'));
@@ -517,8 +764,9 @@ async function delCat(id){
 
 // ── AUSGABEN ────────────────────────────────────────────────
 async function loadAusgaben(){
-  const s=`${ausJahr}-${String(ausMonat).padStart(2,'0')}-01`;
-  const e=new Date(ausJahr,ausMonat,0).toISOString().split('T')[0];
+  const p=calcPeriodWithHistory(ausOffset);
+  const s=p.from;
+  const e=p.to;
   const{data}=await sb.from('ausgaben').select('*').gte('created_at',s+'T00:00:00').lte('created_at',e+'T23:59:59').order('created_at',{ascending:false});
   currentAusgaben=data||[];
   const sum=currentAusgaben.reduce((a,x)=>a+Number(x.betrag),0);
@@ -754,7 +1002,8 @@ async function addEinnahme(){
   renderEinnahmen();updateOverview();setSyncOk();
 }
 async function loadEinnahmen(){
-  const{data}=await sb.from('einnahmen').select('*').eq('monat',einMonat).eq('jahr',einJahr).order('datum',{ascending:false});
+  const p=calcPeriodWithHistory(einOffset);
+  const{data}=await sb.from('einnahmen').select('*').gte('datum',p.from).lte('datum',p.to).order('datum',{ascending:false});
   einnahmenItems=data||[];renderEinnahmen();
   const sum=einnahmenItems.reduce((a,e)=>a+Number(e.betrag),0);
   const etEl=document.getElementById('ein-total');if(etEl)etEl.textContent=fmtEur(sum);
@@ -778,9 +1027,11 @@ function onLogin(user){
   document.getElementById('e-date').value=todayISO();
   document.getElementById('cash-datum').value=todayISO();
   document.getElementById('ein-datum').value=todayISO();
-  updateAusgabenTitle();
-  updateEinTitle();
-  loadAll();loadAusgaben();loadEinnahmen();
+  loadBudgetStartDay().then(()=>{
+    updateAusgabenTitle();
+    updateEinTitle();
+    loadAll();loadAusgaben();loadEinnahmen();
+  });
 }
 document.addEventListener('DOMContentLoaded',async()=>{
   const res=await sb.auth.getSession();
