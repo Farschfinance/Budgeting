@@ -272,7 +272,7 @@ function hideErr(id){document.getElementById(id).style.display='none';}
 function toggleForm(id){document.getElementById(id).classList.toggle('show');}
 function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
 function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
-function todayISO(){return new Date().toISOString().split('T')[0];}
+function todayISO(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
 function fmtDate(iso){if(!iso)return'';const d=new Date(iso+'T12:00:00');return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
 function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
@@ -406,7 +406,7 @@ async function saveBuchung(id){
   if(!selectedTopf)return;
   const bez=(document.getElementById('ebuch-bz-'+id).value||'—').trim().substring(0,60)||'—';
   const amt=parseFloat(document.getElementById('ebuch-am-'+id).value);
-  const datum=document.getElementById('ebuch-dt-'+id).value||new Date().toISOString().split('T')[0];
+  const datum=document.getElementById('ebuch-dt-'+id).value||todayISO();
   if(isNaN(amt))return;
   const fa=Math.round(amt*100)/100;
   await sb.from('spartopf_buchungen').update({bezeichnung:bez,betrag:fa,datum}).eq('id',id);

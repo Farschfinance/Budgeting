@@ -794,15 +794,16 @@ async function loadPeriodForDashboard(){
 
 async function loadDashboard() {
   try {
+    const _p=calcCurrentPeriod_idx();
     const [rc, rf, rsg, rg, rsp, rbg, rk, ra] = await Promise.all([
       sb.from('kategorien').select('*'),
       sb.from('fixkosten').select('*'),
       sb.from('sinking_funds').select('*'),
-      sb.from('einnahmen').select('*').gte('datum',calcCurrentPeriod_idx().from).lte('datum',calcCurrentPeriod_idx().to),
+      sb.from('einnahmen').select('*').gte('datum',_p.from).lte('datum',_p.to),
       sb.from('spartopf_buchungen').select('betrag,spartopf_id'),
       sb.from('bargeld').select('*'),
       sb.from('kalender').select('*').eq('datum', (()=>{const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');})()),
-      sb.from('ausgaben').select('*').order('created_at',{ascending:false}).limit(5),
+      sb.from('ausgaben').select('*').gte('created_at',_p.from+'T00:00:00').lte('created_at',_p.to+'T23:59:59').order('created_at',{ascending:false}),
     ]);
 
     const cats = rc.data || [];
@@ -811,7 +812,16 @@ async function loadDashboard() {
     const ausgaben = ra.data || [];
     const kalHeute = rk.data || [];
 
+    // Spent dynamisch aus Periodenausgaben berechnen (nicht aus veraltetem DB-Wert)
+    cats.forEach(cat=>{
+      cat.spent=Math.round(ausgaben.filter(a=>a.kategorie_id===cat.id).reduce((a,x)=>a+Number(x.betrag),0)*100)/100;
+    });
+
     // Budget
+    // Spent dynamisch aus Perioden-Ausgaben berechnen (nicht aus DB-Wert)
+    cats.forEach(cat=>{
+      cat.spent=Math.round(ausgaben.filter(a=>a.kategorie_id===cat.id).reduce((a,x)=>a+Number(x.betrag),0)*100)/100;
+    });
     const totalBudget = cats.filter(c=>c.aktiv!==false).reduce((a,c)=>a+Number(c.budget),0);
     const totalSpent  = cats.filter(c=>c.aktiv!==false).reduce((a,c)=>a+Number(c.spent),0);
     const left        = Math.round((totalBudget-totalSpent)*100)/100;

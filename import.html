@@ -615,13 +615,7 @@ async function doImport(){
   for(const r of toImport){
     try{
       if(r.action==='ausgabe'){
-        // Kategorie spent aktualisieren
-        const cat=cats.find(c=>c.id===r.catId);
-        if(cat){
-          const newSpent=Math.round((Number(cat.spent)+r.betrag)*100)/100;
-          await sb.from('kategorien').update({spent:newSpent}).eq('id',r.catId);
-          cat.spent=newSpent;
-        }
+        // spent wird dynamisch in budget.html berechnet, kein DB-Update nötig
         await sb.from('ausgaben').insert({
           beschreibung:r.beschreibung,
           betrag:r.betrag,

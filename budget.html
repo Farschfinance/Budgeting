@@ -627,7 +627,7 @@ async function loadWoche(){
     const diffToMon=day===0?-6:1-day;
     const mon=new Date(d);mon.setDate(d.getDate()+diffToMon);mon.setHours(0,0,0,0);
     const sun=new Date(mon);sun.setDate(mon.getDate()+6);
-    const wkKey=mon.toISOString().split('T')[0];
+    const wkKey=localISO(mon);
     if(!weekMap[wkKey]){
       const vonStr=mon.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
       const bisStr=sun.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
@@ -743,7 +743,8 @@ async function loadAll(){
       sb.from('bargeld').select('*').order('datum',{ascending:false}),
     ]);
     cats=rc.data||[];fixItems=rf.data||[];bargeldItems=rb.data||[];
-    renderCats();renderFix();renderCash();updateOverview();updateCatSel();setSyncOk();
+    // renderCats wird NACH loadAusgaben aufgerufen (mit korrektem currentAusgaben)
+    renderFix();renderCash();updateCatSel();setSyncOk();
     // Einnahmen separat mit Perioden-Filter nachladen
     loadEinnahmen();
   }catch(e){setSyncErr();}
@@ -914,8 +915,15 @@ async function loadAusgaben(){
   const sum=currentAusgaben.reduce((a,x)=>a+Number(x.betrag),0);
   const sumEl=document.getElementById('ausgaben-monat-sum');
   if(sumEl)sumEl.textContent=currentAusgaben.length+' Buchungen · gesamt − € '+(Math.round(sum*100)/100).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  // Spent dynamisch aus Ausgaben dieser Periode berechnen
+  cats.forEach(cat=>{
+    cat.spent=Math.round(currentAusgaben.filter(a=>a.kategorie_id===cat.id).reduce((a,x)=>a+Number(x.betrag),0)*100)/100;
+  });
   renderAusgaben();
+  renderCats();
+  updateOverview();
 }
+
 function renderAusgaben(){
   const el=document.getElementById('ausgaben-list');
   if(!currentAusgaben.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0;">Keine Ausgaben in diesem Zeitraum.</div>';return;}
@@ -1179,7 +1187,7 @@ async function onLogin(user){
   await loadBudgetStartDay();
   updateAusgabenTitle();
   updateEinTitle();
-  loadAll();
+  await loadAll();
   loadAusgaben();
   loadEinnahmen();
 

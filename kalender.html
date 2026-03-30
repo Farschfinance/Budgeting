@@ -308,7 +308,7 @@ function fmtEur(n){const v=Math.round(Number(n)*100)/100;return v<0?'−\u00a0�
 function validateStr(s,max){const v=String(s).trim();return(v.length>0&&v.length<=max)?v:null;}
 function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
 function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
-function todayISO(){return new Date().toISOString().split('T')[0];}
+function todayISO(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
 function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
 function showErr(id){const e=document.getElementById(id);if(e)e.style.display='block';}
