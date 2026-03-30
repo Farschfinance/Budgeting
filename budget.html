@@ -469,10 +469,13 @@ function calcPeriod(startDay, offset){
   while(baseMonth > 11){ baseMonth-=12; baseYear++; }
   while(baseMonth < 0){ baseMonth+=12; baseYear--; }
 
-  const fromDate = new Date(baseYear, baseMonth, startDay);
+  // Starttag auf verfügbare Tage des Monats begrenzen (z.B. 30. in Feb → letzter Tag)
+  const daysInBaseMonth = new Date(baseYear, baseMonth+1, 0).getDate();
+  const clampedStart = Math.min(startDay, daysInBaseMonth);
+  const fromDate = new Date(baseYear, baseMonth, clampedStart);
   let toMonth = baseMonth+1, toYear = baseYear;
   if(toMonth>11){ toMonth=0; toYear++; }
-  const toDate = new Date(toYear, toMonth, startDay-1);
+  const toDate = new Date(toYear, toMonth, Math.min(startDay-1, new Date(toYear, toMonth+1, 0).getDate()));
 
   // Label = Monat mit den MEISTEN Tagen in der Periode
   // Tage in baseMonth: Monatsende - startDay + 1

@@ -312,10 +312,12 @@ function calcStatPeriod(offset){
   baseMonth+=offset;
   while(baseMonth>11){baseMonth-=12;baseYear++;}
   while(baseMonth<0){baseMonth+=12;baseYear--;}
-  const fromDate=new Date(baseYear,baseMonth,sd);
+  const daysInBaseMonth=new Date(baseYear,baseMonth+1,0).getDate();
+  const clampedSd=Math.min(sd,daysInBaseMonth);
+  const fromDate=new Date(baseYear,baseMonth,clampedSd);
   let toMonth=baseMonth+1,toYear=baseYear;
   if(toMonth>11){toMonth=0;toYear++;}
-  const toDate=new Date(toYear,toMonth,sd-1);
+  const toDate=new Date(toYear,toMonth,Math.min(sd-1,new Date(toYear,toMonth+1,0).getDate()));
   // Label = Monat mit den meisten Tagen
   const daysInBase=new Date(baseYear,baseMonth+1,0).getDate()-sd+1;
   const daysInTo=sd-1;

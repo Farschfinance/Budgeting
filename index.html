@@ -784,10 +784,12 @@ function calcCurrentPeriod_idx(){
   const day=now.getDate();
   let baseMonth=now.getMonth(),baseYear=now.getFullYear();
   if(day<sd){baseMonth--;if(baseMonth<0){baseMonth=11;baseYear--;}}
-  const fromDate=new Date(baseYear,baseMonth,sd);
+  const daysInBaseMonth_idx=new Date(baseYear,baseMonth+1,0).getDate();
+  const clampedSd=Math.min(sd,daysInBaseMonth_idx);
+  const fromDate=new Date(baseYear,baseMonth,clampedSd);
   let toMonth=baseMonth+1,toYear=baseYear;
   if(toMonth>11){toMonth=0;toYear++;}
-  const toDate=new Date(toYear,toMonth,sd-1);
+  const toDate=new Date(toYear,toMonth,Math.min(sd-1,new Date(toYear,toMonth+1,0).getDate()));
   return{from:localISO_idx(fromDate),to:localISO_idx(toDate)};
 }
 async function loadPeriodForDashboard(){

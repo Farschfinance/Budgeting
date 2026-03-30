@@ -237,8 +237,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
       <div>
-        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Starttag (1–28)</label>
-        <input class="ci" id="start-day" type="number" min="1" max="28" placeholder="z.B. 26" style="font-size:18px;font-weight:600;text-align:center;">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Starttag (1–31)</label>
+        <div style="font-size:11px;color:var(--muted2);margin-bottom:6px;">Tage über 28: in kürzeren Monaten (Feb) gilt automatisch der Monatsletzt.</div>
+        <input class="ci" id="start-day" type="number" min="1" max="31" placeholder="z.B. 30" style="font-size:18px;font-weight:600;text-align:center;">
       </div>
       <div>
         <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Gültig ab (rückwirkend möglich)</label>
@@ -257,7 +258,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     </div>
 
     <div class="success" id="period-success">✓ Gespeichert!</div>
-    <div class="err" id="period-err">Bitte eine Zahl zwischen 1 und 28 eingeben.</div>
+    <div class="err" id="period-err">Bitte eine Zahl zwischen 1 und 31 eingeben.</div>
     <button class="btn" onclick="savePeriod()">Periode speichern</button>
 
     <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;">
@@ -402,7 +403,7 @@ async function savePeriod(){
   const errEl = document.getElementById('period-err');
   const okEl = document.getElementById('period-success');
   errEl.style.display='none'; okEl.style.display='none';
-  if(isNaN(val)||val<1||val>28){ errEl.style.display='block'; return; }
+  if(isNaN(val)||val<1||val>31){ errEl.style.display='block'; return; }
 
   // Datum aus Eingabe nehmen, oder heute als Standard
   const gueltigAb = document.getElementById('gueltig-ab').value || localISO(new Date());
