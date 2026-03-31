@@ -23,27 +23,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
 .nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
 .nav-out{font-size:11px;color:var(--muted2);background:transparent;border:1px solid var(--border);border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
-/* NOTIFICATION SYSTEM */
-.notif-bell{position:relative;background:transparent;border:1px solid var(--border2);border-radius:20px;color:var(--muted);padding:3px 10px;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;gap:4px;font-family:'DM Sans',sans-serif;}
-.notif-bell:hover{color:var(--text);border-color:var(--border2);}
-.notif-count{position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 5px;min-width:16px;text-align:center;display:none;line-height:1.4;}
-.notif-count.show{display:block;}
-.notif-panel{position:fixed;top:58px;right:12px;width:320px;max-width:calc(100vw - 24px);background:var(--s1);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:300;display:none;overflow:hidden;}
-.notif-panel.open{display:block;}
-.notif-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);}
-.notif-header-title{font-size:13px;font-weight:600;color:var(--text);}
-.notif-clear{font-size:11px;color:var(--muted);background:transparent;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;padding:2px 6px;}
-.notif-clear:hover{color:var(--red);}
-.notif-list{max-height:340px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
-.notif-item{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:10px;align-items:flex-start;}
-.notif-item:last-child{border-bottom:none;}
-.notif-item.unread{background:rgba(155,95,212,0.07);}
-.notif-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
-.notif-body{flex:1;min-width:0;}
-.notif-msg{font-size:12px;color:var(--text);line-height:1.5;}
-.notif-meta{font-size:11px;color:var(--muted2);margin-top:2px;}
-.notif-empty{padding:20px 14px;text-align:center;font-size:13px;color:var(--muted);}
-
 .nav-out:hover{color:var(--red);}
 .hamburger{display:none;background:transparent;border:1px solid var(--border2);border-radius:7px;padding:6px 9px;cursor:pointer;color:var(--text);font-size:18px;line-height:1;flex-shrink:0;}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:199;backdrop-filter:blur(2px);}
@@ -179,7 +158,6 @@ tr:hover td{background:rgba(255,255,255,0.02);}
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
     <div class="nav-sync ok" id="sync-badge">● Live</div>
-    <button class="notif-bell" id="notif-bell" onclick="toggleNotifPanel()">🔔<span class="notif-count" id="notif-count"></span></button>
     <button class="nav-out" onclick="doLogout()">Abmelden</button>
   </div>
 </nav>
@@ -285,7 +263,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 const SUPABASE_URL='https://qhflajqbrzuxxxiqzlyi.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let currentUser=null, cats=[], rows=[], fixkosten=[], existingFingerprints=new Set();
+let currentUser=null, cats=[], rows=[], fixkosten=[], spartoepfe=[], sinkingFunds=[], existingFingerprints=new Set();
 // Erinnerung: Empfänger → zuletzt gewählte Kategorie/Aktion (gespeichert in localStorage)
 let memory = JSON.parse(localStorage.getItem('import_memory')||'{}');
 
@@ -394,7 +372,7 @@ function parseVolksbankCSV(text){
       isAusgabe: betrag < 0,
       empfaenger: empf,
       fixkostenMatch: fixMatch || null,
-      markFixStatus: !!fixMatch,
+      markFixStatus: !!fixMatch  // auto-check if fixkosten match found.substring(0,60),
       verwendungszweck: zweck.substring(0,80),
       beschreibung: beschreibung.substring(0,80),
       fp: fingerprint(datum, betrag, empf),
@@ -496,6 +474,7 @@ async function processCSV(text){
       ...p,
       id:i,
       status: isDup?'dup':'new',
+      action: isDup?'ignore': (p.isAusgabe ? 'ausgabe' : 'einnahme'),
       catId: remembered?.catId||'',
       action: isDup?'ignore': (remembered?.action||(p.isAusgabe?'ausgabe':'einnahme')),
     };
@@ -523,8 +502,14 @@ function renderPreview(){
     const betragCol=r.isAusgabe
       ?`<span style="color:var(--amber);">−\u00a0€\u00a0${fmtN(r.betrag)}</span>`
       :`<span style="color:var(--green);">+\u00a0€\u00a0${fmtN(r.betrag)}</span>`;
+    const stOpts=spartoepfe.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+    const sfOpts=sinkingFunds.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
     const catCol=r.action==='ausgabe'
       ?`<select class="cat-sel" id="cat-${r.id}" onchange="setCat(${r.id},this.value)"><option value="">— Kategorie —</option>${catOpts}</select>`
+      :r.action==='spartopf'
+      ?`<select class="cat-sel" id="cat-${r.id}" onchange="setCat(${r.id},this.value)"><option value="">— Spartopf —</option>${stOpts}</select>`
+      :r.action==='sinking'
+      ?`<select class="cat-sel" id="cat-${r.id}" onchange="setCat(${r.id},this.value)"><option value="">— Sinking Fund —</option>${sfOpts}</select>`
       :`<span style="color:var(--muted);font-size:12px;">—</span>`;
     return`<tr class="${rowCls}" id="row-${r.id}">
       <td class="status-cell">${statusBadge}</td>
@@ -538,6 +523,8 @@ function renderPreview(){
         <select class="action-sel" id="action-${r.id}" onchange="setAction(${r.id},this.value)">
           <option value="ausgabe"${r.action==='ausgabe'?' selected':''}>Ausgabe</option>
           <option value="einnahme"${r.action==='einnahme'?' selected':''}>Einnahme</option>
+          <option value="spartopf"${r.action==='spartopf'?' selected':''}>🪙 Spartopf</option>
+          <option value="sinking"${r.action==='sinking'?' selected':''}>🎯 Sinking Fund</option>
           <option value="ignore"${r.action==='ignore'?' selected':''}>Ignorieren</option>
         </select>
       </td>
@@ -579,14 +566,20 @@ function setAction(id, action){
   const catCell=document.getElementById('cat-'+id)?.closest('td');
   if(catCell){
     const catOpts=cats.filter(c=>c.aktiv!==false).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+    const stOpts=spartoepfe.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+    const sfOpts=sinkingFunds.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
     catCell.innerHTML=action==='ausgabe'
       ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Kategorie —</option>${catOpts}</select>`
+      :action==='spartopf'
+      ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Spartopf —</option>${stOpts}</select>`
+      :action==='sinking'
+      ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Sinking Fund —</option>${sfOpts}</select>`
       :`<span style="color:var(--muted);font-size:12px;">—</span>`;
-    if(action==='ausgabe'&&r.catId){const s=document.getElementById('cat-'+id);if(s)s.value=r.catId;}
+    if((action==='ausgabe'||action==='spartopf'||action==='sinking')&&r.catId){const s=document.getElementById('cat-'+id);if(s)s.value=r.catId;}
   }
   // Row styling
   const row=document.getElementById('row-'+id);
-  if(row) row.className=action==='ignore'?'ignored':'';
+  if(row) row.className=action==='ignore'?'ignored':r.status==='dup'&&action!=='ignore'?'':'';  
   // Status badge
   const sb=row?.querySelector('.status-cell');
   if(sb) sb.innerHTML=action==='ignore'?'<span class="ign-badge">Ignoriert</span>':'<span class="new-badge">Neu</span>';
@@ -622,7 +615,7 @@ function updateStats(){
   const dup=rows.filter(r=>r.status==='dup').length;
   const ignored=rows.filter(r=>r.action==='ignore').length;
   const toImport=rows.filter(r=>r.action!=='ignore').length;
-  const noCat=rows.filter(r=>r.action==='ausgabe'&&!r.catId).length;
+  const noCat=rows.filter(r=>(r.action==='ausgabe'||r.action==='spartopf'||r.action==='sinking')&&!r.catId).length;
 
   document.getElementById('stats-bar').innerHTML=`
     <div class="stat-item"><div class="stat-dot" style="background:var(--text);"></div>${total} Buchungen gesamt</div>
@@ -643,7 +636,7 @@ async function doImport(){
   if(!toImport.length)return;
 
   // Validierung: alle Ausgaben haben Kategorie?
-  const missing=toImport.filter(r=>r.action==='ausgabe'&&!r.catId);
+  const missing=toImport.filter(r=>(r.action==='ausgabe'||r.action==='spartopf'||r.action==='sinking')&&!r.catId);
   if(missing.length){
     alert(`${missing.length} Ausgabe(n) haben noch keine Kategorie zugewiesen. Bitte ergänze sie zuerst.`);
     return;
@@ -661,7 +654,6 @@ async function doImport(){
   for(const r of toImport){
     try{
       if(r.action==='ausgabe'){
-        // spent wird dynamisch in budget.html berechnet, kein DB-Update nötig
         await sb.from('ausgaben').insert({
           beschreibung:r.beschreibung,
           betrag:r.betrag,
@@ -679,6 +671,22 @@ async function doImport(){
           monat:d.getMonth()+1,
           jahr:d.getFullYear()
         });
+      } else if(r.action==='spartopf'){
+        await sb.from('spartopf_buchungen').insert({
+          spartopf_id:r.catId,
+          betrag:r.betrag,
+          bezeichnung:r.beschreibung,
+          datum:r.datum,
+          erstellt_von:userName()+' (Import)'
+        });
+      } else if(r.action==='sinking'){
+        await sb.from('sinking_fund_buchungen').insert({
+          fund_id:r.catId,
+          betrag:r.betrag,
+          bezeichnung:r.beschreibung,
+          datum:r.datum,
+          erstellt_von:userName()+' (Import)'
+        });
       }
       done++;
     }catch(e){errors++;}
@@ -692,7 +700,7 @@ async function doImport(){
   const fixToMark = rows.filter(r=>r.action!=='ignore' && r.markFixStatus && r.fixkostenMatch);
   for(const r of fixToMark){
     try{
-      const periode = await calcCurrentPeriod();
+      const periode = await calcCurrentPeriod(r.datum);
       // Prüfen ob bereits Eintrag vorhanden
       const{data:existing}=await sb.from('fixkosten_status')
         .select('*').eq('fixkosten_id',r.fixkostenMatch.id).eq('periode_von',periode.from).maybeSingle();
@@ -717,9 +725,9 @@ async function doImport(){
   rb.style.display='block';
   const fixMsg = fixToMark.length > 0 ? ` · ${fixToMark.length} Fixkosten abgehakt` : '';
   rt.innerHTML=`<strong style="color:var(--green);">${done}</strong> Buchungen erfolgreich importiert${fixMsg}.`
+  if(done>0) await pushNotif('📥 CSV Import: '+done+' Buchungen importiert','import');
     +(errors>0?` <span style="color:var(--red);">${errors} Fehler.</span>`:'')
     +`<br>Sie sind jetzt in Budget und Statistik sichtbar.`;
-  if(done>0) await pushNotif('📥 CSV Import: '+done+' Buchungen importiert','import');
 
   setSyncOk();
 }
@@ -746,12 +754,16 @@ function setStep(n){
 async function doLogout(){await sb.auth.signOut();location.href='index.html';}
 
 async function loadCats(){
-  const[rc,rf]=await Promise.all([
+  const[rc,rf,rs,rk]=await Promise.all([
     sb.from('kategorien').select('*').order('created_at'),
     sb.from('fixkosten').select('*').order('created_at'),
+    sb.from('spartoepfe').select('*').order('created_at'),
+    sb.from('sinking_funds').select('*').order('created_at'),
   ]);
   cats=rc.data||[];
   fixkosten=rf.data||[];
+  spartoepfe=rs.data||[];
+  sinkingFunds=rk.data||[];
 }
 
 function onLogin(user){
@@ -863,19 +875,20 @@ function showNotifToast(n){
 }
 
 // Aktuelle Periode für Fixkosten-Status
-async function calcCurrentPeriod(){
+async function calcCurrentPeriod(refDateISO=null){
+  // refDateISO: ISO-Datum der Buchung (YYYY-MM-DD) — falls null → heute
   try{
     const{data}=await sb.from('app_settings').select('value').eq('key','budget_start_day').single();
     const sd=parseInt(data?.value||'1');
-    const now=new Date();
-    const day=now.getDate();
-    let bm=now.getMonth(),by=now.getFullYear();
+    const ref=refDateISO?new Date(refDateISO+'T12:00:00'):new Date();
+    const day=ref.getDate();
+    let bm=ref.getMonth(),by=ref.getFullYear();
     if(day<sd){bm--;if(bm<0){bm=11;by--;}}
     const from=by+'-'+String(bm+1).padStart(2,'0')+'-'+String(sd).padStart(2,'0');
     return{from};
   }catch(e){
-    const now=new Date();
-    return{from:now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-01'};
+    const ref=refDateISO?new Date(refDateISO+'T12:00:00'):new Date();
+    return{from:ref.getFullYear()+'-'+String(ref.getMonth()+1).padStart(2,'0')+'-01'};
   }
 }
 

@@ -367,7 +367,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   </div>
 
   <div id="sp-bargeld" class="sp">
-    <div class="card"><div class="lbl">Bargeld-Saldo</div><div class="num-lg" id="cash-saldo" style="color:var(--cyan);">...</div></div>
+    <div class="card">
+      <div class="lbl">Bargeld-Saldo (gesamt)</div>
+      <div class="num-lg" id="cash-saldo" style="color:var(--cyan);">...</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">Kumulierter Bestand über alle Perioden</div>
+    </div>
     <div class="card">
       <div class="lbl" style="margin-bottom:12px;">Buchung erfassen</div>
       <div class="ir">
@@ -381,7 +385,17 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
         <button class="btn-red" onclick="bookCash(-1)">− Ausgabe</button>
       </div>
     </div>
-    <div class="card"><div class="lbl" style="margin-bottom:10px;">Verlauf</div><div id="cash-list"></div></div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="changeCashMonat(-1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8592;</button>
+          <div id="cash-monat-title" style="font-size:16px;font-weight:600;color:var(--cyan);min-width:140px;text-align:center;"></div>
+          <button onclick="changeCashMonat(1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;font-family:'DM Sans',sans-serif;">&#8594;</button>
+        </div>
+        <div id="cash-monat-sum" style="font-size:13px;color:var(--cyan);font-weight:500;"></div>
+      </div>
+      <div class="list-scroll"><div id="cash-list"></div></div>
+    </div>
   </div>
 
   <div id="sp-fixkosten" class="sp">
@@ -444,6 +458,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let currentUser=null,cats=[],fixItems=[],fixkostenStatus=[],bargeldItems=[],einnahmenItems=[],currentAusgaben=[];
 let ausOffset=0; // 0=aktuelle Periode, -1=vorherige, +1=nächste
 let einOffset=0;
+let cashOffset=0;
 const MONATE_LANG=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 let budgetStartDay=1; // Wird aus Supabase geladen
 
@@ -590,6 +605,15 @@ function changeMonat(dir){
 function changeEinMonat(dir){
   einOffset+=dir;
   updateEinTitle();loadEinnahmen();
+}
+function updateCashTitle(){
+  const p=calcPeriodWithHistory(cashOffset);
+  const el=document.getElementById('cash-monat-title');
+  if(el)el.textContent=p.label;
+}
+function changeCashMonat(dir){
+  cashOffset+=dir;
+  updateCashTitle();loadCash();
 }
 function changeWocheMonat(dir){
   wocheOffset+=dir;
@@ -743,7 +767,7 @@ async function loadAll(){
     cats=rc.data||[];fixItems=rf.data||[];bargeldItems=rb.data||[];
     fixkostenStatus=rfs.data||[];
     // renderCats wird NACH loadAusgaben aufgerufen (mit korrektem currentAusgaben)
-    renderFix();renderCash();updateCatSel();setSyncOk();
+    renderFix();updateCatSel();setSyncOk();
     // Einnahmen separat mit Perioden-Filter nachladen
     loadEinnahmen();
   }catch(e){setSyncErr();}
@@ -764,8 +788,7 @@ function updateOverview(){
   document.getElementById('v-bar').style.background=pct>90?'var(--red)':pct>70?'var(--amber)':'var(--green)';
   document.getElementById('v-pct').textContent=fmtN(pct)+'\u00a0% verbraucht';
   document.getElementById('fix-total').textContent=fmtEur(fixItems.reduce((a,f)=>a+Number(f.betrag),0));
-  const cs=bargeldItems.reduce((a,b)=>a+Number(b.betrag),0);
-  const csEl=document.getElementById('cash-saldo');if(csEl){csEl.textContent=fmtEur(cs);csEl.style.color=cs<0?'var(--red)':'var(--cyan)';}
+  // cash-saldo wird durch loadCash() aktuell gehalten (Gesamtsaldo über alle Perioden)
   const et=einnahmenItems.reduce((a,e)=>a+Number(e.betrag),0);
   const etEl=document.getElementById('ein-total');if(etEl)etEl.textContent=fmtEur(et);
 }
@@ -1147,8 +1170,7 @@ async function saveCash(id){
   const fa=Math.round(amt*100)/100;
   const{error:ce}=await sb.from('bargeld').update({bezeichnung:bez,betrag:fa,datum}).eq('id',id);
   if(ce){setSyncErr();console.error('saveCash:',ce);return;}
-  const b=bargeldItems.find(x=>x.id===id);if(b){b.bezeichnung=bez;b.betrag=fa;b.datum=datum;}
-  renderCash();updateOverview();setSyncOk();
+  loadCash();setSyncOk();
 }
 async function bookCash(sign){
   const raw=document.getElementById('cash-betrag').value;
@@ -1159,15 +1181,14 @@ async function bookCash(sign){
   const fa=Math.round(amt*sign*100)/100;
   const res=await sb.from('bargeld').insert({bezeichnung:bez,betrag:fa,datum:date,erstellt_von:userName()}).select().single();
   if(res.error){setSyncErr();return;}
-  bargeldItems.unshift(res.data);
   await pushNotif('💵 Bargeld '+(sign>0?'Einzahlung':'Ausgabe')+': '+bez+' ('+fmtEur(Math.abs(fa))+')','bargeld');
   document.getElementById('cash-betrag').value='';document.getElementById('cash-bezeichnung').value='';
-  renderCash();updateOverview();setSyncOk();
+  loadCash();setSyncOk();
 }
 async function delCash(id){
   if(!confirm('Buchung löschen?'))return;
   await sb.from('bargeld').delete().eq('id',id);
-  bargeldItems=bargeldItems.filter(b=>b.id!==id);renderCash();updateOverview();setSyncOk();
+  loadCash();setSyncOk();
 }
 
 // ── EINNAHMEN ────────────────────────────────────────────────
@@ -1253,9 +1274,11 @@ async function onLogin(user){
   await loadBudgetStartDay();
   updateAusgabenTitle();
   updateEinTitle();
+  updateCashTitle();
   await loadAll();
   loadAusgaben();
   loadEinnahmen();
+  loadCash();
 
   initPresence(getDisplayName(user));
   loadNotifications();
@@ -1270,7 +1293,7 @@ sb.channel('budget-sync')
   .on('postgres_changes',{event:'*',schema:'public',table:'kategorien'},()=>loadAll())
   .on('postgres_changes',{event:'*',schema:'public',table:'ausgaben'},()=>loadAusgaben())
   .on('postgres_changes',{event:'*',schema:'public',table:'fixkosten'},()=>loadAll())
-  .on('postgres_changes',{event:'*',schema:'public',table:'bargeld'},()=>loadAll())
+  .on('postgres_changes',{event:'*',schema:'public',table:'bargeld'},()=>loadCash())
   .on('postgres_changes',{event:'*',schema:'public',table:'einnahmen'},()=>loadEinnahmen())
   .on('postgres_changes',{event:'*',schema:'public',table:'period_history'},async()=>{
     await loadBudgetStartDay();
