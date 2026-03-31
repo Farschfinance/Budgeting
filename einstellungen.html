@@ -408,6 +408,13 @@ async function savePeriod(){
   // Datum aus Eingabe nehmen, oder heute als Standard
   const gueltigAb = document.getElementById('gueltig-ab').value || localISO(new Date());
 
+  // Alle Einträge die NACH dem gewählten Datum liegen löschen
+  // (z.B. irrtümliche Lohn-isch-da-Klicks die überschrieben werden sollen)
+  const toDelete = periodHistory.filter(e => e.gueltig_ab > gueltigAb);
+  for(const e of toDelete){
+    await sb.from('period_history').delete().eq('id', e.id);
+  }
+
   // Prüfen ob für dieses Datum schon ein Eintrag existiert → dann updaten
   const existing = periodHistory.find(e => e.gueltig_ab === gueltigAb);
   let insertError;

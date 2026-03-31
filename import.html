@@ -229,6 +229,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
             <th>Aktion</th>
             <th>Kategorie</th>
             <th>Beschreibung</th>
+            <th title="Fixkosten-Zuordnung">📋 Fix</th>
           </tr>
         </thead>
         <tbody id="preview-body"></tbody>
@@ -262,7 +263,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 const SUPABASE_URL='https://qhflajqbrzuxxxiqzlyi.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let currentUser=null, cats=[], rows=[], existingFingerprints=new Set();
+let currentUser=null, cats=[], rows=[], fixkosten=[], existingFingerprints=new Set();
 // Erinnerung: Empfänger → zuletzt gewählte Kategorie/Aktion (gespeichert in localStorage)
 let memory = JSON.parse(localStorage.getItem('import_memory')||'{}');
 
@@ -357,11 +358,21 @@ function parseVolksbankCSV(text){
     // Standardmäßig nur Empfängername, kein Verwendungszweck (Datenschutz)
     const beschreibung = empf.substring(0,80) || buchtyp || '(kein Text)';
 
+    // Fixkosten-Match: prüfe ob Empfänger einem Fixkosten-Namen ähnelt
+    const fixMatch = fixkosten.find(f=>
+      empf && f.name && (
+        empf.toLowerCase().includes(f.name.toLowerCase()) ||
+        f.name.toLowerCase().includes(empf.toLowerCase().substring(0,8))
+      )
+    );
+
     parsed.push({
       datum,
       betrag: Math.round(Math.abs(betrag)*100)/100,
       isAusgabe: betrag < 0,
-      empfaenger: empf.substring(0,60),
+      empfaenger: empf,
+      fixkostenMatch: fixMatch || null,
+      markFixStatus: !!fixMatch  // auto-check if fixkosten match found.substring(0,60),
       verwendungszweck: zweck.substring(0,80),
       beschreibung: beschreibung.substring(0,80),
       fp: fingerprint(datum, betrag, empf),
@@ -515,6 +526,15 @@ function renderPreview(){
           style="font-size:12px;padding:4px 8px;min-width:120px;"
           oninput="setDesc(${r.id},this.value)">
       </td>
+      <td style="text-align:center;">
+        ${r.isAusgabe && r.fixkostenMatch
+          ? `<label title="Als Fixkoste &quot;${esc(r.fixkostenMatch.name)}&quot; abhaken" style="cursor:pointer;display:flex;align-items:center;gap:4px;">
+              <input type="checkbox" id="fix-${r.id}" ${r.markFixStatus?'checked':''} onchange="setFixMark(${r.id},this.checked)"
+                style="width:16px;height:16px;cursor:pointer;accent-color:var(--cyan);">
+              <span style="font-size:10px;color:var(--cyan);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.fixkostenMatch.name)}</span>
+             </label>`
+          : '<span style="color:var(--muted2);font-size:11px;">—</span>'}
+      </td>
     </tr>`;
   }).join('');
 
@@ -566,6 +586,11 @@ function setDesc(id, desc){
   const r=rows.find(x=>x.id===id);
   if(r) r.beschreibung=desc.substring(0,60);
 }
+function setFixMark(id,checked){
+  const r=rows.find(x=>x.id===id);
+  if(r)r.markFixStatus=checked;
+}
+
 
 function ignoreAllDups(){
   rows.forEach(r=>{if(r.status==='dup'){r.action='ignore';const s=document.getElementById('action-'+r.id);if(s)s.value='ignore';setAction(r.id,'ignore');}});
@@ -642,10 +667,35 @@ async function doImport(){
   }
 
   pw.style.display='none';
+  // Fixkosten als abgehakt markieren wenn Checkbox gesetzt
+  const fixToMark = rows.filter(r=>r.action!=='ignore' && r.markFixStatus && r.fixkostenMatch);
+  for(const r of fixToMark){
+    try{
+      const periode = await calcCurrentPeriod();
+      // Prüfen ob bereits Eintrag vorhanden
+      const{data:existing}=await sb.from('fixkosten_status')
+        .select('*').eq('fixkosten_id',r.fixkostenMatch.id).eq('periode_von',periode.from).maybeSingle();
+      if(existing){
+        await sb.from('fixkosten_status').update({
+          abgehakt:true, abgehakt_am:new Date().toISOString(), abgehakt_von:userName()+' (Import)'
+        }).eq('id',existing.id);
+      } else {
+        await sb.from('fixkosten_status').insert({
+          fixkosten_id:r.fixkostenMatch.id,
+          periode_von:periode.from,
+          abgehakt:true,
+          abgehakt_am:new Date().toISOString(),
+          abgehakt_von:userName()+' (Import)'
+        });
+      }
+    }catch(e){ console.warn('Fixkosten-Status Fehler:',e); }
+  }
+
   const rb=document.getElementById('result-box');
   const rt=document.getElementById('result-text');
   rb.style.display='block';
-  rt.innerHTML=`<strong style="color:var(--green);">${done}</strong> Buchungen erfolgreich importiert.`
+  const fixMsg = fixToMark.length > 0 ? ` · ${fixToMark.length} Fixkosten abgehakt` : '';
+  rt.innerHTML=`<strong style="color:var(--green);">${done}</strong> Buchungen erfolgreich importiert${fixMsg}.`
   if(done>0) await pushNotif('📥 CSV Import: '+done+' Buchungen importiert','import');
     +(errors>0?` <span style="color:var(--red);">${errors} Fehler.</span>`:'')
     +`<br>Sie sind jetzt in Budget und Statistik sichtbar.`;
@@ -675,8 +725,12 @@ function setStep(n){
 async function doLogout(){await sb.auth.signOut();location.href='index.html';}
 
 async function loadCats(){
-  const{data}=await sb.from('kategorien').select('*').order('created_at');
-  cats=data||[];
+  const[rc,rf]=await Promise.all([
+    sb.from('kategorien').select('*').order('created_at'),
+    sb.from('fixkosten').select('*').order('created_at'),
+  ]);
+  cats=rc.data||[];
+  fixkosten=rf.data||[];
 }
 
 function onLogin(user){
@@ -785,6 +839,23 @@ function showNotifToast(n){
   toast.onclick=()=>toast.remove();
   document.body.appendChild(toast);
   setTimeout(()=>{toast.style.animation='slideOut .4s ease forwards';setTimeout(()=>toast.remove(),400);},4500);
+}
+
+// Aktuelle Periode für Fixkosten-Status
+async function calcCurrentPeriod(){
+  try{
+    const{data}=await sb.from('app_settings').select('value').eq('key','budget_start_day').single();
+    const sd=parseInt(data?.value||'1');
+    const now=new Date();
+    const day=now.getDate();
+    let bm=now.getMonth(),by=now.getFullYear();
+    if(day<sd){bm--;if(bm<0){bm=11;by--;}}
+    const from=by+'-'+String(bm+1).padStart(2,'0')+'-'+String(sd).padStart(2,'0');
+    return{from};
+  }catch(e){
+    const now=new Date();
+    return{from:now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-01'};
+  }
 }
 
 async function pushNotif(nachricht,typ='info'){

@@ -441,7 +441,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 const SUPABASE_URL='https://qhflajqbrzuxxxiqzlyi.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let currentUser=null,cats=[],fixItems=[],bargeldItems=[],einnahmenItems=[],currentAusgaben=[];
+let currentUser=null,cats=[],fixItems=[],fixkostenStatus=[],bargeldItems=[],einnahmenItems=[],currentAusgaben=[];
 let ausOffset=0; // 0=aktuelle Periode, -1=vorherige, +1=nächste
 let einOffset=0;
 const MONATE_LANG=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
@@ -733,12 +733,15 @@ function showTab(name,el){
 
 async function loadAll(){
   try{
-    const[rc,rf,rb]=await Promise.all([
+    const p0=calcPeriodWithHistory(0);
+    const[rc,rf,rb,rfs]=await Promise.all([
       sb.from('kategorien').select('*').order('created_at'),
       sb.from('fixkosten').select('*').order('created_at'),
       sb.from('bargeld').select('*').order('datum',{ascending:false}),
+      sb.from('fixkosten_status').select('*').eq('periode_von',p0.from),
     ]);
     cats=rc.data||[];fixItems=rf.data||[];bargeldItems=rb.data||[];
+    fixkostenStatus=rfs.data||[];
     // renderCats wird NACH loadAusgaben aufgerufen (mit korrektem currentAusgaben)
     renderFix();renderCash();updateCatSel();setSyncOk();
     // Einnahmen separat mit Perioden-Filter nachladen
@@ -994,25 +997,92 @@ async function bookExp(){
 function renderFix(){
   const el=document.getElementById('fix-list');
   if(!fixItems.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0;">Keine Fixkosten eingetragen.</div>';return;}
-  el.innerHTML=fixItems.map(f=>`<div>
-    <div class="crow">
-      <div class="dot" style="background:var(--pl);"></div>
-      <div style="flex:1;font-size:13px;">${esc(f.name)}</div>
-      <div style="font-size:13px;font-weight:500;color:var(--pl);">\u20ac\u00a0${fmtN(f.betrag)}</div>
-      <button class="btn-edit" onclick="toggleEdit('ef-${esc(f.id)}')">✏️</button>
-      <button class="btn-del" onclick="delFix('${esc(f.id)}')">✕</button>
+
+  const done=fixItems.filter(f=>fixkostenStatus.find(s=>s.fixkosten_id===f.id&&s.abgehakt)).length;
+  const total=fixItems.length;
+  const sumDone=fixItems.filter(f=>fixkostenStatus.find(s=>s.fixkosten_id===f.id&&s.abgehakt)).reduce((a,f)=>a+Number(f.betrag),0);
+  const sumTotal=fixItems.reduce((a,f)=>a+Number(f.betrag),0);
+
+  // Progress header
+  const pct=total>0?Math.round(done/total*100):0;
+  const col=pct===100?'var(--green)':pct>50?'var(--cyan)':'var(--amber)';
+
+  el.innerHTML='';
+
+  // Summary bar
+  const summary=document.createElement('div');
+  summary.style.cssText='margin-bottom:12px;padding:10px 12px;background:var(--s2);border-radius:8px;border:1px solid var(--border);';
+  summary.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="font-size:12px;color:var(--muted);">${done} / ${total} abgehakt</span>
+      <span style="font-size:12px;font-weight:600;color:${col};">${fmtEur(sumDone)} / ${fmtEur(sumTotal)}</span>
     </div>
-    <div class="edit-row" id="ef-${esc(f.id)}">
-      <div class="ir">
-        <input class="ci" id="ef-n-${esc(f.id)}" value="${esc(f.name)}" maxlength="40" placeholder="Bezeichnung" style="flex:2;">
-        <input class="ci" id="ef-a-${esc(f.id)}" type="number" value="${Number(f.betrag)}" min="0.01" max="99999" step="0.01" style="flex:1;min-width:110px;">
+    <div class="track" style="margin:0;"><div class="fill" style="width:${pct}%;background:${col};transition:width .3s;"></div></div>`;
+  el.appendChild(summary);
+
+  // Sort: nicht abgehakt zuerst, dann abgehakt
+  const sorted=[...fixItems].sort((a,b)=>{
+    const aDone=!!fixkostenStatus.find(s=>s.fixkosten_id===a.id&&s.abgehakt);
+    const bDone=!!fixkostenStatus.find(s=>s.fixkosten_id===b.id&&s.abgehakt);
+    return aDone===bDone?0:aDone?1:-1;
+  });
+
+  sorted.forEach(f=>{
+    const status=fixkostenStatus.find(s=>s.fixkosten_id===f.id&&s.abgehakt);
+    const abgehakt=!!status;
+    const wrap=document.createElement('div');
+    wrap.innerHTML=`
+      <div class="crow" style="${abgehakt?'opacity:0.5;':''}">
+        <button onclick="toggleFixStatus('${f.id}')" style="background:${abgehakt?'var(--green)':'transparent'};border:2px solid ${abgehakt?'var(--green)':'var(--border2)'};border-radius:6px;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;color:${abgehakt?'#fff':'var(--muted)'};transition:all .2s;" title="${abgehakt?'Als nicht abgebucht markieren':'Als abgebucht markieren'}">
+          ${abgehakt?'✓':''}
+        </button>
+        <div style="flex:1;font-size:13px;${abgehakt?'text-decoration:line-through;color:var(--muted);':''}">
+          ${esc(f.name)}
+          ${status?.abgehakt_von?'<span style="font-size:10px;color:var(--muted2);margin-left:6px;">'+esc(status.abgehakt_von)+'</span>':''}
+        </div>
+        <div style="font-size:13px;font-weight:500;color:${abgehakt?'var(--muted)':'var(--pl)'};">€ ${fmtN(f.betrag)}</div>
+        <button class="btn-edit" onclick="toggleEdit('ef-${f.id}')">✏️</button>
+        <button class="btn-del" onclick="delFix('${f.id}')">✕</button>
       </div>
-      <div class="edit-actions">
-        <button class="btn-save" onclick="saveFix('${esc(f.id)}')">✓ Speichern</button>
-        <button class="btn-cancel" onclick="toggleEdit('ef-${esc(f.id)}')">Abbrechen</button>
-      </div>
-    </div>
-  </div>`).join('');
+      <div class="edit-row" id="ef-${f.id}">
+        <div class="ir">
+          <input class="ci" id="ef-n-${f.id}" value="${esc(f.name)}" maxlength="40" placeholder="Bezeichnung" style="flex:2;">
+          <input class="ci" id="ef-a-${f.id}" type="number" value="${Number(f.betrag)}" min="0.01" max="99999" step="0.01" style="flex:1;min-width:110px;">
+        </div>
+        <div class="edit-actions">
+          <button class="btn-save" onclick="saveFix('${f.id}')">✓ Speichern</button>
+          <button class="btn-cancel" onclick="toggleEdit('ef-${f.id}')">Abbrechen</button>
+        </div>
+      </div>`;
+    el.appendChild(wrap);
+  });
+}
+
+async function toggleFixStatus(fixId){
+  const p=calcPeriodWithHistory(0);
+  const existing=fixkostenStatus.find(s=>s.fixkosten_id===fixId);
+  if(existing){
+    // Toggle
+    const newVal=!existing.abgehakt;
+    await sb.from('fixkosten_status').update({
+      abgehakt:newVal,
+      abgehakt_am:newVal?new Date().toISOString():null,
+      abgehakt_von:newVal?userName():null
+    }).eq('id',existing.id);
+    existing.abgehakt=newVal;
+    existing.abgehakt_von=newVal?userName():null;
+  } else {
+    // Neu anlegen
+    const{data}=await sb.from('fixkosten_status').insert({
+      fixkosten_id:fixId,
+      periode_von:p.from,
+      abgehakt:true,
+      abgehakt_am:new Date().toISOString(),
+      abgehakt_von:userName()
+    }).select().single();
+    if(data) fixkostenStatus.push(data);
+  }
+  renderFix();setSyncOk();
 }
 async function saveFix(id){
   const name=vs(document.getElementById('ef-n-'+id).value,40);
@@ -1204,8 +1274,10 @@ sb.channel('budget-sync')
   .on('postgres_changes',{event:'*',schema:'public',table:'einnahmen'},()=>loadEinnahmen())
   .on('postgres_changes',{event:'*',schema:'public',table:'period_history'},async()=>{
     await loadBudgetStartDay();
+    await loadAll();
     loadAusgaben();
   })
+  .on('postgres_changes',{event:'*',schema:'public',table:'fixkosten_status'},()=>loadAll())
   .subscribe();
 
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sb-overlay').classList.add('open');}

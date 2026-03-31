@@ -959,8 +959,9 @@ async function lohnIschDa(){
     const {data: allHistory} = await sb.from('period_history')
       .select('*').order('gueltig_ab', {ascending: true});
 
-    // 2. Einträge die >= heute sind löschen (wurden evtl. durch frühere Klicks angelegt)
-    const toDelete = (allHistory||[]).filter(e => e.gueltig_ab >= today);
+    // 2. Nur Eintrag für GENAU heute löschen (falls Button zweimal gedrückt wird)
+    // Zukünftige Einträge (manuelle Korrekturen) bleiben erhalten!
+    const toDelete = (allHistory||[]).filter(e => e.gueltig_ab === today);
     for(const e of toDelete){
       await sb.from('period_history').delete().eq('id', e.id);
     }
