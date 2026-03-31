@@ -590,6 +590,7 @@ function renderPreview(){
 }
 
 function setAction(id, action){
+  id=Number(id);
   const r=rows.find(x=>x.id===id);
   if(!r)return;
   r.action=action;
@@ -628,6 +629,7 @@ function setAction(id, action){
 }
 
 function setCat(id, catId){
+  id=Number(id);
   const r=rows.find(x=>x.id===id);
   if(!r)return;
   r.catId=catId;
@@ -638,10 +640,12 @@ function setCat(id, catId){
 }
 
 function setDesc(id, desc){
+  id=Number(id);
   const r=rows.find(x=>x.id===id);
   if(r) r.beschreibung=desc.substring(0,60);
 }
 function setFixMark(id,checked){
+  id=Number(id);
   const r=rows.find(x=>x.id===id);
   if(r)r.markFixStatus=checked;
 }
