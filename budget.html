@@ -501,31 +501,18 @@ function calcPeriod(startDay, offset){
 let periodHistory = [];
 
 async function loadBudgetStartDay(){
-  // Versuche period_history
   try {
-    const {data, error} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true}).order('created_at',{ascending:true});
+    const {data,error} = await sb.from('period_history').select('*').order('gueltig_ab',{ascending:true}).order('created_at',{ascending:true});
     if(!error && data && data.length){
       periodHistory = data;
-      // Nimm den AKTUELLSTEN Eintrag der heute oder früher gilt
       budgetStartDay = getStartDayForDate(localISO(new Date()));
-      // Sicherheits-Check: wenn result noch 1 und es gibt neuere Einträge, nimm den letzten
-      if(budgetStartDay === 1 && data.length > 0){
-        const latest = data[data.length-1];
-        budgetStartDay = parseInt(latest.start_day)||1;
-      }
       return;
     }
-  } catch(e){ console.warn('period_history nicht verfügbar:', e); }
-
-  // Fallback: app_settings
+  } catch(e){ console.warn('period_history nicht verfügbar:',e); }
   try {
     const {data:s} = await sb.from('app_settings').select('value').eq('key','budget_start_day').single();
-    if(s && s.value){
-      budgetStartDay = parseInt(s.value)||1;
-      return;
-    }
-  } catch(e){ console.warn('app_settings nicht verfügbar:', e); }
-
+    if(s && s.value){ budgetStartDay = parseInt(s.value)||1; return; }
+  } catch(e){}
   budgetStartDay = 1;
 }
 
@@ -559,11 +546,17 @@ function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.text
 // MONATE already declared above
 
 function getStartDayForOffset(offset){
-  // For a given offset, determine which startDay was valid at the START of that period
-  // We approximate by calculating the period with current startDay first,
-  // then finding the correct startDay from history for that period's from-date
-  const pApprox = calcPeriod(budgetStartDay, offset);
-  return periodHistory.length ? getStartDayForDate(pApprox.from) : budgetStartDay;
+  if(!periodHistory.length) return budgetStartDay;
+  // Starttag für heute ermitteln
+  const todayISO = localISO(new Date());
+  const sdToday = getStartDayForDate(todayISO);
+  if(offset === 0) return sdToday;
+  // Für andere Offsets: aktuelle Periode berechnen, dann von deren Start aus weitergehen
+  const pCurrent = calcPeriod(sdToday, 0);
+  // Referenzdatum: Mitte des Ziel-Monats relativ zum Start der aktuellen Periode
+  const refDate = new Date(pCurrent.fromDate);
+  refDate.setMonth(refDate.getMonth() + offset);
+  return getStartDayForDate(localISO(refDate));
 }
 
 function calcPeriodWithHistory(offset){
@@ -1203,7 +1196,17 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(res.data?.session?.user)onLogin(res.data.session.user);
   else location.href='index.html';
 });
-sb.channel('budget-sync').on('postgres_changes',{event:'*',schema:'public'},()=>loadAll()).subscribe();
+sb.channel('budget-sync')
+  .on('postgres_changes',{event:'*',schema:'public',table:'kategorien'},()=>loadAll())
+  .on('postgres_changes',{event:'*',schema:'public',table:'ausgaben'},()=>loadAusgaben())
+  .on('postgres_changes',{event:'*',schema:'public',table:'fixkosten'},()=>loadAll())
+  .on('postgres_changes',{event:'*',schema:'public',table:'bargeld'},()=>loadAll())
+  .on('postgres_changes',{event:'*',schema:'public',table:'einnahmen'},()=>loadEinnahmen())
+  .on('postgres_changes',{event:'*',schema:'public',table:'period_history'},async()=>{
+    await loadBudgetStartDay();
+    loadAusgaben();
+  })
+  .subscribe();
 
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sb-overlay').classList.add('open');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-overlay').classList.remove('open');}

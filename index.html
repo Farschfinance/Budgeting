@@ -297,18 +297,19 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     </div>
 
     <!-- LOHN ISCH DA -->
-    <div id="lohn-card" style="background:linear-gradient(135deg,#0A1F0A 0%,#0E1A10 100%);border:1px solid rgba(61,217,138,0.4);border-radius:12px;padding:16px;margin-bottom:12px;position:relative;overflow:hidden;">
-      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--green),var(--cyan));"></div>
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:180px;">
-          <div style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:3px;">💰 Neue Budgetperiode</div>
-          <div style="font-size:12px;color:var(--muted);" id="lohn-info">Aktuelle Periode lädt…</div>
-        </div>
-        <button id="lohn-btn" onclick="lohnIschDa()" style="background:rgba(61,217,138,0.2);border:1px solid var(--green);border-radius:10px;color:var(--green);padding:10px 20px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;white-space:nowrap;flex-shrink:0;">
-          💰 Lohn isch da!
-        </button>
+    <div id="lohn-card" style="background:linear-gradient(135deg,#071A09 0%,#0A1F0D 50%,#071A09 100%);border:2px solid rgba(61,217,138,0.6);border-radius:16px;padding:20px;margin-bottom:12px;position:relative;overflow:hidden;box-shadow:0 0 24px rgba(61,217,138,0.15);">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--green),var(--cyan),var(--green),transparent);"></div>
+      <div style="position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(61,217,138,0.3),transparent);"></div>
+      <div style="text-align:center;margin-bottom:12px;">
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Neue Budgetperiode starten</div>
+        <div style="font-size:12px;color:rgba(61,217,138,0.7);" id="lohn-info">Aktuelle Periode lädt…</div>
       </div>
-      <div id="lohn-status" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;border-radius:8px;"></div>
+      <button id="lohn-btn" onclick="lohnIschDa()" style="width:100%;background:linear-gradient(135deg,rgba(61,217,138,0.25),rgba(61,217,138,0.15));border:2px solid var(--green);border-radius:12px;color:var(--green);padding:16px 24px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:20px;font-weight:700;letter-spacing:0.5px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px;"
+        onmouseover="this.style.background='linear-gradient(135deg,rgba(61,217,138,0.4),rgba(61,217,138,0.25))';this.style.boxShadow='0 0 20px rgba(61,217,138,0.3)'"
+        onmouseout="this.style.background='linear-gradient(135deg,rgba(61,217,138,0.25),rgba(61,217,138,0.15))';this.style.boxShadow='none'">
+        💰 Lohn isch da!
+      </button>
+      <div id="lohn-status" style="display:none;margin-top:12px;font-size:12px;padding:10px 14px;border-radius:8px;"></div>
     </div>
 
     <!-- HEUTE IM KALENDER -->
@@ -935,103 +936,76 @@ async function lohnIschDa(){
   const statusEl = document.getElementById('lohn-status');
   if(!btn || !currentUser) return;
 
-  if(!confirm('Neue Budgetperiode starten? Die aktuelle Periode wird abgeschlossen und eine neue ab heute eröffnet.')) return;
+  const today = localISO_idx(new Date());
+  const todayDay = new Date().getDate();
+  const gestern = (()=>{const d=new Date();d.setDate(d.getDate()-1);return localISO_idx(d);})();
+
+  // Aktuelle Periode anzeigen
+  const _p = calcCurrentPeriod_idx();
+  const fromStr = _p.from.split('-').reverse().join('.');
+  const toStr = gestern.split('-').reverse().join('.');
+
+  if(!confirm(
+    'Neue Budgetperiode starten?\n\n' +
+    'Bisherige Periode ' + fromStr + ' → ' + toStr + ' wird abgeschlossen.\n' +
+    'Neue Periode läuft ab heute (' + today.split('-').reverse().join('.') + ').'
+  )) return;
 
   btn.disabled = true;
   btn.textContent = '⏳ Läuft…';
   statusEl.style.display = 'none';
 
-  const today = localISO_idx(new Date());
-  const gestern = (()=>{const d=new Date();d.setDate(d.getDate()-1);return localISO_idx(d);})();
-
   try {
-    // 1. Aktuelle Periode berechnen (endet gestern)
-    const _p = calcCurrentPeriod_idx();
-    const periodeVon = _p.from;
-    const periodeBis = gestern;
+    // 1. Alle bisherigen period_history Einträge laden
+    const {data: allHistory} = await sb.from('period_history')
+      .select('*').order('gueltig_ab', {ascending: true});
 
-    // 2. Ausgaben + Einnahmen der abgelaufenen Periode laden
-    const [rAus, rEin, rCats, rFix, rSF] = await Promise.all([
-      sb.from('ausgaben').select('betrag,kategorie_id').gte('created_at', periodeVon+'T00:00:00').lte('created_at', periodeBis+'T23:59:59'),
-      sb.from('einnahmen').select('betrag').gte('datum', periodeVon).lte('datum', periodeBis),
-      sb.from('kategorien').select('*'),
-      sb.from('fixkosten').select('betrag'),
-      sb.from('sinking_funds').select('monatlich'),
-    ]);
-
-    const ausgaben = rAus.data||[];
-    const einnahmen = rEin.data||[];
-    const allCats = rCats.data||[];
-    const fixkosten = rFix.data||[];
-    const sfFunds = rSF.data||[];
-
-    const einnahmenGesamt = Math.round(einnahmen.reduce((a,e)=>a+Number(e.betrag),0)*100)/100;
-    const ausgabenGesamt = Math.round(ausgaben.reduce((a,e)=>a+Number(e.betrag),0)*100)/100;
-    const fixkostenGesamt = Math.round(fixkosten.reduce((a,f)=>a+Number(f.betrag),0)*100)/100;
-    const sfGesamt = Math.round(sfFunds.reduce((a,f)=>a+Number(f.monatlich),0)*100)/100;
-    const bilanz = Math.round((einnahmenGesamt - ausgabenGesamt - fixkostenGesamt - sfGesamt)*100)/100;
-
-    // Kategorie-Auswertung für Snapshot
-    const katDetails = allCats.map(cat=>({
-      name: cat.name,
-      budget: Number(cat.budget),
-      spent: Math.round(ausgaben.filter(a=>a.kategorie_id===cat.id).reduce((a,x)=>a+Number(x.betrag),0)*100)/100,
-      color: cat.color,
-      aktiv: cat.aktiv !== false
-    }));
-
-    // 3. Snapshot der abgelaufenen Periode speichern
-    if(periodeVon <= periodeBis) {
-      await sb.from('perioden_snapshots').insert({
-        periode_von: periodeVon,
-        periode_bis: periodeBis,
-        einnahmen_gesamt: einnahmenGesamt,
-        ausgaben_gesamt: ausgabenGesamt,
-        fixkosten_gesamt: fixkostenGesamt,
-        sf_gesamt: sfGesamt,
-        bilanz: bilanz,
-        kategorie_details: katDetails,
-        ausgeloest_von: getDisplayName(currentUser)
-      });
+    // 2. Einträge die >= heute sind löschen (wurden evtl. durch frühere Klicks angelegt)
+    const toDelete = (allHistory||[]).filter(e => e.gueltig_ab >= today);
+    for(const e of toDelete){
+      await sb.from('period_history').delete().eq('id', e.id);
     }
 
-    // 4. Neuen Perioden-Startpunkt in period_history setzen
-    const {data: existing} = await sb.from('period_history')
-      .select('*').eq('gueltig_ab', today).maybeSingle();
+    // 3. Neuen Eintrag mit heutigem Tag als Starttag anlegen
+    //    gueltig_ab = heute → ab heute gilt dieser neue Starttag
+    await sb.from('period_history').insert({
+      start_day: todayDay,
+      gueltig_ab: today
+    });
 
-    if(existing) {
-      await sb.from('period_history').update({start_day: new Date().getDate()}).eq('id', existing.id);
-    } else {
-      await sb.from('period_history').insert({start_day: new Date().getDate(), gueltig_ab: today});
-    }
+    // 4. app_settings synchronisieren
+    await sb.from('app_settings').upsert({
+      key: 'budget_start_day',
+      value: String(todayDay),
+      updated_at: new Date().toISOString()
+    });
 
-    // 5. Auch app_settings aktualisieren
-    await sb.from('app_settings').upsert({key:'budget_start_day', value:String(new Date().getDate()), updated_at: new Date().toISOString()});
+    // 5. budgetStartDay_idx aktualisieren (für sofortige Wirkung auf dieser Seite)
+    budgetStartDay_idx = todayDay;
 
-    // 6. budgetStartDay_idx neu laden
-    budgetStartDay_idx = new Date().getDate();
-
-    // 7. Erfolgsmeldung + Notification
-    const fromStr = periodeVon.split('-').reverse().join('.');
-    const toStr = periodeBis.split('-').reverse().join('.');
+    // 6. Notification
     await sb.from('notifications').insert({
-      nachricht: '💰 Neue Periode gestartet! '+fromStr+' – '+toStr+' abgeschlossen.',
+      nachricht: '💰 Neue Periode ab ' + today.split('-').reverse().join('.') + ' (Tag ' + todayDay + ')',
       autor: getDisplayName(currentUser),
       typ: 'einstellung'
     });
 
     statusEl.style.cssText = 'display:block;background:rgba(61,217,138,0.15);border:1px solid rgba(61,217,138,0.3);color:var(--green);margin-top:10px;font-size:12px;padding:8px 12px;border-radius:8px;';
-    statusEl.textContent = '✓ Neue Periode ab heute gestartet! Snapshot der Periode '+fromStr+' – '+toStr+' gespeichert.';
-    btn.textContent = '✓ Periode gestartet!';
+    statusEl.textContent = '✓ Periode ab ' + today.split('-').reverse().join('.') + ' gestartet!';
+    btn.textContent = '✓ Gestartet!';
     btn.style.opacity = '0.6';
 
-    // Dashboard neu laden
-    setTimeout(()=>{ loadDashboard(); }, 1200);
+    setTimeout(()=>{
+      loadDashboard();
+      btn.disabled = false;
+      btn.textContent = '💰 Lohn isch da!';
+      btn.style.opacity = '1';
+    }, 1500);
 
   } catch(e) {
     console.error('lohnIschDa Fehler:', e);
     statusEl.style.cssText = 'display:block;background:rgba(224,85,119,0.15);border:1px solid rgba(224,85,119,0.3);color:var(--red);margin-top:10px;font-size:12px;padding:8px 12px;border-radius:8px;';
-    statusEl.textContent = '⚠ Fehler: '+e.message;
+    statusEl.textContent = '⚠ Fehler: ' + (e.message||JSON.stringify(e));
     btn.disabled = false;
     btn.textContent = '💰 Lohn isch da!';
   }
