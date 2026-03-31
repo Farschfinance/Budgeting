@@ -597,8 +597,9 @@ function setAction(id, action){
   const key=r.empfaenger.toLowerCase().substring(0,30);
   memory[key]={...(memory[key]||{}),action};
   localStorage.setItem('import_memory',JSON.stringify(memory));
-  // Cat-Zelle aktualisieren
-  const catCell=document.getElementById('cat-'+id)?.closest('td');
+  // Cat-Zelle aktualisieren — direkt über die Row finden (robust auch wenn vorher 'ignore')
+  const rowEl=document.getElementById('row-'+id);
+  const catCell=rowEl?.cells[5]; // Spalte 5 = Kategorie (0=Status,1=Datum,2=Empf,3=Betrag,4=Aktion,5=Kat)
   if(catCell){
     const catOpts=cats.filter(c=>c.aktiv!==false).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
     const stOpts=spartoepfe.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
