@@ -372,7 +372,7 @@ function parseVolksbankCSV(text){
       isAusgabe: betrag < 0,
       empfaenger: empf,
       fixkostenMatch: fixMatch || null,
-      markFixStatus: !!fixMatch  // auto-check if fixkosten match found.substring(0,60),
+      markFixStatus: !!fixMatch,
       verwendungszweck: zweck.substring(0,80),
       beschreibung: beschreibung.substring(0,80),
       fp: fingerprint(datum, betrag, empf),
@@ -474,7 +474,6 @@ async function processCSV(text){
       ...p,
       id:i,
       status: isDup?'dup':'new',
-      action: isDup?'ignore': (p.isAusgabe ? 'ausgabe' : 'einnahme'),
       catId: remembered?.catId||'',
       action: isDup?'ignore': (remembered?.action||(p.isAusgabe?'ausgabe':'einnahme')),
     };
@@ -696,9 +695,9 @@ async function doImport(){
   rb.style.display='block';
   const fixMsg = fixToMark.length > 0 ? ` · ${fixToMark.length} Fixkosten abgehakt` : '';
   rt.innerHTML=`<strong style="color:var(--green);">${done}</strong> Buchungen erfolgreich importiert${fixMsg}.`
-  if(done>0) await pushNotif('📥 CSV Import: '+done+' Buchungen importiert','import');
     +(errors>0?` <span style="color:var(--red);">${errors} Fehler.</span>`:'')
     +`<br>Sie sind jetzt in Budget und Statistik sichtbar.`;
+  if(done>0) await pushNotif('📥 CSV Import: '+done+' Buchungen importiert','import');
 
   setSyncOk();
 }
