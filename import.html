@@ -251,7 +251,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
             <th>Aktion</th>
             <th>Kategorie</th>
             <th>Beschreibung</th>
-            <th title="Fixkosten-Zuordnung">📋 Fix</th>
+            <th>Match</th>
           </tr>
         </thead>
         <tbody id="preview-body"></tbody>
@@ -381,12 +381,21 @@ function parseVolksbankCSV(text){
     const beschreibung = empf.substring(0,80) || buchtyp || '(kein Text)';
 
     // Fixkosten-Match: prüfe ob Empfänger einem Fixkosten-Namen ähnelt
-    const fixMatch = fixkosten.find(f=>
-      empf && f.name && (
-        empf.toLowerCase().includes(f.name.toLowerCase()) ||
-        f.name.toLowerCase().includes(empf.toLowerCase().substring(0,8))
-      )
-    );
+    // Auch Verwendungszweck einbeziehen, Mindestlänge 4 Zeichen für Match
+    const empfL = empf.toLowerCase();
+    const zweckL = zweck.toLowerCase();
+    const fixMatch = fixkosten.find(f=>{
+      if(!f.name || f.name.length < 2) return false;
+      const fL = f.name.toLowerCase();
+      // Name muss mind. 4 Zeichen lang sein um false positives zu vermeiden
+      const minLen = Math.max(4, Math.floor(fL.length * 0.6));
+      const fShort = fL.substring(0, minLen);
+      return (
+        empfL.includes(fL) || fL.includes(empfL.substring(0,Math.max(6,empfL.length))) ||
+        empfL.includes(fShort) ||
+        zweckL.includes(fL) || zweckL.includes(fShort)
+      );
+    });
 
     parsed.push({
       datum,
@@ -497,7 +506,7 @@ async function processCSV(text){
       id:i,
       status: isDup?'dup':'new',
       catId: remembered?.catId||'',
-      action: isDup?'ignore': (remembered?.action||(p.isAusgabe?'ausgabe':'einnahme')),
+      action: isDup?'ignore': (remembered?.action||(p.fixkostenMatch?'fixkosten':p.isAusgabe?'ausgabe':'einnahme')),
     };
   });
 
@@ -523,10 +532,15 @@ function renderPreview(){
     const betragCol=r.isAusgabe
       ?`<span style="color:var(--amber);">−\u00a0€\u00a0${fmtN(r.betrag)}</span>`
       :`<span style="color:var(--green);">+\u00a0€\u00a0${fmtN(r.betrag)}</span>`;
+    const fixOpts=fixkosten.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('');
     const stOpts=spartoepfe.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
     const sfOpts=sinkingFunds.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+    // Für fixkosten: vorausgefüllt mit erkanntem Match
+    const fixPresel = r.fixkostenMatch?.id||'';
     const catCol=r.action==='ausgabe'
       ?`<select class="cat-sel" id="cat-${r.id}" onchange="setCat(${r.id},this.value)"><option value="">— Kategorie —</option>${catOpts}</select>`
+      :r.action==='fixkosten'
+      ?`<select class="cat-sel" id="cat-${r.id}" onchange="setCat(${r.id},this.value)"><option value="">— Fixkosten —</option>${fixOpts}</select>`
       :r.action==='spartopf'
       ?`<select class="cat-sel" id="cat-${r.id}" onchange="setCat(${r.id},this.value)"><option value="">— Spartopf —</option>${stOpts}</select>`
       :r.action==='sinking'
@@ -544,6 +558,7 @@ function renderPreview(){
         <select class="action-sel" id="action-${r.id}" onchange="setAction(${r.id},this.value)">
           <option value="ausgabe"${r.action==='ausgabe'?' selected':''}>Ausgabe</option>
           <option value="einnahme"${r.action==='einnahme'?' selected':''}>Einnahme</option>
+          <option value="fixkosten"${r.action==='fixkosten'?' selected':''}>📋 Fixkosten abhaken</option>
           <option value="spartopf"${r.action==='spartopf'?' selected':''}>🪙 Spartopf</option>
           <option value="sinking"${r.action==='sinking'?' selected':''}>🎯 Sinking Fund</option>
           <option value="ignore"${r.action==='ignore'?' selected':''}>Ignorieren</option>
@@ -556,12 +571,8 @@ function renderPreview(){
           oninput="setDesc(${r.id},this.value)">
       </td>
       <td style="text-align:center;">
-        ${r.isAusgabe && r.fixkostenMatch
-          ? `<label title="Als Fixkoste &quot;${esc(r.fixkostenMatch.name)}&quot; abhaken" style="cursor:pointer;display:flex;align-items:center;gap:4px;">
-              <input type="checkbox" id="fix-${r.id}" ${r.markFixStatus?'checked':''} onchange="setFixMark(${r.id},this.checked)"
-                style="width:16px;height:16px;cursor:pointer;accent-color:var(--cyan);">
-              <span style="font-size:10px;color:var(--cyan);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.fixkostenMatch.name)}</span>
-             </label>`
+        ${r.fixkostenMatch
+          ? `<span style="font-size:10px;background:rgba(61,217,197,0.12);color:var(--cyan);border-radius:8px;padding:2px 7px;white-space:nowrap;" title="Fixkosten-Match: ${esc(r.fixkostenMatch.name)}">📋 ${esc(r.fixkostenMatch.name)}</span>`
           : '<span style="color:var(--muted2);font-size:11px;">—</span>'}
       </td>
     </tr>`;
@@ -569,7 +580,10 @@ function renderPreview(){
 
   // Kategorie-Select vorausfüllen
   rows.forEach(r=>{
-    if(r.catId){const s=document.getElementById('cat-'+r.id);if(s)s.value=r.catId;}
+    const val = r.action==='fixkosten' ? (r.catId||r.fixkostenMatch?.id||'') : r.catId;
+    if(val){const s=document.getElementById('cat-'+r.id);if(s)s.value=val;}
+    // catId auch setzen wenn noch nicht gesetzt
+    if(r.action==='fixkosten' && !r.catId && r.fixkostenMatch?.id) r.catId=r.fixkostenMatch.id;
   });
 
   updateStats();
@@ -589,14 +603,19 @@ function setAction(id, action){
     const catOpts=cats.filter(c=>c.aktiv!==false).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
     const stOpts=spartoepfe.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
     const sfOpts=sinkingFunds.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+    const fixOpts2=fixkosten.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('');
     catCell.innerHTML=action==='ausgabe'
       ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Kategorie —</option>${catOpts}</select>`
+      :action==='fixkosten'
+      ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Fixkosten —</option>${fixOpts2}</select>`
       :action==='spartopf'
       ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Spartopf —</option>${stOpts}</select>`
       :action==='sinking'
       ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Sinking Fund —</option>${sfOpts}</select>`
       :`<span style="color:var(--muted);font-size:12px;">—</span>`;
-    if((action==='ausgabe'||action==='spartopf'||action==='sinking')&&r.catId){const s=document.getElementById('cat-'+id);if(s)s.value=r.catId;}
+    const fillId = action==='fixkosten' ? (r.catId||r.fixkostenMatch?.id||'') : r.catId;
+    if(fillId){const s=document.getElementById('cat-'+id);if(s)s.value=fillId;}
+    if(action==='fixkosten'&&!r.catId&&r.fixkostenMatch?.id) r.catId=r.fixkostenMatch.id;
   }
   // Row styling
   const row=document.getElementById('row-'+id);
@@ -636,7 +655,7 @@ function updateStats(){
   const dup=rows.filter(r=>r.status==='dup').length;
   const ignored=rows.filter(r=>r.action==='ignore').length;
   const toImport=rows.filter(r=>r.action!=='ignore').length;
-  const noCat=rows.filter(r=>(r.action==='ausgabe'||r.action==='spartopf'||r.action==='sinking')&&!r.catId).length;
+  const noCat=rows.filter(r=>(r.action==='ausgabe'||r.action==='fixkosten'||r.action==='spartopf'||r.action==='sinking')&&!r.catId).length;
 
   document.getElementById('stats-bar').innerHTML=`
     <div class="stat-item"><div class="stat-dot" style="background:var(--text);"></div>${total} Buchungen gesamt</div>
@@ -657,7 +676,7 @@ async function doImport(){
   if(!toImport.length)return;
 
   // Validierung: alle Ausgaben haben Kategorie?
-  const missing=toImport.filter(r=>(r.action==='ausgabe'||r.action==='spartopf'||r.action==='sinking')&&!r.catId);
+  const missing=toImport.filter(r=>(r.action==='ausgabe'||r.action==='fixkosten'||r.action==='spartopf'||r.action==='sinking')&&!r.catId);
   if(missing.length){
     alert(`${missing.length} Ausgabe(n) haben noch keine Kategorie zugewiesen. Bitte ergänze sie zuerst.`);
     return;
@@ -692,6 +711,24 @@ async function doImport(){
           monat:d.getMonth()+1,
           jahr:d.getFullYear()
         });
+      } else if(r.action==='fixkosten'){
+        // Nur fixkosten_status abhaken — landet NICHT in variablen Ausgaben
+        const periode = await calcCurrentPeriod(r.datum);
+        const{data:existing}=await sb.from('fixkosten_status')
+          .select('*').eq('fixkosten_id',r.catId).eq('periode_von',periode.from).maybeSingle();
+        if(existing){
+          await sb.from('fixkosten_status').update({
+            abgehakt:true, abgehakt_am:new Date().toISOString(), abgehakt_von:userName()+' (Import)'
+          }).eq('id',existing.id);
+        } else {
+          await sb.from('fixkosten_status').insert({
+            fixkosten_id:r.catId,
+            periode_von:periode.from,
+            abgehakt:true,
+            abgehakt_am:new Date().toISOString(),
+            abgehakt_von:userName()+' (Import)'
+          });
+        }
       } else if(r.action==='spartopf'){
         await sb.from('spartopf_buchungen').insert({
           spartopf_id:r.catId,
@@ -717,34 +754,12 @@ async function doImport(){
   }
 
   pw.style.display='none';
-  // Fixkosten als abgehakt markieren wenn Checkbox gesetzt
-  const fixToMark = rows.filter(r=>r.action!=='ignore' && r.markFixStatus && r.fixkostenMatch);
-  for(const r of fixToMark){
-    try{
-      const periode = await calcCurrentPeriod(r.datum);
-      // Prüfen ob bereits Eintrag vorhanden
-      const{data:existing}=await sb.from('fixkosten_status')
-        .select('*').eq('fixkosten_id',r.fixkostenMatch.id).eq('periode_von',periode.from).maybeSingle();
-      if(existing){
-        await sb.from('fixkosten_status').update({
-          abgehakt:true, abgehakt_am:new Date().toISOString(), abgehakt_von:userName()+' (Import)'
-        }).eq('id',existing.id);
-      } else {
-        await sb.from('fixkosten_status').insert({
-          fixkosten_id:r.fixkostenMatch.id,
-          periode_von:periode.from,
-          abgehakt:true,
-          abgehakt_am:new Date().toISOString(),
-          abgehakt_von:userName()+' (Import)'
-        });
-      }
-    }catch(e){ console.warn('Fixkosten-Status Fehler:',e); }
-  }
+  // Fixkosten-Status wird jetzt direkt im doImport-Loop behandelt (action==='fixkosten')
 
   const rb=document.getElementById('result-box');
   const rt=document.getElementById('result-text');
   rb.style.display='block';
-  const fixMsg = fixToMark.length > 0 ? ` · ${fixToMark.length} Fixkosten abgehakt` : '';
+  const fixMsg = toImport.filter(r=>r.action==='fixkosten').length > 0 ? ` · ${toImport.filter(r=>r.action==='fixkosten').length} Fixkosten abgehakt` : '';
   rt.innerHTML=`<strong style="color:var(--green);">${done}</strong> Buchungen erfolgreich importiert${fixMsg}.`
     +(errors>0?` <span style="color:var(--red);">${errors} Fehler.</span>`:'')
     +`<br>Sie sind jetzt in Budget und Statistik sichtbar.`;
