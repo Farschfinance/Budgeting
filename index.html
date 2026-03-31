@@ -799,7 +799,6 @@ async function loadPeriodForDashboard(){
     if(!error&&data&&data.length){
       periodHistory_idx=data;
       budgetStartDay_idx=getStartDayForDate_idx(localISO_idx(new Date()));
-      if(budgetStartDay_idx===1&&data.length>0)budgetStartDay_idx=parseInt(data[data.length-1].start_day)||1;
       return;
     }
   }catch(e){}
