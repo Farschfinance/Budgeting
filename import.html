@@ -750,6 +750,12 @@ async function doImport(){
           datum:r.datum,
           erstellt_von:userName()+' (Import)'
         });
+        // angespart in sinking_funds aktualisieren
+        const{data:sfRow}=await sb.from('sinking_funds').select('angespart').eq('id',r.catId).single();
+        if(sfRow){
+          const newVal=Math.max(0,Math.round((Number(sfRow.angespart)+r.betrag)*100)/100);
+          await sb.from('sinking_funds').update({angespart:newVal}).eq('id',r.catId);
+        }
       }
       done++;
     }catch(e){errors++;}
