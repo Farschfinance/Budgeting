@@ -454,20 +454,43 @@ function buildHistorie(fundId){
   buchungen.forEach(b=>{
     const isEin=Number(b.betrag)>0;
     const row=document.createElement('div');
-    row.className='hist-row';
+    row.className='hist-row';row.style.flexWrap='wrap';
     const dp=(b.datum||'').split('-');
     const dStr=dp.length===3?dp[2]+'.'+dp[1]+'.'+dp[0]:(b.datum||'');
+
     const left=document.createElement('div');
-    left.innerHTML='<span style="color:'+(isEin?'var(--green)':'var(--amber)')+';">'+(isEin?'+':'−')+'\u00a0€\u00a0'+fmtN(Math.abs(b.betrag))+'</span>'
-      +(b.bezeichnung?'<span style="color:var(--muted);margin-left:8px;font-size:12px;">'+esc(b.bezeichnung)+'</span>':'');
+    left.style.cssText='display:flex;align-items:center;gap:6px;flex:1;min-width:0;';
+    const betragSpan=document.createElement('span');
+    betragSpan.style.cssText='color:'+(isEin?'var(--green)':'var(--amber)')+';white-space:nowrap;';
+    betragSpan.textContent=(isEin?'+':'\u2212')+'\u00a0\u20ac\u00a0'+fmtN(Math.abs(b.betrag));
+    left.appendChild(betragSpan);
+
+    const bezSpan=document.createElement('span');
+    bezSpan.style.cssText='color:var(--muted);font-size:12px;cursor:pointer;border-bottom:1px dashed var(--border2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;';
+    bezSpan.textContent=b.bezeichnung||'\u2014 umbenennen';
+    bezSpan.title='Bezeichnung bearbeiten';
+    const bezInput=document.createElement('input');
+    bezInput.type='text';bezInput.value=b.bezeichnung||'';bezInput.maxLength=60;
+    bezInput.className='ci';bezInput.style.cssText='font-size:12px;padding:3px 7px;width:180px;display:none;';
+    const saveBez=async()=>{
+      const val=bezInput.value.trim();
+      bezInput.style.display='none';bezSpan.style.display='';
+      if(val===b.bezeichnung)return;
+      await sb.from('sinking_fund_buchungen').update({bezeichnung:val}).eq('id',b.id);
+      b.bezeichnung=val;bezSpan.textContent=val||'\u2014 umbenennen';
+    };
+    bezInput.onblur=saveBez;
+    bezInput.onkeydown=e=>{if(e.key==='Enter')saveBez();if(e.key==='Escape'){bezInput.style.display='none';bezSpan.style.display='';}};
+    bezSpan.onclick=()=>{bezSpan.style.display='none';bezInput.style.display='';bezInput.focus();bezInput.select();};
+    left.appendChild(bezSpan);left.appendChild(bezInput);
+
     const right=document.createElement('div');
-    right.style.cssText='display:flex;align-items:center;gap:6px;';
+    right.style.cssText='display:flex;align-items:center;gap:6px;flex-shrink:0;';
     const dateSpan=document.createElement('span');
     dateSpan.style.cssText='color:var(--muted2);font-size:11px;';
     dateSpan.textContent=dStr;
     const delBtn=document.createElement('button');
-    delBtn.className='btn-del';
-    delBtn.textContent='✕';
+    delBtn.className='btn-del';delBtn.textContent='\u2715';
     delBtn.onclick=()=>delSfBuchung(b.id,fundId,b.betrag);
     right.appendChild(dateSpan);right.appendChild(delBtn);
     row.appendChild(left);row.appendChild(right);

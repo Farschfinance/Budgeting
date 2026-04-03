@@ -552,6 +552,7 @@ function showErr(id){document.getElementById(id).style.display='block';}
 function hideErr(id){document.getElementById(id).style.display='none';}
 function toggleForm(id){document.getElementById(id).classList.toggle('show');}
 function toggleEdit(id){document.getElementById(id).classList.toggle('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
 function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
 function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
 function todayISO(){return localISO(new Date());}
@@ -828,8 +829,8 @@ function renderCats(){
           ${catAusgaben.length>0?'<span style="font-size:10px;color:var(--muted2);">('+catAusgaben.length+')</span>':''}
         </div>
         ${!inaktiv?`<div style="flex:2;padding:0 8px;"><div class="track" style="margin:0;"><div class="fill" style="width:${p}%;background:${col};"></div></div></div>`:'<div style="flex:2;"></div>'}
-        <div style="min-width:110px;text-align:right;font-size:13px;font-weight:500;color:${inaktiv?'var(--muted)':col};">
-          ${!inaktiv?`\u20ac\u00a0${fmtN(c.spent)}<span style="color:var(--muted);font-weight:400;"> / \u20ac\u00a0${fmtN(c.budget)}</span>`:'pausiert'}
+        <div style="min-width:140px;text-align:right;">
+          ${!inaktiv?`<div style="font-size:13px;font-weight:500;color:${col};">€ ${fmtN(c.spent)}<span style="color:var(--muted);font-weight:400;"> / € ${fmtN(c.budget)}</span></div><div style="font-size:11px;color:${Number(c.budget)-Number(c.spent)<0?'var(--red)':'var(--green)'};">noch € ${fmtN(Math.max(0,Number(c.budget)-Number(c.spent)))} übrig</div>`:'<div style="font-size:13px;color:var(--muted);">pausiert</div>'}
         </div>
         <div onclick="event.stopPropagation()" style="display:flex;gap:2px;">
           <button class="btn-edit" onclick="toggleCatAktiv('${c.id}')" title="${inaktiv?'Aktivieren':'Pausieren'}" style="font-size:12px;">${inaktiv?'▶':'⏸'}</button>
@@ -964,35 +965,12 @@ function renderAusgaben(){
         <button class="btn-edit" onclick="toggleEdit('ea-${esc(a.id)}')">✏️</button>
         <button class="btn-del" onclick="delAusgabe('${esc(a.id)}','${esc(a.kategorie_id)}',${Number(a.betrag)})">✕</button>
       </div>
-      <div class="edit-row" id="ea-${esc(a.id)}">
-        <div class="ir">
-          <input class="ci" id="ea-d-${esc(a.id)}" value="${esc(a.beschreibung)}" maxlength="60" placeholder="Beschreibung" style="flex:2;min-width:120px;">
-          <input class="ci" id="ea-a-${esc(a.id)}" type="number" value="${Number(a.betrag)}" min="0.01" max="99999" step="0.01" style="flex:1;min-width:80px;">
-          <select class="cs" id="ea-c-${esc(a.id)}" style="min-width:110px;">${catOpts}</select>
-          <input class="ci" id="ea-dt-${esc(a.id)}" type="date" value="${esc(dateVal)}" style="min-width:130px;">
-        </div>
-        <div class="edit-actions">
-          <button class="btn-save" onclick="saveAusgabe('${esc(a.id)}','${esc(a.kategorie_id)}',${Number(a.betrag)})">✓ Speichern</button>
-          <button class="btn-cancel" onclick="toggleEdit('ea-${esc(a.id)}')">Abbrechen</button>
-        </div>
-      </div>
+
     </div>`;
   }).join('');
   currentAusgaben.forEach(a=>{const s=document.getElementById('ea-c-'+a.id);if(s)s.value=a.kategorie_id||'';});
 }
-async function saveAusgabe(id,oldCatId,oldAmt){
-  const desc=vs(document.getElementById('ea-d-'+id).value,60);
-  const amt=va(document.getElementById('ea-a-'+id).value,0.01,99999);
-  const newCatId=document.getElementById('ea-c-'+id).value;
-  const dateVal=document.getElementById('ea-dt-'+id).value;
-  if(!desc||!amt)return;
-  const oldCat=cats.find(c=>c.id===oldCatId);
-  const newCat=cats.find(c=>c.id===newCatId);
-  if(oldCat){const ns=Math.max(0,Math.round((Number(oldCat.spent)-oldAmt)*100)/100);await sb.from('kategorien').update({spent:ns}).eq('id',oldCatId);oldCat.spent=ns;}
-  if(newCat){const ns=Math.round((Number(newCat.spent)+amt)*100)/100;await sb.from('kategorien').update({spent:ns}).eq('id',newCatId);newCat.spent=ns;}
-  await sb.from('ausgaben').update({beschreibung:desc,betrag:amt,kategorie_id:newCatId,...(dateVal?{created_at:dateVal+'T12:00:00'}:{})}).eq('id',id);
-  renderCats();updateOverview();loadAusgaben();setSyncOk();
-}
+// saveAusgabe replaced by openAusgabeModal + saveAusgabeEdit
 async function delAusgabe(id,catId,amt){
   if(!confirm('Ausgabe löschen?'))return;
   const cat=cats.find(c=>c.id===catId);
@@ -1133,6 +1111,22 @@ async function delFix(id){
 }
 
 // ── BARGELD ──────────────────────────────────────────────────
+async function loadCash(){
+  const p=calcPeriodWithHistory(cashOffset);
+  updateCashTitle();
+  // Saldo = ALLE Buchungen (Bestand bleibt über Perioden)
+  const{data:allData}=await sb.from('bargeld').select('betrag').order('datum',{ascending:true});
+  const saldoGesamt=Math.round((allData||[]).reduce((a,b)=>a+Number(b.betrag),0)*100)/100;
+  const csEl=document.getElementById('cash-saldo');
+  if(csEl){csEl.textContent=fmtEur(saldoGesamt);csEl.style.color=saldoGesamt<0?'var(--red)':'var(--cyan)';}
+  // Verlauf = nur aktuelle Periode
+  const{data}=await sb.from('bargeld').select('*').gte('datum',p.from).lte('datum',p.to).order('datum',{ascending:false});
+  bargeldItems=data||[];
+  const periSum=Math.round(bargeldItems.reduce((a,b)=>a+Number(b.betrag),0)*100)/100;
+  const sumEl=document.getElementById('cash-monat-sum');
+  if(sumEl)sumEl.textContent=bargeldItems.length+' Buchungen · '+( periSum>=0?'+':'')+fmtEur(periSum);
+  renderCash();
+}
 function renderCash(){
   const el=document.getElementById('cash-list');
   if(!bargeldItems.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0;">Noch keine Buchungen.</div>';return;}
@@ -1218,18 +1212,7 @@ function renderEinnahmen(){
     </div>
   </div>`).join('');
 }
-async function saveEinnahme(id){
-  const bez=vs(document.getElementById('eein-bz-'+id).value,60);
-  const amt=va(document.getElementById('eein-am-'+id).value,0.01,999999);
-  const kat=vs(document.getElementById('eein-kt-'+id).value||'Sonstiges',40)||'Sonstiges';
-  const datum=document.getElementById('eein-dt-'+id).value||todayISO();
-  if(!bez||!amt)return;
-  const d=new Date(datum);
-  const{error:ee}=await sb.from('einnahmen').update({bezeichnung:bez,betrag:amt,kategorie:kat,datum,monat:d.getMonth()+1,jahr:d.getFullYear()}).eq('id',id);
-  if(ee){setSyncErr();console.error('saveEinnahme:',ee);return;}
-  const e=einnahmenItems.find(x=>x.id===id);if(e){e.bezeichnung=bez;e.betrag=amt;e.kategorie=kat;e.datum=datum;}
-  loadEinnahmen();updateOverview();setSyncOk();
-}
+// saveEinnahme replaced by openEinnahmeModal + saveEinnahmeEdit
 async function addEinnahme(){
   const bez=vs(document.getElementById('ein-bezeichnung').value,60);
   const amt=va(document.getElementById('ein-betrag').value,0.01,999999);
