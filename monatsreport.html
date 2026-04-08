@@ -536,13 +536,20 @@ function renderReport(d){
       </div>
     </div>
 
-    <!-- AUSGABEN -->
+    <!-- AUSGABEN gesamt je Kategorie -->
     <div class="rs">
-      <div class="rs-title">Buchungen · Ausgaben (${d.ausgaben.length})</div>
-      ${d.ausgaben.length?`<table class="tbl">
-        <thead><tr><th>Datum</th><th>Beschreibung</th><th>Kategorie</th><th style="text-align:right;">Betrag</th></tr></thead>
-        <tbody>${ausRows}${ausMore}</tbody>
-      </table>`:'<div style="color:#aaa;font-size:12px;">Keine Ausgaben in diesem Zeitraum.</div>'}
+      <div class="rs-title">Ausgaben · Zusammenfassung je Kategorie</div>
+      <table class="tbl">
+        <thead><tr><th>Kategorie</th><th style="text-align:right;">Ausgaben</th><th style="text-align:right;">Budget</th><th style="text-align:right;">Differenz</th><th>Buchungen</th></tr></thead>
+        <tbody>${catSummaryRows}</tbody>
+        <tfoot><tr>
+          <td style="font-weight:700;">Gesamt</td>
+          <td style="text-align:right;font-weight:700;" class="amt-neg">−${fmtEur(d.totalSpent)}</td>
+          <td style="text-align:right;font-weight:700;">€ ${fmtN(d.totalBudget)}</td>
+          <td style="text-align:right;font-weight:700;" class="${d.totalBudget-d.totalSpent>=0?'amt-pos':'amt-neg'}">${d.totalBudget-d.totalSpent>=0?'+':''}${fmtEur(d.totalBudget-d.totalSpent)}</td>
+          <td>${d.ausgaben.length}</td>
+        </tr></tfoot>
+      </table>
     </div>
 
     <!-- EINNAHMEN -->

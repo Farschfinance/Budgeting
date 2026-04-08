@@ -176,6 +176,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
     <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
     <a class="sidebar-link" data-page="import" href="import.html">📥&#8202; CSV Import</a>
+    <a class="sidebar-link" data-page="monatsreport" href="monatsreport.html">📄&#8202; Monatsreport</a>
   </div>
   <div class="sidebar-footer">
     <button class="sidebar-out" onclick="doLogout()">← Abmelden</button>
@@ -195,6 +196,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="schulden.html">Schulden</a>
       <a class="nav-link" href="einstellungen.html">⚙️</a>
       <a class="nav-link" href="import.html">📥</a>
+    <a class="nav-link" href="monatsreport.html">📄</a>
   </div>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
@@ -955,22 +957,44 @@ function renderAusgaben(){
     const cat=cats.find(c=>c.id===a.kategorie_id);
     const d=new Date(a.created_at).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
     const dateVal=a.created_at?a.created_at.split('T')[0]:'';
+    const sid=a.id;
     return`<div>
       <div class="crow">
         <div style="font-size:12px;color:var(--muted2);min-width:32px;">${esc(d)}</div>
         <div style="flex:1;font-size:13px;">${esc(a.beschreibung)}</div>
         <div style="font-size:11px;color:var(--muted);background:var(--s3);padding:1px 8px;border-radius:10px;white-space:nowrap;">${esc(cat?cat.name:'—')}</div>
-        <div style="font-size:13px;font-weight:500;color:var(--amber);white-space:nowrap;">−\u20ac\u00a0${fmtN(a.betrag)}</div>
+        <div style="font-size:13px;font-weight:500;color:var(--amber);white-space:nowrap;">−€ ${fmtN(a.betrag)}</div>
         <span class="by-badge">${esc(a.erstellt_von)}</span>
-        <button class="btn-edit" onclick="toggleEdit('ea-${esc(a.id)}')">✏️</button>
-        <button class="btn-del" onclick="delAusgabe('${esc(a.id)}','${esc(a.kategorie_id)}',${Number(a.betrag)})">✕</button>
+        <button class="btn-edit" onclick="toggleEdit('ea-${sid}')">✏️</button>
+        <button class="btn-del" onclick="delAusgabe('${sid}','${esc(a.kategorie_id)}',${Number(a.betrag)})">✕</button>
       </div>
-
+      <div class="edit-row" id="ea-${sid}">
+        <div class="ir">
+          <input class="ci" id="ea-d-${sid}" value="${esc(a.beschreibung)}" maxlength="60" placeholder="Beschreibung" style="flex:2;min-width:120px;">
+          <input class="ci" id="ea-a-${sid}" type="number" value="${Number(a.betrag)}" min="0.01" max="99999" step="0.01" style="flex:1;min-width:80px;">
+          <select class="cs" id="ea-c-${sid}" style="min-width:110px;">${catOpts}</select>
+          <input class="ci" id="ea-dt-${sid}" type="date" value="${esc(dateVal)}" style="min-width:130px;">
+        </div>
+        <div class="edit-actions">
+          <button class="btn-save" onclick="saveAusgabe('${sid}','${esc(a.kategorie_id)}',${Number(a.betrag)})">✓ Speichern</button>
+          <button class="btn-cancel" onclick="toggleEdit('ea-${sid}')">Abbrechen</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
   currentAusgaben.forEach(a=>{const s=document.getElementById('ea-c-'+a.id);if(s)s.value=a.kategorie_id||'';});
 }
-// saveAusgabe replaced by openAusgabeModal + saveAusgabeEdit
+async function saveAusgabe(id,oldCatId,oldAmt){
+  id=String(id);
+  const desc=vs(document.getElementById('ea-d-'+id)?.value,60);
+  const amt=va(document.getElementById('ea-a-'+id)?.value,0.01,99999);
+  const newCatId=document.getElementById('ea-c-'+id)?.value;
+  const dateVal=document.getElementById('ea-dt-'+id)?.value;
+  if(!desc||!amt)return;
+  await sb.from('ausgaben').update({beschreibung:desc,betrag:amt,kategorie_id:newCatId,...(dateVal?{created_at:dateVal+'T12:00:00'}:{})}).eq('id',id);
+  toggleEdit('ea-'+id);
+  loadAusgaben();setSyncOk();
+}
 async function delAusgabe(id,catId,amt){
   if(!confirm('Ausgabe löschen?'))return;
   const cat=cats.find(c=>c.id===catId);
@@ -1212,7 +1236,18 @@ function renderEinnahmen(){
     </div>
   </div>`).join('');
 }
-// saveEinnahme replaced by openEinnahmeModal + saveEinnahmeEdit
+async function saveEinnahme(id){
+  id=String(id);
+  const bez=vs(document.getElementById('eein-bz-'+id)?.value,60);
+  const amt=va(document.getElementById('eein-am-'+id)?.value,0.01,999999);
+  const kat=vs(document.getElementById('eein-kt-'+id)?.value||'Sonstiges',40)||'Sonstiges';
+  const datum=document.getElementById('eein-dt-'+id)?.value||todayISO();
+  if(!bez||!amt)return;
+  const d=new Date(datum);
+  await sb.from('einnahmen').update({bezeichnung:bez,betrag:amt,kategorie:kat,datum,monat:d.getMonth()+1,jahr:d.getFullYear()}).eq('id',id);
+  toggleEdit('eein-'+id);
+  loadEinnahmen();setSyncOk();
+}
 async function addEinnahme(){
   const bez=vs(document.getElementById('ein-bezeichnung').value,60);
   const amt=va(document.getElementById('ein-betrag').value,0.01,999999);
