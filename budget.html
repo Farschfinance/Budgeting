@@ -246,7 +246,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <span class="modal-lbl">Kategorie</span>
     <select class="cs" id="ma-cat" style="width:100%;margin-top:4px;"></select>
     <div class="modal-btns">
-      <button class="btn" onclick="saveAusgabeEdit()">Speichern</button>
+      <button class="btn" onclick="closeModal('modal-aus')">Schließen</button>
       <button style="background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;" onclick="closeModal('modal-aus')">Abbrechen</button>
     </div>
   </div>
@@ -263,7 +263,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <span class="modal-lbl">Datum</span>
     <input class="ci" id="me-datum" type="date" style="margin-top:4px;">
     <div class="modal-btns">
-      <button class="btn" onclick="saveEinnahmeEdit()">Speichern</button>
+      <button class="btn" onclick="closeModal('modal-ein')">Schließen</button>
       <button style="background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;" onclick="closeModal('modal-ein')">Abbrechen</button>
     </div>
   </div>
@@ -338,7 +338,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
         </div>
         <div id="ausgaben-monat-sum" style="font-size:13px;color:var(--amber);font-weight:500;"></div>
       </div>
-      <div class="list-scroll"><div id="ausgaben-list"></div></div>
+      <div id="ausgaben-list"></div>
     </div>
   </div>
 
@@ -364,7 +364,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
         </div>
         <div id="ein-monat-sum" style="font-size:13px;color:var(--green);font-weight:500;"></div>
       </div>
-      <div class="list-scroll"><div id="einnahmen-list"></div></div>
+      <div id="einnahmen-list"></div>
     </div>
   </div>
 

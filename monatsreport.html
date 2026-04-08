@@ -62,16 +62,18 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 
 /* ── PRINT STYLES ── */
 @media print {
-  body{background:#fff !important;color:#1a1a2e !important;font-family:'DM Sans',Georgia,sans-serif !important;}
-  .nav,.no-print,.page > .card:first-child{display:none !important;}
+  body{background:#fff !important;color:#1a1a2e !important;font-family:'DM Sans',Georgia,sans-serif !important;margin:0;padding:0;}
+  .nav,.no-print{display:none !important;}
+  .page{padding:0 !important;margin:0 !important;max-width:100% !important;}
   #report-preview{display:block !important;}
+  #report-preview.show{display:block !important;}
   .report-page{
-    max-width:100%;margin:0;padding:0;
+    max-width:100% !important;margin:0 !important;padding:0 !important;
     font-family:'DM Sans',Georgia,sans-serif;
     color:#1a1a2e;background:#fff;
   }
-  .report-page * {-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  @page{margin:15mm 12mm;size:A4 portrait;}
+  .report-page *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+  @page{margin:12mm 10mm;size:A4 portrait;}
 }
 
 /* ── REPORT STYLES (light, druckbar) ── */
@@ -426,18 +428,19 @@ function renderReport(d){
     </div>`;
   }).join('');
 
-  // ── Ausgaben-Tabelle (max 30 Zeilen) ──
-  const ausRows=d.ausgaben.slice(0,30).map(a=>{
-    const cat=d.cats.find(c=>c.id===a.kategorie_id);
-    const dt=new Date(a.created_at).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+  // ── Kategorien-Zusammenfassung (statt Einzelbuchungen) ──
+  const catSummaryRows=d.cats.filter(c=>c.aktiv!==false).map(c=>{
+    const cnt=d.ausgaben.filter(a=>a.kategorie_id===c.id).length;
+    const diff=Number(c.budget)-Number(c.spent);
+    const diffCol=diff>=0?'#1a8a5a':'#c0392b';
     return`<tr>
-      <td style="color:#888;">${esc(dt)}</td>
-      <td>${esc(a.beschreibung)}</td>
-      <td><span class="cat-tag">${esc(cat?cat.name:'—')}</span></td>
-      <td class="amt-neg" style="text-align:right;">−${fmtEur(a.betrag)}</td>
+      <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${esc(c.color||'#6c3fc5')};margin-right:6px;vertical-align:middle;"></span>${esc(c.name)}</td>
+      <td style="text-align:right;" class="amt-neg">−${fmtEur(c.spent)}</td>
+      <td style="text-align:right;">€ ${fmtN(c.budget)}</td>
+      <td style="text-align:right;font-weight:600;color:${diffCol};">${diff>=0?'+':''}${fmtEur(diff)}</td>
+      <td style="color:#888;text-align:center;">${cnt}</td>
     </tr>`;
   }).join('');
-  const ausMore=d.ausgaben.length>30?`<tr><td colspan="4" style="color:#888;font-size:10px;padding:5px 8px;">… und ${d.ausgaben.length-30} weitere Buchungen</td></tr>`:'';
 
   // ── Einnahmen-Tabelle ──
   const einRows=d.einnahmen.map(e=>{
