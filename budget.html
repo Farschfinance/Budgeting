@@ -421,6 +421,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
       </div>
       <div class="list-scroll"><div id="fix-list"></div></div>
     </div>
+    <div id="verpf"></div>
   </div>
 
   <!-- WOCHENAUSWERTUNG -->
@@ -800,6 +801,7 @@ async function loadAll(){
     fixkostenStatus=rfs.data||[];
     // renderCats wird NACH loadAusgaben aufgerufen (mit korrektem currentAusgaben)
     renderFix();updateCatSel();setSyncOk();
+    loadVerpflichtungen();
     // Einnahmen separat mit Perioden-Filter nachladen
     loadEinnahmen();
   }catch(e){setSyncErr();}
@@ -1068,6 +1070,89 @@ async function bookExp(){
   await pushNotif('💸 Ausgabe: '+desc+' ('+fmtEur(amt)+')','ausgabe');
   document.getElementById('e-desc').value='';document.getElementById('e-amt').value='';
   renderCats();updateOverview();loadAusgaben();setSyncOk();
+}
+
+// ── VERPFLICHTUNGEN (Sinking Funds + Spartöpfe + Taschengeld) ─────
+function tgBetragFuer(datum,liste){
+  let b=0;for(const x of liste){if(x.gueltig_ab<=datum)b=Number(x.betrag);}return b;
+}
+function fridaysIn(from,to){
+  const out=[];const d=new Date(from+'T12:00:00');const e=new Date(to+'T12:00:00');
+  while(d<=e){if(d.getDay()===5)out.push(localISO(d));d.setDate(d.getDate()+1);}
+  return out;
+}
+async function loadVerpflichtungen(){
+  const el=document.getElementById('verpf');if(!el)return;
+  const p=calcPeriodWithHistory(0);
+  const[sf,st,sfb,stb,tgb,tgs]=await Promise.all([
+    sb.from('sinking_funds').select('*').order('created_at'),
+    sb.from('spartoepfe').select('*').order('created_at'),
+    sb.from('sinking_fund_buchungen').select('fund_id,betrag').gte('datum',p.from).lte('datum',p.to),
+    sb.from('spartopf_buchungen').select('spartopf_id,betrag').gte('datum',p.from).lte('datum',p.to),
+    sb.from('taschengeld_betraege').select('*').order('gueltig_ab'),
+    sb.from('taschengeld_status').select('*').gte('datum',p.from).lte('datum',p.to)
+  ]);
+  const booked=(rows,key,id)=>Math.round((rows||[]).filter(x=>x[key]===id&&Number(x.betrag)>0).reduce((a,x)=>a+Number(x.betrag),0)*100)/100;
+  const today=todayISO();
+  let html='';
+  let sumRaten=0;
+  const rateRow=(typ,o,key,rows)=>{
+    const rate=Number(o.monatlich)||0;
+    const b=booked(rows,key,o.id);
+    const done=rate>0&&b>=rate-0.005;
+    sumRaten+=rate;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <span style="width:22px;text-align:center;color:${done?'var(--green)':rate>0?'var(--amber)':'var(--muted2)'};">${done?'✓':rate>0?'○':'·'}</span>
+      <span style="flex:1;min-width:120px;font-size:13px;${rate>0?'':'color:var(--muted);'}">${esc(o.name)}</span>
+      <span style="font-size:12px;color:var(--muted);">${rate>0?fmtEur(b)+' von':'Rate:'}</span>
+      <input class="ci" type="number" step="0.01" min="0" value="${rate>0?rate:''}" placeholder="€/Monat" style="width:90px;padding:5px 8px;" onchange="saveRate('${typ}','${esc(o.id)}',this.value)">
+    </div>`;
+  };
+  html+=`<div class="card"><div class="lbl" style="margin-bottom:4px;">🎯 Sinking Funds · monatliche Rate</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Ein Haken erscheint automatisch, sobald in dieser Periode mindestens die Rate eingebucht wurde (z. B. per CSV-Import).</div>
+    ${(sf.data||[]).map(o=>rateRow('sinking',o,'fund_id',sfb.data)).join('')||'<div style="color:var(--muted);font-size:13px;">Keine Sinking Funds.</div>'}</div>`;
+  html+=`<div class="card"><div class="lbl" style="margin-bottom:4px;">🪙 Spartöpfe · monatliche Rate</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Nur Töpfe mit einer Rate zählen als Verpflichtung. Feld leer = wird nicht jeden Monat bespart.</div>
+    ${(st.data||[]).map(o=>rateRow('spartopf',o,'spartopf_id',stb.data)).join('')||'<div style="color:var(--muted);font-size:13px;">Keine Spartöpfe.</div>'}</div>`;
+  // Taschengeld
+  let tgSum=0,tgHtml='';
+  if(tgb.error||tgs.error){
+    tgHtml='<div style="color:var(--amber);font-size:13px;">Taschengeld ist noch nicht eingerichtet. Bitte zuerst das SQL "taschengeld.sql" in Supabase ausführen.</div>';
+  }else{
+    const betr=tgb.data||[];
+    const stat={};(tgs.data||[]).forEach(x=>stat[x.datum]=x);
+    const fr=fridaysIn(p.from,p.to);
+    tgHtml=fr.map(d=>{
+      const b=tgBetragFuer(d,betr);tgSum+=b;
+      const paid=!!stat[d]?.bezahlt;
+      const overdue=!paid&&d<=today;
+      const lab=d.split('-').reverse().slice(0,2).join('.');
+      return `<label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+        <input type="checkbox" ${paid?'checked':''} onchange="toggleTaschengeld('${d}',this.checked)" style="width:18px;height:18px;accent-color:var(--green);">
+        <span style="flex:1;font-size:13px;color:${overdue?'var(--red)':'var(--text)'};">Fr ${lab}.${d===today?' (heute)':''}${overdue?' · fällig':''}</span>
+        <span style="font-size:13px;">${fmtEur(b)}</span>
+      </label>`;
+    }).join('')||'<div style="color:var(--muted);font-size:13px;">Kein Freitag in dieser Periode.</div>';
+  }
+  html+=`<div class="card"><div class="lbl" style="margin-bottom:4px;">👦 Taschengeld V. · jeden Freitag</div>${tgHtml}
+    <div style="font-size:12px;color:var(--muted);margin-top:8px;">Summe in dieser Periode: <b style="color:var(--text);">${fmtEur(tgSum)}</b></div></div>`;
+  const fixSum=fixItems.reduce((a,f)=>a+Number(f.betrag),0);
+  html+=`<div class="card"><div class="lbl">Verpflichtungen gesamt · diese Periode</div>
+    <div class="num-lg" style="color:var(--pl);">${fmtEur(fixSum+sumRaten+tgSum)}</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px;">Fixkosten ${fmtEur(fixSum)} · Sinking Funds und Spartöpfe ${fmtEur(sumRaten)} · Taschengeld ${fmtEur(tgSum)}</div></div>`;
+  el.innerHTML=html;
+}
+async function saveRate(typ,id,val){
+  const v=Math.round((parseFloat(val)||0)*100)/100;
+  const tbl=typ==='sinking'?'sinking_funds':'spartoepfe';
+  const{error}=await sb.from(tbl).update({monatlich:v}).eq('id',id);
+  if(error){alert(typ==='spartopf'?'Fehler beim Speichern. Wurde das SQL "taschengeld.sql" ausgeführt? ('+error.message+')':'Fehler: '+error.message);return;}
+  loadVerpflichtungen();
+}
+async function toggleTaschengeld(datum,on){
+  const{error}=await sb.from('taschengeld_status').upsert({datum,bezahlt:on,bezahlt_am:on?new Date().toISOString():null,bezahlt_von:on?userName():null},{onConflict:'datum'});
+  if(error){alert('Fehler: '+error.message);}
+  loadVerpflichtungen();
 }
 
 // ── KONTOSTAND-ABGLEICH ──────────────────────────────────────

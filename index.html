@@ -1063,6 +1063,36 @@ async function doLogin() {
 }
 async function doLogout(){await sb.auth.signOut();location.reload();}
 
+async function checkTaschengeld(){
+  try{
+    const old=document.getElementById('tg-banner');if(old)old.remove();
+    const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const now=new Date();now.setHours(12,0,0,0);
+    const fr=[];
+    for(let i=0;i<14;i++){const d=new Date(now);d.setDate(now.getDate()-i);if(d.getDay()===5)fr.push(iso(d));}
+    if(!fr.length)return;
+    const[b,s]=await Promise.all([
+      sb.from('taschengeld_betraege').select('*').order('gueltig_ab'),
+      sb.from('taschengeld_status').select('*').in('datum',fr)
+    ]);
+    if(b.error||s.error)return;
+    const paid=new Set((s.data||[]).filter(x=>x.bezahlt).map(x=>x.datum));
+    const open=fr.filter(d=>!paid.has(d));
+    if(!open.length)return;
+    const betrag=d=>{let v=0;for(const x of (b.data||[])){if(x.gueltig_ab<=d)v=Number(x.betrag);}return v;};
+    const d=open[0];
+    const lab=d.split('-').reverse().slice(0,2).join('.');
+    const html=`<div id="tg-banner" style="background:rgba(224,168,48,0.15);border:1px solid rgba(224,168,48,0.5);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:180px;font-size:14px;">👦 <b>Taschengeld für V.</b> ist fällig (Fr ${lab}.): <b>${String(betrag(d).toFixed(2)).replace('.',',')} €</b>${open.length>1?' · '+(open.length-1)+' weitere offen':''}</div>
+      <button style="background:rgba(61,217,138,0.18);border:1px solid rgba(61,217,138,0.45);border-radius:8px;color:var(--green);padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;" onclick="payTaschengeld('${d}')">✓ Bezahlt</button></div>`;
+    document.querySelector('.page')?.insertAdjacentHTML('afterbegin',html);
+  }catch(e){console.warn('Taschengeld:',e);}
+}
+async function payTaschengeld(datum){
+  await sb.from('taschengeld_status').upsert({datum,bezahlt:true,bezahlt_am:new Date().toISOString(),bezahlt_von:getDisplayName(currentUser)},{onConflict:'datum'});
+  checkTaschengeld();
+}
+
 function onLogin(user) {
   currentUser=user;
   document.getElementById('login-screen').style.display='none';
@@ -1075,6 +1105,7 @@ function onLogin(user) {
   setSidebarPage('index');
   setDatum();
   loadPeriodForDashboard().then(()=>loadDashboard());
+  checkTaschengeld();
 
   loadNotifications();
   subscribeNotifications();
