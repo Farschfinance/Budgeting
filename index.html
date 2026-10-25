@@ -178,8 +178,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="sidebar-link" data-page="sinking" href="sinking.html">🎯&#8202; Sinking Funds</a>
     <a class="sidebar-link" data-page="kalender" href="kalender.html">📅&#8202; Kalender</a>
     <a class="sidebar-link" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
-    <a class="sidebar-link" data-page="monatsreport" href="monatsreport.html">📄&#8202; Monatsreport</a>
     <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
+    <a class="sidebar-link" data-page="monatsreport" href="monatsreport.html">📄&#8202; Monatsreport</a>
     <a class="sidebar-link" data-page="import" href="import.html">📥&#8202; CSV Import</a>
     <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
   </div>
@@ -212,8 +212,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="sinking.html">Sinking Funds</a>
     <a class="nav-link" href="kalender.html">Kalender</a>
     <a class="nav-link" href="statistik.html">Statistik</a>
-    <a class="nav-link" href="monatsreport.html" title="Monatsreport">📄</a>
     <a class="nav-link" href="schulden.html">Schulden</a>
+    <a class="nav-link" href="monatsreport.html" title="Monatsreport (PDF)">📄</a>
     <a class="nav-link" href="import.html" title="CSV Import">📥</a>
     <a class="nav-link" href="einstellungen.html" title="Einstellungen">⚙️</a>
   </div>
@@ -252,8 +252,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
           <div class="lbl">Bewertung</div>
           <div style="font-size:15px;font-weight:600;" id="score-text">lädt...</div>
           <div style="font-size:12px;color:var(--muted);margin-top:3px;" id="score-sub"></div>
+          <a href="#" id="score-toggle" onclick="toggleScoreDetail();return false;" style="font-size:12px;color:var(--pl);text-decoration:none;display:inline-block;margin-top:6px;">Details anzeigen ▾</a>
         </div>
-      </div></div>
+      </div>
+      <div id="score-detail" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:10px;"></div></div>
       <div class="card">
         <div class="lbl" style="margin-bottom:10px;">Schnellübersicht</div>
         <div class="status-row">
@@ -344,7 +346,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <!-- LETZTE AUSGABEN -->
     <div class="card">
       <div class="rb" style="margin-bottom:10px;">
-        <div class="lbl" style="margin:0;">Letzte Ausgaben</div>
+        <div class="lbl" style="margin:0;" id="recent-title">Letzte Ausgaben</div>
         <a href="budget.html" style="font-size:12px;color:var(--pl);text-decoration:none;">Alle →</a>
       </div>
       <div id="recent-ausgaben"><div style="color:var(--muted);font-size:13px;">Lädt...</div></div>
@@ -758,14 +760,52 @@ function setDatum() {
   document.getElementById('tip-text').textContent = TIPPS_365[Math.max(0,idx)];
 }
 
-function calcScore(pct, bargeld, schulden) {
-  let score = 100;
-  if (pct > 100) score -= 40;
-  else if (pct > 85) score -= 20;
-  else if (pct > 70) score -= 10;
-  if (bargeld < 0) score -= 15;
-  if (schulden > 0) score -= 15;
-  score = Math.max(0, Math.min(100, score));
+function toggleScoreDetail(){
+  const d=document.getElementById('score-detail'),t=document.getElementById('score-toggle');
+  const open=d.style.display==='none';
+  d.style.display=open?'block':'none';
+  t.textContent=open?'Details ausblenden ▴':'Details anzeigen ▾';
+}
+// Score 0-100 aus fünf Teilen, jeweils mit aktuellen Werten der laufenden Periode
+function calcScore(c) {
+  const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,x));
+  const parts=[];
+  const act=c.cats.filter(k=>k.aktiv!==false&&Number(k.budget)>0);
+  const usedFrac=c.totalBudget>0?c.totalSpent/c.totalBudget:0;
+  const today=localISO_idx(new Date());
+  const dayMs=86400000;
+  const days=Math.round((new Date(c.p.to+'T12:00:00')-new Date(c.p.from+'T12:00:00'))/dayMs)+1;
+  const done=Math.round((new Date(today+'T12:00:00')-new Date(c.p.from+'T12:00:00'))/dayMs)+1;
+  const elapsed=clamp(done/days,0,1);
+  // 1) Tempo (40): Verbrauch im Verhältnis zur vergangenen Zeit
+  let tempo=40,tempoTxt;
+  if(c.totalBudget<=0){tempoTxt='Kein Budget angelegt.';}
+  else if(elapsed<0.1){tempoTxt='Periode hat gerade erst begonnen, noch keine Wertung.';}
+  else{
+    const r=usedFrac/elapsed;
+    tempo=40*clamp(1-Math.max(0,r-1)/0.5,0,1);
+    tempoTxt=Math.round(usedFrac*100)+' % des Budgets verbraucht bei '+Math.round(elapsed*100)+' % der Periode.';
+  }
+  parts.push({name:'Tempo',pts:tempo,max:40,txt:tempoTxt});
+  // 2) Kategorien (25)
+  const over=act.filter(k=>Number(k.spent)>Number(k.budget));
+  const kat=act.length?25*(1-over.length/act.length):25;
+  parts.push({name:'Kategorien im Budget',pts:kat,max:25,txt:over.length?(over.length+' von '+act.length+' überzogen: '+over.slice(0,3).map(k=>k.name).join(', ')+(over.length>3?' …':'')):'Alle '+act.length+' Budgets eingehalten.'});
+  // 3) Gesamtbudget (20)
+  const ges=usedFrac<=1?20:20*clamp(1-(usedFrac-1)/0.1,0,1);
+  parts.push({name:'Gesamtbudget',pts:ges,max:20,txt:Math.round(usedFrac*100)+' % verbraucht'+(usedFrac>1?' (überzogen)':'')+'.'});
+  // 4) Planung (10)
+  let pl=10,plTxt='Noch keine Einnahmen in dieser Periode, keine Wertung.';
+  if(c.verpf!=null&&c.einSum>0){
+    const gap=c.einSum-c.verpf-c.totalBudget;
+    pl=gap>=0?10:10*clamp(1+gap/(c.totalBudget*0.1),0,1);
+    plTxt=gap>=0?'Einnahmen decken Verpflichtungen und Budgets (+'+fmtEur(gap)+').':'Budgets plus Verpflichtungen übersteigen die Einnahmen um '+fmtEur(-gap)+'.';
+  }
+  parts.push({name:'Planung',pts:pl,max:10,txt:plTxt});
+  // 5) Bargeld (5)
+  parts.push({name:'Bargeld',pts:c.bargeld>=0?5:0,max:5,txt:c.bargeld>=0?'Bestand '+fmtEur(c.bargeld)+'.':'Bargeld-Bestand ist negativ ('+fmtEur(c.bargeld)+'), Buchungen prüfen.'});
+
+  const score=Math.round(parts.reduce((a,x)=>a+x.pts,0));
   let emoji, text, sub;
   if (score >= 85) { emoji='🌟'; text='Ausgezeichnet!'; sub='Ihr macht das super — weiter so!'; }
   else if (score >= 70) { emoji='😊'; text='Gut dabei'; sub='Auf dem richtigen Weg!'; }
@@ -773,8 +813,14 @@ function calcScore(pct, bargeld, schulden) {
   else if (score >= 30) { emoji='😬'; text='Aufpassen!'; sub='Das Budget kommt unter Druck.'; }
   else { emoji='🚨'; text='Achtung!'; sub='Sofort Ausgaben prüfen.'; }
   document.getElementById('score-emoji').textContent = emoji;
-  document.getElementById('score-text').textContent = text;
+  document.getElementById('score-text').textContent = text+' · '+score+' / 100';
   document.getElementById('score-sub').textContent = sub;
+  document.getElementById('score-detail').innerHTML=parts.map(x=>{
+    const col=x.pts>=x.max*0.8?'var(--green)':x.pts>=x.max*0.5?'var(--amber)':'var(--red)';
+    return `<div style="margin-bottom:9px;"><div class="rb"><span style="font-size:13px;">${esc(x.name)}</span><span style="font-size:12px;color:${col};font-weight:600;">${Math.round(x.pts)} / ${x.max}</span></div>
+      <div class="track" style="margin:3px 0;"><div class="fill" style="width:${x.pts/x.max*100}%;background:${col};"></div></div>
+      <div style="font-size:11px;color:var(--muted);">${esc(x.txt)}</div></div>`;
+  }).join('');
 }
 
 
@@ -842,7 +888,8 @@ async function loadVerpfCard(p, fixkosten, funds, einSum, totalBudget){
       <div style="font-size:12px;color:var(--muted);margin-top:4px;">Fixkosten ${fmtEur(fix)} · Sinking Funds + Spartöpfe ${fmtEur(raten)} · Taschengeld ${fmtEur(tg)}</div>
       ${einSum>0?`<div style="font-size:12px;margin-top:8px;">Einnahmen dieser Periode ${fmtEur(einSum)} → nach Verpflichtungen bleiben <b>${fmtEur(verf)}</b> für variable Ausgaben. Budgets gesamt: ${fmtEur(totalBudget)}
         <span style="color:${gap>=0?'var(--green)':'var(--red)'};">(${gap>=0?'+':'−'}${fmtEur(Math.abs(gap))}${gap>=0?' Luft':' zu viel geplant'})</span></div>`:'<div style="font-size:12px;color:var(--muted);margin-top:8px;">Noch keine Einnahmen in dieser Periode erfasst.</div>'}`;
-  }catch(e){console.warn('verpf-card',e);}
+    return total;
+  }catch(e){console.warn('verpf-card',e);return null;}
 }
 
 async function loadDashboard() {
@@ -899,23 +946,32 @@ async function loadDashboard() {
     if(stEl) stEl.textContent = '\u20ac\u00a0'+fmtN(toepfeSaldo)+' angespart';
 
     // Score
-    calcScore(pct, bargeldSaldo, 1700);
-    calcDailyLimit(left, totalBudget);
-    loadVerpfCard(_p, rf.data||[], funds, (rg.data||[]).reduce((a,e)=>a+Number(e.betrag),0), totalBudget);
+    calcDailyLimit(left, totalBudget, _p);
+    const einSumP=(rg.data||[]).reduce((a,e)=>a+Number(e.betrag),0);
+    const scoreCtx={cats,totalBudget,totalSpent,bargeld:bargeldSaldo,p:_p,einSum:einSumP,verpf:null};
+    calcScore(scoreCtx);
+    loadVerpfCard(_p, rf.data||[], funds, einSumP, totalBudget).then(v=>{if(v!=null){scoreCtx.verpf=v;calcScore(scoreCtx);}});
 
     // Budget-Balken
-    const budgetHTML = cats.slice(0,4).map(c=>{
-      const p=c.aktiv!==false&&c.budget>0?Math.min(100,Math.round(Number(c.spent)/Number(c.budget)*1000)/10):0;
+    const offen=cats.filter(c=>c.aktiv!==false&&Number(c.budget)>0&&Number(c.spent)<Number(c.budget))
+      .sort((x,y)=>(1-Number(x.spent)/Number(x.budget))-(1-Number(y.spent)/Number(y.budget)));
+    const budgetHTML = offen.map(c=>{
+      const p=Math.min(100,Math.round(Number(c.spent)/Number(c.budget)*1000)/10);
       const col=p>90?'var(--red)':p>70?'var(--amber)':'var(--green)';
       return `<div style="margin-bottom:10px;">
         <div class="rb"><span style="font-size:13px;">${esc(c.name)}</span><span style="font-size:12px;color:${col};font-weight:500;">${fmtEur(Number(c.budget)-Number(c.spent))} übrig</span></div>
         <div class="track"><div class="fill" style="width:${p}%;background:${col};"></div></div>
       </div>`;
     }).join('');
-    document.getElementById('budget-overview').innerHTML = budgetHTML || '<div style="color:var(--muted);font-size:13px;">Noch keine Kategorien.</div>';
+    document.getElementById('budget-overview').innerHTML = budgetHTML || '<div style="color:var(--muted);font-size:13px;">Kein aktives Budget mit freiem Betrag.</div>';
 
     // Letzte Ausgaben
-    const ausgabenHTML = ausgaben.map(a=>{
+    const lastDay=ausgaben.reduce((m,x)=>{const d=String(x.created_at).substring(0,10);return d>m?d:m;},'');
+    const dayRows=ausgaben.filter(a=>String(a.created_at).substring(0,10)===lastDay);
+    const shown=dayRows.slice(0,6);
+    const rtitle=document.getElementById('recent-title');
+    if(rtitle)rtitle.textContent=lastDay?'Letzte Ausgaben · '+new Date(lastDay+'T12:00:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'}):'Letzte Ausgaben';
+    const ausgabenHTML = shown.map(a=>{
       const cat = cats.find(c=>c.id===a.kategorie_id);
       const d = new Date(a.created_at).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
       return `<div class="crow">
@@ -925,7 +981,7 @@ async function loadDashboard() {
         <div style="font-size:13px;font-weight:500;color:var(--amber);">−\u00a0€\u00a0${fmtN(a.betrag)}</div>
         <span class="by-badge">${esc(a.erstellt_von)}</span>
       </div>`;
-    }).join('');
+    }).join('')+(dayRows.length>shown.length?`<div style="font-size:12px;color:var(--muted);margin-top:6px;">+ ${dayRows.length-shown.length} weitere an diesem Tag</div>`:'');
     document.getElementById('recent-ausgaben').innerHTML = ausgabenHTML || '<div class="empty-hint">Noch keine Ausgaben.</div>';
 
     // Kalender heute
@@ -1048,10 +1104,10 @@ async function lohnIschDa(){
   }
 }
 
-function calcDailyLimit(left, totalBudget) {
+function calcDailyLimit(left, totalBudget, per) {
   const now = new Date();
-  const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-  const daysLeft = lastDay - now.getDate() + 1; // inkl. heute
+  const endD = per ? new Date(per.to+'T12:00:00') : new Date(now.getFullYear(), now.getMonth()+1, 0);
+  const daysLeft = Math.max(0, Math.round((endD - new Date(localISO_idx(now)+'T12:00:00'))/86400000) + 1); // inkl. heute
   const dailyLimit = daysLeft > 0 ? Math.round((left / daysLeft) * 100) / 100 : 0;
 
   const el = document.getElementById('limit-betrag');
@@ -1078,7 +1134,7 @@ function calcDailyLimit(left, totalBudget) {
 
   elEmoji.textContent = emoji;
   elText.textContent = erklärung;
-  elSub.textContent = 'Noch ' + daysLeft + ' Tag' + (daysLeft !== 1 ? 'e' : '') + ' im Monat · €\u00a0' + fmtN(Math.max(0, left)) + ' Budget übrig';
+  elSub.textContent = 'Noch ' + daysLeft + ' Tag' + (daysLeft !== 1 ? 'e' : '') + ' in dieser Periode · €\u00a0' + fmtN(Math.max(0, left)) + ' Budget übrig';
 }
 
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
