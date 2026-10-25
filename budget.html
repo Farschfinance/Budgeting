@@ -295,6 +295,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   </div>
 
   <div id="sp-ausgaben" class="sp on">
+    <div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button class="btn" onclick="shareBudget()">📤 Budget teilen</button>
+      <span style="font-size:12px;color:var(--muted);">Schickt eine Kurzübersicht (nur Budget-Zahlen) z. B. per WhatsApp.</span>
+    </div>
     <div class="card">
       <div class="rb" style="margin-bottom:12px;">
         <div><div class="lbl">Variables Budget · laufender Monat</div><div class="num-lg" style="color:var(--pl);" id="v-total">...</div></div>
@@ -1070,6 +1074,37 @@ async function bookExp(){
   await pushNotif('💸 Ausgabe: '+desc+' ('+fmtEur(amt)+')','ausgabe');
   document.getElementById('e-desc').value='';document.getElementById('e-amt').value='';
   renderCats();updateOverview();loadAusgaben();setSyncOk();
+}
+
+// ── BUDGET TEILEN ────────────────────────────────────────────
+function buildShareText(){
+  const p=calcPeriodWithHistory(ausOffset);
+  const n2=v=>(Math.round(Number(v)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const act=cats.filter(c=>c.aktiv!==false&&Number(c.budget)>0);
+  const fd=iso=>iso.split('-').reverse().slice(0,2).join('.')+'.';
+  const lines=['💸 Budget '+p.label+' ('+fd(p.from)+'–'+fd(p.to)+')',''];
+  let sumB=0,sumS=0;
+  act.forEach(c=>{
+    const left=Math.round((Number(c.budget)-Number(c.spent))*100)/100;sumB+=Number(c.budget);sumS+=Number(c.spent);
+    lines.push((left<0?'🔴 ':left<Number(c.budget)*0.2?'🟡 ':'🟢 ')+c.name+': '+(left<0?'über um '+n2(-left):'noch '+n2(left))+' € (von '+n2(c.budget)+' €)');
+  });
+  const left=Math.round((sumB-sumS)*100)/100;
+  lines.push('','Gesamt: '+(left<0?'über um '+n2(-left):'noch '+n2(left))+' € von '+n2(sumB)+' €');
+  const today=todayISO();
+  if(today>=p.from&&today<=p.to){
+    const days=Math.round((new Date(p.to+'T12:00:00')-new Date(today+'T12:00:00'))/86400000)+1;
+    lines.push('Noch '+days+' Tage'+(left>0?' → ca. '+n2(left/days)+' € pro Tag':''));
+  }
+  lines.push('Stand: '+new Date().toLocaleDateString('de-DE'));
+  return lines.join('\n');
+}
+async function shareBudget(){
+  const text=buildShareText();
+  try{await navigator.clipboard.writeText(text);}catch(e){}
+  if(navigator.share){
+    try{await navigator.share({text});return;}catch(e){if(e&&e.name==='AbortError')return;}
+  }
+  window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
 }
 
 // ── VERPFLICHTUNGEN (Sinking Funds + Spartöpfe + Taschengeld) ─────
