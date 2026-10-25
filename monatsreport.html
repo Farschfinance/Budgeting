@@ -107,6 +107,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .wk i{display:block;border-radius:2px 2px 0 0;min-height:2px;}
 .rp-footer{margin-top:8px;padding-top:4px;border-top:1px solid #e3daf5;display:flex;justify-content:space-between;font-size:8px;color:#aaa;}
 .note{font-size:8.5px;color:#888;margin-top:3px;}
+.report-page{margin-bottom:18px;}
+.pchk{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:13px;}
+.pchk input{width:16px;height:16px;accent-color:#9B5FD4;}
 
 @media print{
   html,body{background:#fff !important;color:#1a1a2e !important;margin:0 !important;padding:0 !important;min-height:0 !important;}
@@ -114,6 +117,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   .page{padding:0 !important;margin:0 !important;max-width:100% !important;}
   #report-preview{display:block !important;}
   .report-page{max-width:100% !important;margin:0 !important;padding:0 !important;border-radius:0 !important;}
+  .report-page{break-after:page;page-break-after:always;}
+  .report-page:last-child{break-after:auto;page-break-after:auto;}
+  .report-page.skip{display:none !important;}
   .report-page,.report-page *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
   .rs,.kpi-row,.grid2,.grid-eq{break-inside:avoid;page-break-inside:avoid;}
   @page{size:A4 portrait;margin:10mm 11mm;}
@@ -136,10 +142,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="sidebar-link" data-page="sinking" href="sinking.html">🎯&#8202; Sinking Funds</a>
     <a class="sidebar-link" data-page="kalender" href="kalender.html">📅&#8202; Kalender</a>
     <a class="sidebar-link" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
-    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
-    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
-    <a class="sidebar-link" data-page="import" href="import.html">📥&#8202; CSV Import</a>
     <a class="sidebar-link on" data-page="monatsreport" href="monatsreport.html">📄&#8202; Monatsreport</a>
+    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
+    <a class="sidebar-link" data-page="import" href="import.html">📥&#8202; CSV Import</a>
+    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
   </div>
   <div class="sidebar-footer">
     <button class="sidebar-out" onclick="doLogout()">← Abmelden</button>
@@ -156,10 +162,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="sinking.html">Sinking Funds</a>
     <a class="nav-link" href="kalender.html">Kalender</a>
     <a class="nav-link" href="statistik.html">Statistik</a>
+    <a class="nav-link on" href="monatsreport.html" title="Monatsreport">📄</a>
     <a class="nav-link" href="schulden.html">Schulden</a>
-    <a class="nav-link" href="einstellungen.html">⚙️</a>
-    <a class="nav-link" href="import.html">📥</a>
-    <a class="nav-link on" href="monatsreport.html">📄 Report</a>
+    <a class="nav-link" href="import.html" title="CSV Import">📥</a>
+    <a class="nav-link" href="einstellungen.html" title="Einstellungen">⚙️</a>
   </div>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
@@ -173,24 +179,20 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   <div class="card no-print">
     <div style="font-size:16px;font-weight:600;color:var(--pl);margin-bottom:4px;">📄 Monatsreport</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Wähle eine Budgetperiode und lade sie als PDF herunter.</div>
+    <div class="lbl" style="margin-bottom:6px;">Perioden auswählen (mehrere möglich)</div>
+    <div style="font-size:12px;margin-bottom:8px;"><a href="#" onclick="selPeriods('all');return false;" style="color:var(--pl);">Alle</a> · <a href="#" onclick="selPeriods('none');return false;" style="color:var(--pl);">Keine</a> · <a href="#" onclick="selPeriods('last3');return false;" style="color:var(--pl);">Letzte 3 abgeschlossene</a></div>
+    <div id="period-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin-bottom:14px;"></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-      <div>
-        <div class="lbl" style="margin-bottom:5px;">Periode</div>
-        <select class="ci" id="period-sel" style="min-width:200px;"></select>
-      </div>
-      <div style="margin-top:18px;">
-        <button class="btn" id="load-btn" onclick="loadReport()">Vorschau laden</button>
-      </div>
-      <div style="margin-top:18px;" id="print-wrap">
-        <button class="btn-green" onclick="window.print()">⬇ Als PDF speichern</button>
-      </div>
+      <button class="btn" id="load-btn" onclick="loadReport()">Vorschau laden</button>
+      <button class="btn-green" id="print-all" onclick="printAll()">⬇ Alles in einem PDF</button>
+      <button class="btn-green" id="print-each" onclick="printEach()">⬇ Jede Periode als eigenes PDF</button>
     </div>
     <div id="status" style="font-size:13px;color:var(--muted);margin-top:10px;"></div>
   </div>
 
   <!-- Report Preview -->
   <div id="report-preview">
-    <div class="report-page" id="report-content"></div>
+    <div id="report-content"></div>
   </div>
 
 </div>
@@ -242,30 +244,82 @@ async function buildPeriodOptions(){
     }
   }catch(e){}
 
-  const sel=document.getElementById('period-sel');
-  sel.innerHTML='';
-  // Letzte 12 Perioden
+  const list=document.getElementById('period-list');
+  list.innerHTML='';
   for(let i=0;i>=-11;i--){
     const p=calcPeriod(sd,i);
-    const opt=document.createElement('option');
-    opt.value=JSON.stringify({from:p.from,to:p.to,label:p.label,sd});
-    opt.textContent=p.label+(i===0?' (aktuell)':'');
-    if(i===-1) opt.selected=true; // Vormonat vorauswählen
-    sel.appendChild(opt);
+    const lab=document.createElement('label');lab.className='pchk';
+    const inp=document.createElement('input');inp.type='checkbox';inp.value=JSON.stringify({from:p.from,to:p.to,label:p.label,sd});
+    if(i===-1)inp.checked=true;
+    lab.appendChild(inp);lab.appendChild(document.createTextNode(p.label+(i===0?' (läuft)':'')));
+    list.appendChild(lab);
   }
+}
+function selPeriods(mode){
+  const boxes=[...document.querySelectorAll('#period-list input')];
+  boxes.forEach((b,i)=>{b.checked=mode==='all'?true:mode==='none'?false:(i>=1&&i<=3);});
+}
+function selectedPeriods(){
+  return [...document.querySelectorAll('#period-list input:checked')].map(b=>JSON.parse(b.value)).sort((a,b)=>a.from.localeCompare(b.from));
 }
 
 // ── Report laden ─────────────────────────────────────────────────────
 function addDays(iso,n){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return localISO(d);}
 function r2(x){return Math.round(x*100)/100;}
 
+let loadedLabels=[];
 async function loadReport(){
-  const val=JSON.parse(document.getElementById('period-sel').value);
-  const {from,to,label}=val;
+  const sel=selectedPeriods();
+  if(!sel.length){document.getElementById('status').textContent='Bitte mindestens eine Periode auswählen.';return;}
   document.getElementById('status').innerHTML='<span class="spinner"></span> Daten werden geladen…';
   document.getElementById('load-btn').disabled=true;
   document.getElementById('report-preview').classList.remove('show');
   try{
+    let html='';loadedLabels=[];
+    for(const v of sel){
+      const d=await buildReport(v);
+      html+='<div class="report-page">'+renderReport(d)+'</div>';
+      loadedLabels.push(v.label);
+    }
+    document.getElementById('report-content').innerHTML=html;
+    document.getElementById('status').textContent=sel.length+' Periode(n) geladen.';
+    document.getElementById('report-preview').classList.add('show');
+  }catch(e){
+    console.error(e);
+    document.getElementById('status').textContent='Fehler beim Laden: '+e.message;
+  }
+  document.getElementById('load-btn').disabled=false;
+}
+
+function pagesEls(){return [...document.querySelectorAll('#report-content .report-page')];}
+async function ensureLoaded(){
+  if(!pagesEls().length)await loadReport();
+  return pagesEls().length>0;
+}
+async function printAll(){
+  if(!await ensureLoaded())return;
+  const old=document.title;
+  document.title='Monatsreport '+(loadedLabels.length>1?loadedLabels[0]+' bis '+loadedLabels[loadedLabels.length-1]:loadedLabels[0]);
+  pagesEls().forEach(p=>p.classList.remove('skip'));
+  window.print();
+  document.title=old;
+}
+async function printEach(){
+  if(!await ensureLoaded())return;
+  const pages=pagesEls();const old=document.title;
+  for(let i=0;i<pages.length;i++){
+    pages.forEach((p,j)=>p.classList.toggle('skip',j!==i));
+    document.title='Monatsreport '+loadedLabels[i];
+    window.print();
+    await new Promise(r=>setTimeout(r,400));
+  }
+  pages.forEach(p=>p.classList.remove('skip'));
+  document.title=old;
+}
+
+async function buildReport(val){
+  const {from,to,label}=val;
+  {
     const{data:ks}=await sb.from('app_settings').select('value').eq('key','kontostand').maybeSingle();
     let cfg=null;try{cfg=ks?.value?JSON.parse(ks.value):null;}catch(e){}
     const st=cfg&&cfg.stichtag?cfg.stichtag:null;
@@ -352,16 +406,10 @@ async function loadReport(){
         ziel:Number(t.ziel)||0,delta:r2(own.filter(b=>inP(b.datum)).reduce((s,b)=>s+Number(b.betrag),0))};
     });
 
-    renderReport({label,from,to,days,act,totalBudget,totalSpent,totalEin,fixDoneSum,fixGesamt,
+    return ({label,from,to,days,act,totalBudget,totalSpent,totalEin,fixDoneSum,fixGesamt,
       fixDone:fixDoneRows.length,fixN:fixkosten.length,savP,rest,weeks,weekBudget,pts,hasStand:!!st,
       sfRows,stRows,nEin:einP.length,nAus:ausP.length});
-    document.getElementById('status').textContent='';
-    document.getElementById('report-preview').classList.add('show');
-  }catch(e){
-    console.error(e);
-    document.getElementById('status').textContent='Fehler beim Laden: '+e.message;
   }
-  document.getElementById('load-btn').disabled=false;
 }
 
 function accountChart(pts,hasStand){
@@ -385,6 +433,9 @@ function accountChart(pts,hasStand){
 }
 
 function renderReport(d){
+  return buildReportHTML(d);
+}
+function buildReportHTML(d){
   const now=new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
   const fmtD=iso=>{const[y,m,day]=iso.split('-');return day+'.'+m+'.'+y;};
   const pctUsed=d.totalBudget>0?Math.round(d.totalSpent/d.totalBudget*1000)/10:0;
@@ -410,7 +461,7 @@ function renderReport(d){
   };
   const sfTot=r2(d.sfRows.reduce((s,r)=>s+r.stand,0)),stTot=r2(d.stRows.reduce((s,r)=>s+r.stand,0));
   const first=d.pts[0].v,last=d.pts[d.pts.length-1].v,chg=r2(last-first);
-  document.getElementById('report-content').innerHTML=`
+  return `
     <div class="rp-header">
       <div><div class="rp-logo">KASSEN<span>ABSTURZ</span></div></div>
       <div style="text-align:center;"><div class="rp-title">${esc(d.label)}</div><div class="rp-sub">${fmtD(d.from)} – ${fmtD(d.to)}</div></div>

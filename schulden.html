@@ -140,10 +140,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="sidebar-link" data-page="sinking" href="sinking.html">🎯&#8202; Sinking Funds</a>
     <a class="sidebar-link" data-page="kalender" href="kalender.html">📅&#8202; Kalender</a>
     <a class="sidebar-link" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
-    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
-    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
-    <a class="sidebar-link" data-page="import" href="import.html">📥&#8202; CSV Import</a>
     <a class="sidebar-link" data-page="monatsreport" href="monatsreport.html">📄&#8202; Monatsreport</a>
+    <a class="sidebar-link on" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
+    <a class="sidebar-link" data-page="import" href="import.html">📥&#8202; CSV Import</a>
+    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
   </div>
   <div class="sidebar-footer">
     <button class="sidebar-out" onclick="doLogout()">← Abmelden</button>
@@ -160,10 +160,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="sinking.html">Sinking Funds</a>
     <a class="nav-link" href="kalender.html">Kalender</a>
     <a class="nav-link" href="statistik.html">Statistik</a>
+    <a class="nav-link" href="monatsreport.html" title="Monatsreport">📄</a>
     <a class="nav-link on" href="schulden.html">Schulden</a>
-    <a class="nav-link" href="einstellungen.html">⚙️</a>
-    <a class="nav-link" href="import.html">📥</a>
-    <a class="nav-link" href="monatsreport.html">📄</a>
+    <a class="nav-link" href="import.html" title="CSV Import">📥</a>
+    <a class="nav-link" href="einstellungen.html" title="Einstellungen">⚙️</a>
   </div>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
@@ -222,7 +222,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
         <input class="ci" id="conf-income" type="number" value="6700" min="0" step="100">
       </div>
       <div style="flex:1;min-width:140px;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Fixkosten + Sinking Funds €</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Fixkosten + Raten + Taschengeld €
+          <a href="#" onclick="fillFixedFromApp();return false;" style="color:var(--pl);margin-left:6px;">↻ aus App</a></div>
         <input class="ci" id="conf-fixed" type="number" value="3808" min="0" step="10">
       </div>
       <div style="flex:1;min-width:140px;">
@@ -343,6 +344,20 @@ function render(){
     </div>`;
   }).join('');
   document.getElementById('scenarios').innerHTML = scHtml;
+}
+
+async function fillFixedFromApp(){
+  try{
+    const[f,sf,sp,tb]=await Promise.all([
+      sb.from('fixkosten').select('betrag'),sb.from('sinking_funds').select('monatlich'),
+      sb.from('spartoepfe').select('monatlich'),sb.from('taschengeld_betraege').select('*').order('gueltig_ab')]);
+    const sum=(r,k)=>(r.data||[]).reduce((a,x)=>a+(Number(x[k])||0),0);
+    const today=new Date();const iso=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+    let tg=0;if(!tb.error)(tb.data||[]).forEach(x=>{if(x.gueltig_ab<=iso)tg=Number(x.betrag);});
+    const total=Math.round((sum(f,'betrag')+sum(sf,'monatlich')+sum(sp,'monatlich')+tg*52/12)*100)/100;
+    document.getElementById('conf-fixed').value=total;
+    recalc();
+  }catch(e){alert('Konnte Werte nicht laden: '+e.message);}
 }
 
 function recalc(){

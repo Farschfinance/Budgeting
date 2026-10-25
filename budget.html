@@ -168,15 +168,15 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   <div class="sidebar-user" id="sb-user">👤 …</div>
   <div class="sidebar-links">
     <a class="sidebar-link" data-page="index" href="index.html">🏠&#8202; Dashboard</a>
-    <a class="sidebar-link" data-page="budget" href="budget.html">💸&#8202; Budget</a>
+    <a class="sidebar-link on" data-page="budget" href="budget.html">💸&#8202; Budget</a>
     <a class="sidebar-link" data-page="spartoepfe" href="spartoepfe.html">🪙&#8202; Spartöpfe</a>
     <a class="sidebar-link" data-page="sinking" href="sinking.html">🎯&#8202; Sinking Funds</a>
     <a class="sidebar-link" data-page="kalender" href="kalender.html">📅&#8202; Kalender</a>
     <a class="sidebar-link" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
-    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
-    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
-    <a class="sidebar-link" data-page="import" href="import.html">📥&#8202; CSV Import</a>
     <a class="sidebar-link" data-page="monatsreport" href="monatsreport.html">📄&#8202; Monatsreport</a>
+    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
+    <a class="sidebar-link" data-page="import" href="import.html">📥&#8202; CSV Import</a>
+    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
   </div>
   <div class="sidebar-footer">
     <button class="sidebar-out" onclick="doLogout()">← Abmelden</button>
@@ -193,10 +193,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="sinking.html">Sinking Funds</a>
     <a class="nav-link" href="kalender.html">Kalender</a>
     <a class="nav-link" href="statistik.html">Statistik</a>
+    <a class="nav-link" href="monatsreport.html" title="Monatsreport">📄</a>
     <a class="nav-link" href="schulden.html">Schulden</a>
-      <a class="nav-link" href="einstellungen.html">⚙️</a>
-      <a class="nav-link" href="import.html">📥</a>
-    <a class="nav-link" href="monatsreport.html">📄</a>
+    <a class="nav-link" href="import.html" title="CSV Import">📥</a>
+    <a class="nav-link" href="einstellungen.html" title="Einstellungen">⚙️</a>
   </div>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
@@ -291,6 +291,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <div class="stab" onclick="showTab('bargeld',this)">Bargeld</div>
     <div class="stab" onclick="showTab('fixkosten',this)">Fixkosten</div>
     <div class="stab" onclick="showTab('woche',this);loadWoche();">📅 Woche</div>
+    <div class="stab" onclick="showTab('planung',this);loadPlanung();">🗓 Planung</div>
     <div class="stab" onclick="showTab('kontostand',this);loadKontostand();">🏦 Kontostand</div>
   </div>
 
@@ -429,6 +430,38 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   </div>
 
   <!-- WOCHENAUSWERTUNG -->
+  <div id="sp-planung" class="sp">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <div class="lbl" style="margin:0;">🗓 Budget-Planung</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="changePlan(-1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;">←</button>
+          <div id="plan-title" style="font-size:15px;font-weight:600;color:var(--pl);min-width:150px;text-align:center;">…</div>
+          <button onclick="changePlan(1)" style="background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 11px;cursor:pointer;font-size:16px;">→</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Rechne von oben nach unten: Einnahmen minus feste Verpflichtungen minus Puffer ergibt, was für variable Budgets übrig ist. Die Budgets darfst du nur bis zu diesem Betrag verteilen.</div>
+    </div>
+    <div class="card">
+      <div class="ir">
+        <div style="flex:1;min-width:150px;"><div class="lbl" style="margin-bottom:4px;">Erwartete Einnahmen €</div>
+          <input class="ci" id="plan-ein" type="number" step="0.01" style="width:100%;" oninput="planRecalc()"><div id="plan-ein-src" style="font-size:11px;color:var(--muted);margin-top:3px;"></div></div>
+        <div style="flex:1;min-width:150px;"><div class="lbl" style="margin-bottom:4px;">Puffer zurücklegen € (Ziel 1.000 €)</div>
+          <input class="ci" id="plan-puffer" type="number" step="0.01" min="0" value="0" style="width:100%;" oninput="planRecalc()"><div style="font-size:11px;color:var(--muted);margin-top:3px;">Erst sinnvoll, wenn das Konto nicht mehr im Minus endet.</div></div>
+      </div>
+      <div id="plan-calc" style="margin-top:12px;font-size:13px;"></div>
+    </div>
+    <div class="card">
+      <div class="lbl" style="margin-bottom:8px;">Variable Budgets verteilen</div>
+      <div id="plan-rows"></div>
+      <div id="plan-summary" style="margin-top:12px;padding:12px;border-radius:8px;background:var(--s2);font-size:14px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+        <button class="btn" onclick="planShrink()">Alle Budgets anteilig auf das Verfügbare kürzen</button>
+        <button class="btn-green" onclick="planSave()" style="background:rgba(61,217,138,0.18);border:1px solid rgba(61,217,138,0.45);border-radius:8px;color:var(--green);padding:9px 18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;">Budgets übernehmen</button>
+      </div>
+    </div>
+  </div>
+
   <div id="sp-kontostand" class="sp">
     <div class="card">
       <div class="section-hdr"><div class="lbl" style="margin:0;">🏦 Kontostand-Abgleich (Gemeinschaftskonto)</div></div>
@@ -1081,6 +1114,103 @@ async function bookExp(){
   await pushNotif('💸 Ausgabe: '+desc+' ('+fmtEur(amt)+')','ausgabe');
   document.getElementById('e-desc').value='';document.getElementById('e-amt').value='';
   renderCats();updateOverview();loadAusgaben();setSyncOk();
+}
+
+// ── PLANUNG ──────────────────────────────────────────────────
+let planOffset=0,planCtx=null;
+function changePlan(dir){planOffset+=dir;loadPlanung();}
+function planNum(id){return parseFloat(document.getElementById(id)?.value)||0;}
+async function loadPlanung(){
+  const r2=x=>Math.round(x*100)/100;
+  const p=calcPeriodWithHistory(planOffset);
+  const prev=[-3,-2,-1].map(i=>calcPeriodWithHistory(planOffset+i));
+  const fd=iso=>iso.split('-').reverse().slice(0,2).join('.')+'.';
+  document.getElementById('plan-title').textContent=p.label;
+  const[sf,st,tb,a3,eP,eL]=await Promise.all([
+    sb.from('sinking_funds').select('monatlich'),
+    sb.from('spartoepfe').select('monatlich'),
+    sb.from('taschengeld_betraege').select('*').order('gueltig_ab'),
+    sb.from('ausgaben').select('kategorie_id,betrag,created_at').gte('created_at',prev[0].from+'T00:00:00').lte('created_at',prev[2].to+'T23:59:59'),
+    sb.from('einnahmen').select('betrag').gte('datum',p.from).lte('datum',p.to),
+    sb.from('einnahmen').select('betrag').gte('datum',prev[2].from).lte('datum',prev[2].to)
+  ]);
+  const sum=(r,k)=>(r.data||[]).reduce((a,x)=>a+(Number(x[k])||0),0);
+  const fix=r2(fixItems.reduce((a,f)=>a+Number(f.betrag),0));
+  const raten=r2(sum(sf,'monatlich')+sum(st,'monatlich'));
+  let tg=0,nFr=0;
+  if(!tb.error){fridaysIn(p.from,p.to).forEach(d=>{nFr++;tg+=tgBetragFuer(d,tb.data||[]);});}
+  tg=r2(tg);
+  const days=Math.round((new Date(p.to+'T12:00:00')-new Date(p.from+'T12:00:00'))/86400000)+1;
+  const rows3=a3.data||[];
+  const act=cats.filter(c=>c.aktiv!==false);
+  const avg={};
+  act.forEach(c=>{avg[c.id]=r2(rows3.filter(a=>a.kategorie_id===c.id).reduce((x,a)=>x+Number(a.betrag),0)/3);});
+  const einP=r2(sum(eP,'betrag')),einL=r2(sum(eL,'betrag'));
+  const einDefault=einP>0?einP:einL;
+  planCtx={p,days,fix,raten,tg,nFr};
+  document.getElementById('plan-ein').value=einDefault||'';
+  document.getElementById('plan-ein-src').textContent=einP>0?'Bereits gebucht in dieser Periode':einL>0?'Einnahmen der Vorperiode als Vorschlag':'Noch keine Einnahmen gefunden, bitte eintragen';
+  document.getElementById('plan-rows').innerHTML=
+    `<div style="display:grid;grid-template-columns:1fr 90px 100px 70px;gap:6px;font-size:11px;color:var(--muted);padding-bottom:4px;border-bottom:1px solid var(--border);">
+      <span>Kategorie</span><span style="text-align:right;">Ø letzte 3</span><span style="text-align:right;">Budget €</span><span style="text-align:right;">pro Woche</span></div>`
+    +act.map(c=>`<div style="display:grid;grid-template-columns:1fr 90px 100px 70px;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;">${esc(c.name)}</span>
+      <span style="font-size:12px;color:var(--muted);text-align:right;">${fmtEur(avg[c.id])}</span>
+      <input class="ci" type="number" step="1" min="0" id="pl-b-${esc(c.id)}" value="${Number(c.budget)}" style="width:100%;padding:5px 8px;text-align:right;" oninput="planRecalc()">
+      <span id="pl-w-${esc(c.id)}" style="font-size:12px;text-align:right;color:var(--muted);"></span></div>`).join('');
+  planRecalc();
+}
+function planRecalc(){
+  if(!planCtx)return;
+  const r2=x=>Math.round(x*100)/100;
+  const{p,days,fix,raten,tg,nFr}=planCtx;
+  const ein=planNum('plan-ein'),puffer=planNum('plan-puffer');
+  const verpf=r2(fix+raten+tg);
+  const verf=r2(ein-verpf-puffer);
+  let sum=0;
+  cats.filter(c=>c.aktiv!==false).forEach(c=>{
+    const b=planNum('pl-b-'+c.id);sum+=b;
+    const w=document.getElementById('pl-w-'+c.id);if(w)w.textContent=fmtEur(r2(b*7/days));
+  });
+  sum=r2(sum);
+  document.getElementById('plan-calc').innerHTML=
+    `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span>Erwartete Einnahmen</span><b>${fmtEur(ein)}</b></div>
+     <div style="display:flex;justify-content:space-between;padding:3px 0;color:var(--muted);"><span>− Fixkosten</span><span>${fmtEur(fix)}</span></div>
+     <div style="display:flex;justify-content:space-between;padding:3px 0;color:var(--muted);"><span>− Sinking Funds + Spartöpfe (Raten)</span><span>${fmtEur(raten)}</span></div>
+     <div style="display:flex;justify-content:space-between;padding:3px 0;color:var(--muted);"><span>− Taschengeld (${nFr} × Freitag)</span><span>${fmtEur(tg)}</span></div>
+     <div style="display:flex;justify-content:space-between;padding:3px 0;color:var(--muted);"><span>− Puffer</span><span>${fmtEur(puffer)}</span></div>
+     <div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:1px solid var(--border);margin-top:4px;"><span>= Verfügbar für variable Budgets</span><b style="color:${verf>=0?'var(--green)':'var(--red)'};">${fmtEur(verf)}</b></div>`;
+  const diff=r2(verf-sum);
+  document.getElementById('plan-summary').innerHTML=
+    `Budgets gesamt <b>${fmtEur(sum)}</b> von verfügbar <b>${fmtEur(verf)}</b><br>`
+    +(diff>=0?`<span style="color:var(--green);font-weight:600;">Noch zu verteilen: ${fmtEur(diff)}</span>`
+             :`<span style="color:var(--red);font-weight:600;">Zu viel geplant: ${fmtEur(-diff)}. Das Konto würde um diesen Betrag ins Minus gehen.</span>`)
+    +`<div style="font-size:12px;color:var(--muted);margin-top:6px;">Wochenbudget gesamt: ${fmtEur(r2(sum*7/days))} (${days} Tage)</div>`;
+  planCtx.verf=verf;planCtx.sum=sum;
+}
+function planShrink(){
+  if(!planCtx)return;
+  const r2=x=>Math.round(x*100)/100;
+  const{verf,sum}=planCtx;
+  if(verf<=0){alert('Nach den Verpflichtungen bleibt nichts für variable Budgets übrig. Bitte zuerst Einnahmen, Raten oder Puffer prüfen.');return;}
+  if(sum<=verf){alert('Die Budgets liegen schon im verfügbaren Rahmen.');return;}
+  const f=verf/sum;const act=cats.filter(c=>c.aktiv!==false);
+  let tot=0;
+  act.forEach(c=>{const el=document.getElementById('pl-b-'+c.id);const nv=Math.floor(planNum('pl-b-'+c.id)*f);el.value=nv;tot+=nv;});
+  planRecalc();
+}
+async function planSave(){
+  const changed=cats.filter(c=>c.aktiv!==false&&Math.round(planNum('pl-b-'+c.id)*100)/100!==Number(c.budget));
+  if(!changed.length){alert('Keine Änderungen zu speichern.');return;}
+  if(planCtx&&planCtx.sum>planCtx.verf&&!confirm('Die Budgets liegen über dem Verfügbaren. Trotzdem übernehmen?'))return;
+  for(const c of changed){
+    const nb=Math.round(planNum('pl-b-'+c.id)*100)/100;
+    if(!updOk(await sb.from('kategorien').update({budget:nb}).eq('id',c.id).select()))return;
+    c.budget=nb;
+  }
+  renderCats();updateOverview();
+  alert(changed.length+' Budget(s) gespeichert. Die Änderung gilt ab sofort für die laufende Periode und künftige.');
+  planRecalc();
 }
 
 // ── BUDGET TEILEN ────────────────────────────────────────────

@@ -172,7 +172,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   </div>
   <div class="sidebar-user" id="sb-user">👤 …</div>
   <div class="sidebar-links">
-    <a class="sidebar-link" data-page="index" href="index.html">🏠&#8202; Dashboard</a>
+    <a class="sidebar-link on" data-page="index" href="index.html">🏠&#8202; Dashboard</a>
     <a class="sidebar-link" data-page="budget" href="budget.html">💸&#8202; Budget</a>
     <a class="sidebar-link" data-page="spartoepfe" href="spartoepfe.html">🪙&#8202; Spartöpfe</a>
     <a class="sidebar-link" data-page="sinking" href="sinking.html">🎯&#8202; Sinking Funds</a>
@@ -180,8 +180,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="sidebar-link" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
     <a class="sidebar-link" data-page="monatsreport" href="monatsreport.html">📄&#8202; Monatsreport</a>
     <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
-    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
     <a class="sidebar-link" data-page="import" href="import.html">📥&#8202; CSV Import</a>
+    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
   </div>
   <div class="sidebar-footer">
     <button class="sidebar-out" onclick="doLogout()">← Abmelden</button>
@@ -212,10 +212,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="sinking.html">Sinking Funds</a>
     <a class="nav-link" href="kalender.html">Kalender</a>
     <a class="nav-link" href="statistik.html">Statistik</a>
-    <a class="nav-link" href="monatsreport.html">📄</a>
+    <a class="nav-link" href="monatsreport.html" title="Monatsreport">📄</a>
     <a class="nav-link" href="schulden.html">Schulden</a>
-    <a class="nav-link" href="einstellungen.html">⚙️</a>
-    <a class="nav-link" href="import.html">📥</a>
+    <a class="nav-link" href="import.html" title="CSV Import">📥</a>
+    <a class="nav-link" href="einstellungen.html" title="Einstellungen">⚙️</a>
   </div>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
@@ -330,6 +330,15 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
         <a href="budget.html" style="font-size:12px;color:var(--pl);text-decoration:none;">Details →</a>
       </div>
       <div id="budget-overview"><div style="color:var(--muted);font-size:13px;">Lädt...</div></div>
+    </div>
+
+    <!-- VERPFLICHTUNGEN -->
+    <div class="card">
+      <div class="rb" style="margin-bottom:10px;">
+        <div class="lbl" style="margin:0;">Verpflichtungen · laufender Monat</div>
+        <a href="budget.html" style="font-size:12px;color:var(--pl);text-decoration:none;">Details →</a>
+      </div>
+      <div id="verpf-card"><div style="color:var(--muted);font-size:13px;">Lädt...</div></div>
     </div>
 
     <!-- LETZTE AUSGABEN -->
@@ -811,6 +820,31 @@ async function loadPeriodForDashboard(){
   budgetStartDay_idx=1;
 }
 
+async function loadVerpfCard(p, fixkosten, funds, einSum, totalBudget){
+  const el=document.getElementById('verpf-card');if(!el)return;
+  try{
+    const r2=x=>Math.round(x*100)/100;
+    const fix=r2(fixkosten.reduce((a,f)=>a+Number(f.betrag||0),0));
+    let raten=funds.reduce((a,f)=>a+(Number(f.monatlich)||0),0);
+    try{const{data:sp}=await sb.from('spartoepfe').select('monatlich');raten+=(sp||[]).reduce((a,t)=>a+(Number(t.monatlich)||0),0);}catch(e){}
+    raten=r2(raten);
+    let tg=0;
+    try{
+      const{data:tb,error:te}=await sb.from('taschengeld_betraege').select('*').order('gueltig_ab');
+      if(!te&&tb){const d=new Date(p.from+'T12:00:00'),e=new Date(p.to+'T12:00:00');
+        while(d<=e){if(d.getDay()===5){const iso=localISO_idx(d);let b=0;tb.forEach(x=>{if(x.gueltig_ab<=iso)b=Number(x.betrag);});tg+=b;}d.setDate(d.getDate()+1);}}
+    }catch(e){}
+    tg=r2(tg);
+    const total=r2(fix+raten+tg);
+    const verf=r2(einSum-total);
+    const gap=r2(verf-totalBudget);
+    el.innerHTML=`<div class="rb"><span style="font-size:22px;font-weight:600;color:var(--pl);">${fmtEur(total)}</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px;">Fixkosten ${fmtEur(fix)} · Sinking Funds + Spartöpfe ${fmtEur(raten)} · Taschengeld ${fmtEur(tg)}</div>
+      ${einSum>0?`<div style="font-size:12px;margin-top:8px;">Einnahmen dieser Periode ${fmtEur(einSum)} → nach Verpflichtungen bleiben <b>${fmtEur(verf)}</b> für variable Ausgaben. Budgets gesamt: ${fmtEur(totalBudget)}
+        <span style="color:${gap>=0?'var(--green)':'var(--red)'};">(${gap>=0?'+':'−'}${fmtEur(Math.abs(gap))}${gap>=0?' Luft':' zu viel geplant'})</span></div>`:'<div style="font-size:12px;color:var(--muted);margin-top:8px;">Noch keine Einnahmen in dieser Periode erfasst.</div>'}`;
+  }catch(e){console.warn('verpf-card',e);}
+}
+
 async function loadDashboard() {
   try {
     const _p=calcCurrentPeriod_idx();
@@ -867,6 +901,7 @@ async function loadDashboard() {
     // Score
     calcScore(pct, bargeldSaldo, 1700);
     calcDailyLimit(left, totalBudget);
+    loadVerpfCard(_p, rf.data||[], funds, (rg.data||[]).reduce((a,e)=>a+Number(e.betrag),0), totalBudget);
 
     // Budget-Balken
     const budgetHTML = cats.slice(0,4).map(c=>{

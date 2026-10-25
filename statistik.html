@@ -144,11 +144,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="sidebar-link" data-page="spartoepfe" href="spartoepfe.html">🪙&#8202; Spartöpfe</a>
     <a class="sidebar-link" data-page="sinking" href="sinking.html">🎯&#8202; Sinking Funds</a>
     <a class="sidebar-link" data-page="kalender" href="kalender.html">📅&#8202; Kalender</a>
-    <a class="sidebar-link" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
-    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
-    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
-    <a class="sidebar-link" data-page="import" href="import.html">📥&#8202; CSV Import</a>
+    <a class="sidebar-link on" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
     <a class="sidebar-link" data-page="monatsreport" href="monatsreport.html">📄&#8202; Monatsreport</a>
+    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
+    <a class="sidebar-link" data-page="import" href="import.html">📥&#8202; CSV Import</a>
+    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
   </div>
   <div class="sidebar-footer">
     <button class="sidebar-out" onclick="doLogout()">← Abmelden</button>
@@ -165,10 +165,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="nav-link" href="sinking.html">Sinking Funds</a>
     <a class="nav-link" href="kalender.html">Kalender</a>
     <a class="nav-link on" href="statistik.html">Statistik</a>
+    <a class="nav-link" href="monatsreport.html" title="Monatsreport">📄</a>
     <a class="nav-link" href="schulden.html">Schulden</a>
-      <a class="nav-link" href="einstellungen.html">⚙️</a>
-      <a class="nav-link" href="import.html">📥</a>
-    <a class="nav-link" href="monatsreport.html">📄</a>
+    <a class="nav-link" href="import.html" title="CSV Import">📥</a>
+    <a class="nav-link" href="einstellungen.html" title="Einstellungen">⚙️</a>
   </div>
   <div class="nav-right">
     <div class="nav-user" id="nav-user"></div>
@@ -393,10 +393,12 @@ async function loadStats(){
     const bilanz=Math.round((totalEin-totalAus)*100)/100;
 
     const totalFix=fixkosten.reduce((a,f)=>a+Number(f.betrag),0);
-    const totalSF=sfFunds.reduce((a,f)=>a+Number(f.monatlich),0);
+    let totalSF=sfFunds.reduce((a,f)=>a+(Number(f.monatlich)||0),0);
+    try{const{data:spr}=await sb.from('spartoepfe').select('monatlich');totalSF+=(spr||[]).reduce((a,t)=>a+(Number(t.monatlich)||0),0);}catch(e){}
     // Verfügbar = Einnahmen − variable Ausgaben − Fixkosten − SF-Sparbeträge
     // Alle Werte beziehen sich auf eine Periode (~1 Monat)
-    const verfuegbar=Math.round((totalEin-totalAus-totalFix-totalSF)*100)/100;
+    const tgSum=await getTaschengeld(p);
+    const verfuegbar=Math.round((totalEin-totalAus-totalFix-totalSF-tgSum)*100)/100;
 
     document.getElementById('sum-ein').textContent=fmtEur(totalEin);
     document.getElementById('sum-aus').textContent=fmtEur(totalAus);
@@ -408,13 +410,14 @@ async function loadStats(){
     const fixSfEl=document.getElementById('sum-fix-sf');
     if(fixSfEl){
       fixSfEl.innerHTML=`
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;font-size:12px;">
           <div><div style="color:var(--muted);margin-bottom:2px;">Fixkosten / Mo</div><div style="font-weight:600;color:var(--amber);">${fmtEur(totalFix)}</div></div>
-          <div><div style="color:var(--muted);margin-bottom:2px;">SF Sparbetrag / Mo</div><div style="font-weight:600;color:var(--cyan);">${fmtEur(totalSF)}</div></div>
+          <div><div style="color:var(--muted);margin-bottom:2px;">Sinking + Sparen / Mo</div><div style="font-weight:600;color:var(--cyan);">${fmtEur(totalSF)}</div></div>
+          <div><div style="color:var(--muted);margin-bottom:2px;">Taschengeld</div><div style="font-weight:600;color:var(--pl);">${fmtEur(tgSum)}</div></div>
           <div>
-            <div style="color:var(--muted);margin-bottom:2px;">Verfügbar nach Fix+SF</div>
+            <div style="color:var(--muted);margin-bottom:2px;">Verfügbar nach allen Verpflichtungen</div>
             <div style="font-weight:600;color:${verfuegbar>=0?'var(--green)':'var(--red)'};">${fmtEur(verfuegbar)}</div>
-            <div style="font-size:10px;color:var(--muted2);margin-top:2px;">Einnahmen − Ausgaben − Fixkosten − SF</div>
+            <div style="font-size:10px;color:var(--muted2);margin-top:2px;">Einnahmen − Ausgaben − Fixkosten − Raten − Taschengeld</div>
           </div>
         </div>`;
     }
@@ -494,7 +497,7 @@ async function loadStats(){
     }).join('')||'<div style="color:var(--muted);font-size:13px;">Keine Ausgaben diesen Monat.</div>';
 
     // Spartipps
-    buildTipps(catEntries, totalAus, totalEin, cats, totalFix, totalSF);
+    buildTipps({p,totalEin,totalAus,totalFix,totalRaten:totalSF,tg:tgSum,cats});
     setSyncOk();
   }catch(e){setSyncErr();console.error(e);}
 }
@@ -535,62 +538,101 @@ async function buildVergleich(){
   }).join('');
 }
 
-function buildTipps(catEntries, totalAus, totalEin, cats, totalFix=0, totalSF=0){
+async function getTaschengeld(p){
+  let tg=0;
+  try{
+    const{data:tb,error:te}=await sb.from('taschengeld_betraege').select('*').order('gueltig_ab');
+    if(!te&&tb){
+      const d=new Date(p.from+'T12:00:00'),e=new Date(p.to+'T12:00:00');
+      while(d<=e){if(d.getDay()===5){const iso=localISO(d);let b=0;tb.forEach(x=>{if(x.gueltig_ab<=iso)b=Number(x.betrag);});tg+=b;}d.setDate(d.getDate()+1);}
+    }
+  }catch(e){}
+  return Math.round(tg*100)/100;
+}
+const PUFFER_ZIEL=1000; // gewünschter Puffer auf dem Konto (€)
+
+async function buildTipps(ctx){
   const el=document.getElementById('tipps-content');
   if(!el)return;
-  const tipps=[];
-  const bilanz=Math.round((totalEin-totalAus)*100)/100;
+  try{
+    const {p,totalEin,totalAus,totalFix,totalRaten,cats}=ctx;
+    const r2=x=>Math.round(x*100)/100;
+    const tg=ctx.tg||0;
+    const aktiv=cats.filter(c=>c.aktiv!==false);
+    const totalBudget=r2(aktiv.reduce((s,c)=>s+Number(c.budget||0),0));
+    const verpf=r2(totalFix+totalRaten+tg);
 
-  // Gesamtbudget aus Kategorien
-  const totalBudget=cats?cats.filter(c=>c.aktiv!==false).reduce((a,c)=>a+Number(c.budget||0),0):0;
-  const puffer=totalBudget>0?Math.round(totalBudget*0.1*100)/100:200;
+    // Ausgaben der letzten 3 Perioden (inkl. gewählter) je Kategorie
+    const p3=[calcStatPeriod(statOffset-2),calcStatPeriod(statOffset-1),p];
+    const{data:a3}=await sb.from('ausgaben').select('kategorie_id,betrag,created_at')
+      .gte('created_at',p3[0].from+'T00:00:00').lte('created_at',p.to+'T23:59:59');
+    const rows3=a3||[];
+    const perCat=c=>p3.map(pp=>r2(rows3.filter(a=>a.kategorie_id===c.id&&a.created_at.substring(0,10)>=pp.from&&a.created_at.substring(0,10)<=pp.to).reduce((x,a)=>x+Number(a.betrag),0)));
+    const catStats=aktiv.map(c=>{const v=perCat(c);return{name:c.name,budget:Number(c.budget||0),cur:v[2],avg:r2((v[0]+v[1]+v[2])/3)};});
+    const totalAvg=r2(catStats.reduce((s,c)=>s+c.avg,0));
 
-  // Tipp 1: Bilanz
-  if(bilanz<0){
-    tipps.push(`⚠ Diese Periode habt ihr <strong>${fmtEur(Math.abs(bilanz))}</strong> mehr ausgegeben als eingenommen. Schaut welche Kategorien über Budget liegen.`);
-  } else if(bilanz<puffer){
-    tipps.push(`Ihr habt <strong>${fmtEur(bilanz)}</strong> übrig — das sind ${totalBudget>0?Math.round(bilanz/totalBudget*100)+'%':''} eures Budgets. Versucht mindestens <strong>${fmtEur(puffer)}</strong> (10%) als Puffer zu behalten.`);
-  } else {
-    tipps.push(`✓ Gut gemacht! <strong>${fmtEur(bilanz)}</strong> übrig — ihr liegt deutlich im Plus. Davon könnten <strong>${fmtEur(Math.round(bilanz*0.5*100)/100)}</strong> auf Tagesgeld oder Spartopf.`);
-  }
+    const restIst=r2(totalEin-totalAus-verpf);          // was in dieser Periode tatsächlich übrig blieb
+    const restPlan=r2(totalEin-verpf-totalBudget);       // was übrig bliebe, wenn alle Budgets genau eingehalten werden
+    const tipps=[];
 
-  // Tipp 2: Überbudget-Kategorien
-  if(cats){
-    const overBudget=cats.filter(c=>c.aktiv!==false&&Number(c.budget)>0&&Number(c.spent)>Number(c.budget));
-    if(overBudget.length>0){
-      const worst=overBudget.sort((a,b)=>(Number(b.spent)-Number(b.budget))-(Number(a.spent)-Number(a.budget)))[0];
-      const over=Math.round((Number(worst.spent)-Number(worst.budget))*100)/100;
-      tipps.push(`<strong>${esc(worst.name)}</strong> ist um <strong>${fmtEur(over)}</strong> über Budget. Nächsten Monat hier gezielt einsparen.`);
+    // 1) Ehrlicher Kassensturz
+    tipps.push(`<strong>So sieht die echte Rechnung aus</strong> (${esc(p.label)}):<br>
+      Einnahmen ${fmtEur(totalEin)} − Fixkosten ${fmtEur(totalFix)} − Sinking Funds/Spartöpfe ${fmtEur(totalRaten)} − Taschengeld ${fmtEur(tg)} − variable Ausgaben ${fmtEur(totalAus)}
+      = <strong style="color:${restIst>=0?'var(--green)':'var(--red)'};">${fmtEur(restIst,true)}</strong>`
+      +(restIst<0?`<br>Das ist das Loch, das am Monatsende auf dem Konto fehlt.`:'')
+      +(statOffset===0?`<br><span style="color:var(--muted);font-size:12px;">Die Periode läuft noch, es können noch Ausgaben und Einnahmen dazukommen. Aussagekräftiger ist die letzte abgeschlossene Periode (Pfeil zurück).</span>`:''));
+
+    // 2) Planungslücke: reichen die Budgets überhaupt?
+    if(totalBudget>0){
+      if(restPlan<0){
+        tipps.push(`⚠ <strong>Die Budgets sind zu hoch für das Einkommen.</strong> Nach Fixkosten, Raten und Taschengeld bleiben ${fmtEur(totalEin-verpf)} für variable Ausgaben, die Budgets summieren sich aber auf ${fmtEur(totalBudget)}. Selbst wenn ihr jedes Budget genau einhaltet, rutscht das Konto um <strong>${fmtEur(-restPlan)}</strong> ins Minus.`);
+        // Konkrete Verteilung der nötigen Kürzung auf die größten Kategorien (nach Ø-Ausgaben)
+        const need=-restPlan;
+        const base=catStats.filter(c=>c.avg>0).sort((x,y)=>y.avg-x.avg).slice(0,4);
+        const baseSum=base.reduce((s,c)=>s+c.avg,0);
+        if(baseSum>0){
+          tipps.push(`<strong>Vorschlag zum Kürzen</strong> (${fmtEur(need)} pro Periode, verteilt nach Ausgabenhöhe):<br>`
+            +base.map(c=>`• ${esc(c.name)}: ${fmtEur(r2(need*c.avg/baseSum))} weniger (Ø der letzten 3 Perioden ${fmtEur(c.avg)})`).join('<br>')
+            +`<br><span style="color:var(--muted);font-size:12px;">Rechnerisch ${fmtN(Math.round(need/Math.max(totalAvg,1)*1000)/10)} % von euren durchschnittlichen variablen Ausgaben.</span>`);
+        }
+      } else {
+        tipps.push(`✓ Die Budgets passen zum Einkommen: Bei exakter Einhaltung blieben <strong>${fmtEur(restPlan)}</strong> pro Periode übrig.`);
+      }
     }
-  }
 
-  // Tipp 3: Größte Ausgabenkategorie
-  if(catEntries.length>0){
-    const [topName, topAmt]=catEntries[0];
-    const topPct=totalAus>0?Math.round(topAmt/totalAus*100):0;
-    if(topPct>35){
-      tipps.push(`<strong>${esc(topName)}</strong> macht ${topPct}% eurer Ausgaben aus. Ist das so gewollt oder gibt es hier Einsparpotenzial?`);
+    // 3) Wo wird real überzogen? (nur Kategorien mit Budget)
+    const over=catStats.filter(c=>c.budget>0&&c.cur>c.budget).sort((x,y)=>(y.cur-y.budget)-(x.cur-x.budget));
+    if(over.length){
+      const sumOver=r2(over.reduce((s,c)=>s+c.cur-c.budget,0));
+      tipps.push(`<strong>Überzogen in dieser Periode</strong> (zusammen ${fmtEur(sumOver)}):<br>`
+        +over.slice(0,4).map(c=>`• ${esc(c.name)}: ${fmtEur(c.cur)} bei Budget ${fmtEur(c.budget)} (+${fmtEur(r2(c.cur-c.budget))})`).join('<br>'));
     }
-  }
-
-  // Tipp 4: Vergleich zur Vorperiode (wird von buildVergleich gefüllt, hier Platzhalter)
-  if(totalAus>0&&totalBudget>0){
-    const pct=Math.round(totalAus/totalBudget*100);
-    if(pct>90){
-      tipps.push(`Ihr habt ${pct}% eures Gesamtbudgets ausgeschöpft. Noch <strong>${fmtEur(Math.max(0,totalBudget-totalAus))}</strong> übrig bis Periodenende.`);
-    } else if(pct<60){
-      tipps.push(`Ihr habt erst ${pct}% eures Budgets genutzt — super! Falls noch Ausgaben kommen, habt ihr genug Puffer.`);
+    // 4) Dauerhaft überzogene Kategorien: Budget unrealistisch ODER echtes Sparfeld
+    const chronic=catStats.filter(c=>c.budget>0&&c.avg>c.budget*1.1);
+    if(chronic.length){
+      tipps.push(`<strong>Dauerhaft über Budget</strong> (Ø 3 Perioden): `
+        +chronic.map(c=>`${esc(c.name)} ${fmtEur(c.avg)} statt ${fmtEur(c.budget)}`).join(' · ')
+        +`.<br><span style="color:var(--muted);font-size:12px;">Entweder das Budget ehrlich anheben (und woanders mehr kürzen) oder die Gewohnheit gezielt ändern. Ein Budget, das jeden Monat gerissen wird, hilft nicht beim Planen.</span>`);
     }
-  }
 
-  // Tipp 5: Fixkosten-Warnung (falls in dieser Periode Fixkosten fällig waren)
-  if(totalAus===0&&totalEin===0){
-    tipps.push('Noch keine Buchungen in dieser Periode. Tragt eure Ausgaben regelmäßig ein für aussagekräftige Auswertungen.');
-  }
+    // 5) Puffer-Ziel
+    if(restIst>0){
+      const m=Math.ceil(PUFFER_ZIEL/restIst);
+      tipps.push(`🎯 Puffer-Ziel ${fmtEur(PUFFER_ZIEL)}: Mit ${fmtEur(restIst)} Überschuss pro Periode dauert das noch ca. <strong>${m} Perioden</strong>, sobald das Konto nicht mehr im Minus ist.`);
+    }else{
+      tipps.push(`🎯 Reihenfolge: Erst das Minus am Monatsende stoppen (es fehlen ca. <strong>${fmtEur(-restIst)}</strong> pro Periode), danach den Puffer von ${fmtEur(PUFFER_ZIEL)} aufbauen. Einen Puffer anzusparen, während das Konto jeden Monat leer läuft, funktioniert rechnerisch nicht.`);
+    }
+    // 6) Raten prüfen, solange Konto im Minus endet
+    if(restIst<0&&totalRaten>0){
+      tipps.push(`Sinking Funds und Spartöpfe nehmen ${fmtEur(totalRaten)} pro Periode. Prüft, ob Raten für Töpfe ohne baldige Fälligkeit vorübergehend gesenkt werden können, solange das Konto im Minus endet. Raten für Rechnungen, die in den nächsten Monaten kommen, besser nicht.`);
+    }
+    if(totalAus===0&&totalEin===0)tipps.unshift('Noch keine Buchungen in dieser Periode. Ohne Daten ist keine Auswertung möglich.');
 
-  el.innerHTML=tipps.length
-    ? tipps.map(t=>`<div class="tip-item"><div style="font-size:13px;line-height:1.6;">${t}</div></div>`).join('')
-    : '<div style="color:var(--muted);font-size:13px;">Keine Tipps für diese Periode.</div>';
+    el.innerHTML=tipps.map(t=>`<div class="tip-item"><div style="font-size:13px;line-height:1.6;">${t}</div></div>`).join('');
+  }catch(e){
+    console.error('buildTipps',e);
+    el.innerHTML='<div style="color:var(--muted);font-size:13px;">Tipps konnten nicht berechnet werden.</div>';
+  }
 }
 
 async function doLogout(){await sb.auth.signOut();location.href='index.html';}
