@@ -616,6 +616,30 @@ function buildFaelligkeitenSection(fundId){
   return wrap;
 }
 
+async function addFund(){
+  const name=(document.getElementById('sf-name')?.value||'').trim();
+  const mo=parseFloat(document.getElementById('sf-mo')?.value)||0;
+  const goal=parseFloat(document.getElementById('sf-goal')?.value)||0;
+  const turnus=document.getElementById('sf-turnus')?.value||'einmalig';
+  const due=document.getElementById('sf-due')?.value||'';
+  const err=document.getElementById('sf-err');
+  if(!name||goal<=0){if(err)err.style.display='block';return;}
+  if(err)err.style.display='none';
+  const{data,error}=await sb.from('sinking_funds').insert({
+    name,monatlich:Math.round(mo*100)/100,ziel:Math.round(goal*100)/100,angespart:0
+  }).select().single();
+  if(error){console.error('addFund:',error);setSyncErr();alert('Fehler beim Anlegen: '+error.message);return;}
+  if(due){
+    const dates=turnus==='einmalig'?[due]:generateFaelligkeiten(due,turnus);
+    const rows=dates.map(d=>({fund_id:data.id,datum:d,erledigt:false}));
+    const{error:e2}=await sb.from('sinking_fund_faelligkeiten').insert(rows);
+    if(e2)console.error('addFund Fälligkeiten:',e2);
+  }
+  ['sf-name','sf-mo','sf-goal','sf-due'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  const pv=document.getElementById('sf-due-preview');if(pv)pv.textContent='';
+  await loadFunds();
+}
+
 async function addFaelligkeit(fundId){
   const inp=document.getElementById('sf-newdate-'+fundId);
   const val=inp?.value;

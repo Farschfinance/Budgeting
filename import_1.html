@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KassenAbsturZ · CSV Import</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Orbitron:wght@600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0E0B16;--s1:#16121F;--s2:#1E1929;--s3:#261F35;--border:rgba(140,100,200,0.18);--border2:rgba(140,100,200,0.35);--purple:#9B5FD4;--pl:#C490F0;--cyan:#3DD9C5;--green:#3DD98A;--red:#E05577;--amber:#E0A830;--text:#EDE8F5;--muted:#8878A8;--muted2:#5C5075;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;min-height:100vh;}
+.nav{background:var(--s1);border-bottom:1px solid var(--border2);padding:0 14px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100;gap:8px;}
+.nav-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;flex-shrink:0;}
+.nav-logo span{color:var(--cyan);}
+.nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.nav-links::-webkit-scrollbar{display:none;}
+.nav-link{color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;}
+.nav-link:hover{color:var(--text);background:var(--s2);}
+.nav-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.nav-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.nav-user{font-size:12px;color:var(--text);background:rgba(155,95,212,0.18);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-weight:500;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.nav-sync{font-size:11px;border-radius:20px;padding:3px 10px;}
+.nav-sync.ok{color:var(--cyan);background:rgba(61,217,197,0.1);border:1px solid rgba(61,217,197,0.25);}
+.nav-sync.err{color:var(--red);background:rgba(224,85,119,0.1);border:1px solid rgba(224,85,119,0.3);}
+.nav-out{font-size:11px;color:var(--muted2);background:transparent;border:1px solid var(--border);border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+/* NOTIFICATION SYSTEM */
+.notif-bell{position:relative;background:transparent;border:1px solid var(--border2);border-radius:20px;color:var(--muted);padding:3px 10px;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;gap:4px;font-family:'DM Sans',sans-serif;}
+.notif-bell:hover{color:var(--text);border-color:var(--border2);}
+.notif-count{position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 5px;min-width:16px;text-align:center;display:none;line-height:1.4;}
+.notif-count.show{display:block;}
+.notif-panel{position:fixed;top:58px;right:12px;width:320px;max-width:calc(100vw - 24px);background:var(--s1);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:300;display:none;overflow:hidden;}
+.notif-panel.open{display:block;}
+.notif-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);}
+.notif-header-title{font-size:13px;font-weight:600;color:var(--text);}
+.notif-clear{font-size:11px;color:var(--muted);background:transparent;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;padding:2px 6px;}
+.notif-clear:hover{color:var(--red);}
+.notif-list{max-height:340px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
+.notif-item{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:10px;align-items:flex-start;}
+.notif-item:last-child{border-bottom:none;}
+.notif-item.unread{background:rgba(155,95,212,0.07);}
+.notif-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+.notif-body{flex:1;min-width:0;}
+.notif-msg{font-size:12px;color:var(--text);line-height:1.5;}
+.notif-meta{font-size:11px;color:var(--muted2);margin-top:2px;}
+.notif-empty{padding:20px 14px;text-align:center;font-size:13px;color:var(--muted);}
+
+.nav-out:hover{color:var(--red);}
+.hamburger{display:none;background:transparent;border:1px solid var(--border2);border-radius:7px;padding:6px 9px;cursor:pointer;color:var(--text);font-size:18px;line-height:1;flex-shrink:0;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:199;backdrop-filter:blur(2px);}
+.sidebar-overlay.open{display:block;}
+.sidebar{position:fixed;top:0;left:-280px;width:260px;height:100vh;background:var(--s1);border-right:1px solid var(--border2);z-index:200;transition:left .25s ease;display:flex;flex-direction:column;}
+.sidebar.open{left:0;}
+.sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border);}
+.sidebar-logo{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--pl);letter-spacing:2px;text-decoration:none;}
+.sidebar-logo span{color:var(--cyan);}
+.sidebar-close{background:transparent;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1;}
+.sidebar-user{padding:14px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--pl);font-weight:500;}
+.sidebar-links{flex:1;overflow-y:auto;padding:10px 8px;}
+.sidebar-link{display:block;color:var(--muted);text-decoration:none;padding:10px 12px;border-radius:8px;font-size:14px;font-weight:500;margin-bottom:2px;}
+.sidebar-link:hover{color:var(--text);background:var(--s2);}
+.sidebar-link.on{color:var(--pl);background:var(--s3);border:1px solid var(--border2);}
+.sidebar-footer{padding:12px 8px;border-top:1px solid var(--border);}
+.sidebar-out{width:100%;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;text-align:left;}
+.sidebar-out:hover{color:var(--red);}
+.page{max-width:900px;margin:0 auto;padding:16px;}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
+.lbl{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;font-weight:500;display:block;}
+.btn{background:rgba(155,95,212,0.2);border:1px solid var(--purple);border-radius:8px;color:var(--pl);padding:9px 18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn:hover{background:rgba(155,95,212,0.35);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-green{background:rgba(61,217,138,0.18);border:1px solid rgba(61,217,138,0.45);border-radius:8px;color:var(--green);padding:9px 18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;}
+.btn-green:hover{background:rgba(61,217,138,0.28);}
+.btn-green:disabled{opacity:.4;cursor:not-allowed;}
+.ci{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
+.ci:focus{border-color:var(--purple);}
+.cs{background:var(--s2);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
+
+/* DROP ZONE */
+.dropzone{border:2px dashed var(--border2);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:border-color .2s;}
+.dropzone:hover,.dropzone.drag{border-color:var(--purple);background:rgba(155,95,212,0.05);}
+.dropzone-icon{font-size:36px;margin-bottom:10px;}
+.dropzone-text{font-size:14px;color:var(--muted);}
+.dropzone-hint{font-size:12px;color:var(--muted2);margin-top:6px;}
+#file-input{display:none;}
+
+/* INFO BOX */
+.info{background:var(--s2);border-left:3px solid var(--cyan);border-radius:0 8px 8px 0;padding:12px 16px;font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;}
+.info strong{color:var(--text);}
+.warn{background:rgba(224,168,48,0.08);border-left:3px solid var(--amber);border-radius:0 8px 8px 0;padding:12px 16px;font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;}
+
+/* STEP INDICATOR */
+.steps{display:flex;gap:8px;margin-bottom:20px;align-items:center;}
+.step{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted2);}
+.step.active{color:var(--pl);font-weight:600;}
+.step.done{color:var(--green);}
+.step-num{width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;}
+.step-arrow{color:var(--muted2);font-size:12px;}
+
+/* PREVIEW TABLE */
+.preview-wrap{overflow-x:auto;margin-top:12px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:var(--s2);padding:8px 10px;text-align:left;font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;}
+td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;}
+tr.dup td{opacity:.45;}
+tr.dup .dup-badge{opacity:1;}
+tr.ignored td{opacity:.3;}
+tr.ignored .status-cell{opacity:1;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+.dup-badge{font-size:10px;background:rgba(224,85,119,0.15);color:var(--red);border-radius:10px;padding:1px 8px;white-space:nowrap;}
+.new-badge{font-size:10px;background:rgba(61,217,138,0.15);color:var(--green);border-radius:10px;padding:1px 8px;white-space:nowrap;}
+.ign-badge{font-size:10px;background:rgba(140,100,200,0.15);color:var(--muted);border-radius:10px;padding:1px 8px;white-space:nowrap;}
+
+/* ROW ACTION CONTROLS */
+.row-action{display:flex;gap:6px;align-items:center;}
+.action-sel{background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;}
+.cat-sel{background:var(--s2);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;min-width:110px;}
+
+/* STATS BAR */
+.stats-bar{display:flex;gap:16px;flex-wrap:wrap;padding:12px 16px;background:var(--s2);border-radius:8px;margin-bottom:14px;}
+.stat-item{display:flex;align-items:center;gap:6px;font-size:13px;}
+.stat-dot{width:8px;height:8px;border-radius:50%;}
+
+/* PROGRESS */
+.progress-wrap{display:none;margin-top:10px;}
+.progress-bar{height:6px;background:var(--s3);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--green);border-radius:3px;width:0%;transition:width .3s;}
+.progress-text{font-size:12px;color:var(--muted);margin-top:6px;}
+
+/* RESULT */
+.result-box{display:none;background:rgba(61,217,138,0.08);border:1px solid rgba(61,217,138,0.3);border-radius:10px;padding:16px;margin-top:12px;}
+
+@media(max-width:700px){.nav-links{display:none;}
+/* Desktop medium: verstecke Live-Badge damit Bell sichtbar bleibt */
+@media(max-width:1050px) and (min-width:701px){
+  .nav-sync{display:none;}
+}.hamburger{display:block;}}
+@media(max-width:600px){.page{padding:10px;}.steps{flex-wrap:wrap;}.stats-bar{gap:10px;}.preview-wrap{font-size:12px;}td,th{padding:6px 8px;}}
+</style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a class="sidebar-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+    <button class="sidebar-close" onclick="closeSidebar()">&#215;</button>
+  </div>
+  <div class="sidebar-user" id="sb-user">👤 …</div>
+  <div class="sidebar-links">
+    <a class="sidebar-link" data-page="index" href="index.html">🏠&#8202; Dashboard</a>
+    <a class="sidebar-link" data-page="budget" href="budget.html">💸&#8202; Budget</a>
+    <a class="sidebar-link" data-page="spartoepfe" href="spartoepfe.html">🪙&#8202; Spartöpfe</a>
+    <a class="sidebar-link" data-page="sinking" href="sinking.html">🎯&#8202; Sinking Funds</a>
+    <a class="sidebar-link" data-page="kalender" href="kalender.html">📅&#8202; Kalender</a>
+    <a class="sidebar-link" data-page="statistik" href="statistik.html">📊&#8202; Statistik</a>
+    <a class="sidebar-link" data-page="monatsreport" href="monatsreport.html">📄&#8202; Monatsreport</a>
+    <a class="sidebar-link" data-page="schulden" href="schulden.html">📉&#8202; Schulden</a>
+    <a class="sidebar-link" data-page="einstellungen" href="einstellungen.html">⚙️&#8202; Einstellungen</a>
+    <a class="sidebar-link on" data-page="import" href="import.html">📥&#8202; CSV Import</a>
+  </div>
+  <div class="sidebar-footer">
+    <button class="sidebar-out" onclick="doLogout()">← Abmelden</button>
+  </div>
+</div>
+
+<nav class="nav">
+  <button class="hamburger" onclick="openSidebar()">&#9776;</button>
+  <a class="nav-logo" href="index.html">KASSEN<span>ABSTURZ</span></a>
+  <div class="nav-links">
+    <a class="nav-link" href="index.html">Dashboard</a>
+    <a class="nav-link" href="budget.html">Budget</a>
+    <a class="nav-link" href="spartoepfe.html">Spartöpfe</a>
+    <a class="nav-link" href="sinking.html">Sinking Funds</a>
+    <a class="nav-link" href="kalender.html">Kalender</a>
+    <a class="nav-link" href="statistik.html">Statistik</a>
+    <a class="nav-link" href="monatsreport.html">📄</a>
+    <a class="nav-link" href="schulden.html">Schulden</a>
+    <a class="nav-link" href="einstellungen.html">⚙️</a>
+    <a class="nav-link on" href="import.html">📥 Import</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-user" id="nav-user"></div>
+    <div class="nav-sync ok" id="sync-badge">● Live</div>
+    <button class="notif-bell" id="notif-bell" onclick="toggleNotifPanel()">🔔<span class="notif-count" id="notif-count"></span></button>
+    <button class="nav-out" onclick="doLogout()">Abmelden</button>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- STEPS -->
+  <div class="steps">
+    <div class="step done" id="step-1"><div class="step-num">1</div> CSV laden</div>
+    <div class="step-arrow">›</div>
+    <div class="step" id="step-2"><div class="step-num">2</div> Prüfen & zuweisen</div>
+    <div class="step-arrow">›</div>
+    <div class="step" id="step-3"><div class="step-num">3</div> Importieren</div>
+  </div>
+
+  <!-- INFO -->
+  <div class="info">
+    <strong>Volksbank Stuttgart — CSV Export</strong><br>
+    Online-Banking → Konto → Umsätze → <strong>Exportieren → CSV</strong> → Zeitraum wählen → Herunterladen.<br>
+    <strong style="color:var(--green);">Datenschutz:</strong> Als Beschreibung wird nur der Empfängername übernommen — kein Verwendungszweck. Du kannst die Beschreibung vor dem Import manuell anpassen.<br>
+    Die Datei wird <strong>nur in deinem Browser</strong> verarbeitet — sie verlässt nie dein Gerät.
+  </div>
+
+  <!-- SCHRITT 1: UPLOAD -->
+  <div class="card" id="card-upload">
+    <span class="lbl">Schritt 1 · CSV-Datei hochladen</span>
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="handleDrop(event)">
+      <div class="dropzone-icon">📂</div>
+      <div class="dropzone-text">CSV-Datei hier ablegen oder klicken</div>
+      <div class="dropzone-hint" id="file-name">Volksbank CSV · Semikolon-getrennt</div>
+    </div>
+    <input type="file" id="file-input" accept=".csv,.txt" onchange="handleFile(this.files[0])">
+    <div class="warn" style="margin-top:12px;margin-bottom:0;">
+      ⚠️ Die Datei wird <strong style="color:var(--text);">nicht hochgeladen</strong> — alles passiert lokal in deinem Browser. Keine Bankdaten verlassen dein Gerät.
+    </div>
+  </div>
+
+  <!-- SCHRITT 2: VORSCHAU -->
+  <div class="card" id="card-preview" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <span class="lbl" style="margin:0;">Schritt 2 · Buchungen prüfen & zuweisen</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="ignoreAllDups()">Alle Duplikate ignorieren</button>
+        <button class="btn" onclick="resetFile()" style="background:transparent;border-color:var(--border2);color:var(--muted);">Neue Datei</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar" id="stats-bar"></div>
+
+    <!-- Legende -->
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+      Wähle für jede Buchung: <strong style="color:var(--green);">Ausgabe</strong> (Kategorie zuweisen) ·
+      <strong style="color:var(--cyan);">Einnahme</strong> ·
+      <strong style="color:var(--muted);">Ignorieren</strong> (wird nicht importiert)
+    </div>
+
+    <div class="preview-wrap">
+      <table id="preview-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Datum</th>
+            <th>Empfänger / Verwendungszweck</th>
+            <th>Betrag</th>
+            <th>Aktion</th>
+            <th>Kategorie</th>
+            <th>Beschreibung</th>
+            <th>Match</th>
+          </tr>
+        </thead>
+        <tbody id="preview-body"></tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button class="btn-green" id="import-btn" onclick="doImport()">✓ Ausgewählte importieren</button>
+      <span id="import-count" style="font-size:13px;color:var(--muted);"></span>
+    </div>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-text" id="progress-text">Importiere…</div>
+    </div>
+  </div>
+
+  <!-- SCHRITT 3: ERGEBNIS -->
+  <div class="result-box" id="result-box">
+    <div style="font-size:16px;font-weight:600;color:var(--green);margin-bottom:6px;">✓ Import abgeschlossen!</div>
+    <div id="result-text" style="font-size:13px;color:var(--muted);"></div>
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="budget.html" class="btn-green" style="text-decoration:none;display:inline-block;">→ Zum Budget</a>
+      <button class="btn" onclick="resetFile()">Weiteren Import starten</button>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+const SUPABASE_URL='https://qhflajqbrzuxxxiqzlyi.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZmxhanFicnp1eHh4aXF6bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTI3NDEsImV4cCI6MjA4OTY2ODc0MX0.Go8RF3K9Z1V44xKANV2nEEkTF9mJHTHlDxt8ya4L69Y';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null, cats=[], rows=[], fixkosten=[], spartoepfe=[], sinkingFunds=[], existingFingerprints=new Set();
+// Erinnerung: Empfänger → zuletzt gewählte Kategorie/Aktion (gespeichert in localStorage)
+let memory = JSON.parse(localStorage.getItem('import_memory')||'{}');
+
+/* ── UTILS ─────────────────────────────────────────────── */
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');}
+function fmtN(n){return(Math.round(Number(n)*100)/100).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
+function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
+function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sb-overlay').classList.add('open');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-overlay').classList.remove('open');}
+function setSidebarPage(p){document.querySelectorAll('.sidebar-link').forEach(l=>l.classList.toggle('on',l.dataset.page===p));}
+
+/* ── FINGERPRINT ────────────────────────────────────────── */
+// Eindeutiger Hash: Datum + Betrag + erste 20 Zeichen Empfänger
+function fingerprint(datum, betrag, empfaenger){
+  const e = String(empfaenger||'').trim().substring(0,20).toLowerCase();
+  return `${datum}|${Math.round(Number(betrag)*100)}|${e}`;
+}
+
+/* ── CSV PARSEN ─────────────────────────────────────────── */
+// Volksbank Format: Semikolon, ISO-Latin-1, Anführungszeichen optional
+// Spalten: Datum;Valuta;Betrag;Währung;Zahler/Empfänger;Verwendungszweck;Buchungstext;Kundenreferenz;Ursprung;Kontoauszugsnummer
+function parseVolksbankCSV(text){
+  const allLines = text.split(/\r?\n/);
+  if(allLines.length < 2) return [];
+
+  // Trennzeichen ermitteln: Tab oder Semikolon?
+  const firstLine = allLines[0];
+  const sep = firstLine.includes('\t') ? '\t' : ';';
+
+  // Header-Zeile finden — enthält "Buchungstag" oder "Datum"
+  let headerIdx = -1;
+  for(let i = 0; i < Math.min(allLines.length, 15); i++){
+    const lower = allLines[i].toLowerCase();
+    if(lower.includes('buchungstag') || lower.includes('"datum"') || 
+       (lower.includes('datum') && lower.includes('betrag'))){
+      headerIdx = i;
+      break;
+    }
+  }
+  if(headerIdx < 0){ headerIdx = 0; } // Fallback: erste Zeile als Header
+
+  // Spalten-Mapping aus Header
+  const headers = allLines[headerIdx].split(sep).map(h=>
+    h.replace(/"/g,'').replace(/'/g,'').trim().toLowerCase()
+  );
+
+  // Spalten-Indizes bestimmen
+  const idx = (terms) => {
+    for(const t of terms){
+      const i = headers.findIndex(h => h.includes(t));
+      if(i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const colDatum   = idx(['buchungstag','datum']);
+  const colBetrag  = idx(['betrag']);
+  const colEmpf    = idx(['name zahlungsbeteiligter','zahler','empf','name']);
+  const colZweck   = idx(['verwendungszweck','verwendung']);
+  const colBuchtyp = idx(['buchungstext','buchungsart','buchung']);
+
+  // Keine sinnvollen Spalten → Fehlschlag
+  if(colDatum < 0 || colBetrag < 0){
+    return [];
+  }
+
+  const dataLines = allLines.slice(headerIdx + 1);
+  const parsed = [];
+
+  for(const line of dataLines){
+    const trimmed = line.trim();
+    if(!trimmed) continue;
+    // Zeile nur aus Trennzeichen → leer
+    if(trimmed.replace(new RegExp(sep === '\t' ? '\\t' : sep, 'g'), '').trim() === '') continue;
+
+    const cols = trimmed.split(sep).map(c => c.replace(/^"|"$/g,'').trim());
+    if(cols.length < 3) continue;
+
+    const datum     = parseDate(cols[colDatum] || '');
+    const betragRaw = colBetrag >= 0 ? cols[colBetrag] : '';
+    const empf      = colEmpf >= 0 ? (cols[colEmpf]||'').trim() : '';
+    const zweck     = colZweck >= 0 ? (cols[colZweck]||'').trim() : '';
+    const buchtyp   = colBuchtyp >= 0 ? (cols[colBuchtyp]||'').trim() : '';
+
+    if(!datum) continue;
+
+    const betrag = parseBetrag(betragRaw);
+    if(isNaN(betrag) || betrag === 0) continue;
+
+    // Standardmäßig nur Empfängername, kein Verwendungszweck (Datenschutz)
+    const beschreibung = empf.substring(0,80) || buchtyp || '(kein Text)';
+
+    // Fixkosten-Match: prüfe ob Empfänger einem Fixkosten-Namen ähnelt
+    // Auch Verwendungszweck einbeziehen, Mindestlänge 4 Zeichen für Match
+    const empfL = empf.toLowerCase();
+    const zweckL = zweck.toLowerCase();
+    const fixMatch = fixkosten.find(f=>{
+      if(!f.name || f.name.length < 2) return false;
+      const fL = f.name.toLowerCase();
+      // Name muss mind. 4 Zeichen lang sein um false positives zu vermeiden
+      const minLen = Math.max(4, Math.floor(fL.length * 0.6));
+      const fShort = fL.substring(0, minLen);
+      return (
+        empfL.includes(fL) || fL.includes(empfL.substring(0,Math.max(6,empfL.length))) ||
+        empfL.includes(fShort) ||
+        zweckL.includes(fL) || zweckL.includes(fShort)
+      );
+    });
+
+    parsed.push({
+      datum,
+      betrag: Math.round(Math.abs(betrag)*100)/100,
+      isAusgabe: betrag < 0,
+      empfaenger: empf,
+      fixkostenMatch: fixMatch || null,
+      markFixStatus: !!fixMatch,
+      verwendungszweck: zweck.substring(0,80),
+      beschreibung: beschreibung.substring(0,80),
+      fp: fingerprint(datum, betrag, empf),
+    });
+  }
+  return parsed;
+}
+
+
+function splitCSVLine(line, sep){
+  const cols=[];let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){inQ=!inQ;}
+    else if(c===sep&&!inQ){cols.push(cur.trim());cur='';}
+    else cur+=c;
+  }
+  cols.push(cur.trim());
+  return cols;
+}
+
+function parseDate(raw){
+  // DD.MM.YYYY oder YYYY-MM-DD, mit oder ohne Anführungszeichen
+  raw=(raw||'').trim().replace(/"/g,'').replace(/'/g,'').trim();
+  if(/^\d{2}\.\d{2}\.\d{4}$/.test(raw)){
+    const[d,m,y]=raw.split('.');
+    return`${y}-${m}-${d}`;
+  }
+  if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  // D.M.YYYY
+  const dm = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if(dm) return`${dm[3]}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;
+  return null;
+}
+
+function parseBetrag(raw){
+  let s=String(raw||'').replace(/"/g,'').replace(/'/g,'').trim();
+  if(!s) return NaN;
+  // Entferne alles nach erstem Leerzeichen (z.B. Währungsangabe "EUR" dahinter)
+  s=s.split(/\s/)[0];
+  // Deutsches Format: 1.234,56 oder -45,90 oder -20
+  if(s.includes(',') && s.includes('.')){
+    s=s.replace(/\./g,'').replace(',','.');
+  } else if(s.includes(',')){
+    s=s.replace(',','.');
+  }
+  return parseFloat(s);
+}
+
+/* ── FILE HANDLING ──────────────────────────────────────── */
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('drag');
+  const file=e.dataTransfer.files[0];
+  if(file) handleFile(file);
+}
+
+function handleFile(file){
+  if(!file) return;
+  document.getElementById('file-name').textContent=file.name+' ('+Math.round(file.size/1024)+' KB)';
+  // Latin-1 Encoding für Volksbank
+  const reader=new FileReader();
+  reader.onload=e=>processCSV(e.target.result);
+  reader.readAsText(file,'iso-8859-1');
+}
+
+async function processCSV(text){
+  const parsed=parseVolksbankCSV(text);
+  if(!parsed.length){
+    // Debug: zeige erste 3 Zeilen der Datei
+    const preview = text.split(/\r?\n/).slice(0,5).join('\n');
+    alert('Keine gültigen Buchungen gefunden.\n\nErste Zeilen der Datei:\n' + preview + '\n\nBitte stelle sicher dass es eine Volksbank-Kontoauszugsdatei ist (CSV-Format, Semikolon-getrennt).');
+    return;
+  }
+
+  // Lade bestehende Fingerprints aus DB für Duplikat-Erkennung
+  const allFPs=new Set();
+  // Ausgaben
+  const{data:aus}=await sb.from('ausgaben').select('created_at,betrag,beschreibung');
+  (aus||[]).forEach(a=>{
+    const d=a.created_at?a.created_at.split('T')[0]:'';
+    // Wir können nicht exakt matchen ohne Empfänger, daher Datum+Betrag als light fingerprint
+    allFPs.add(`${d}|${Math.round(Number(a.betrag)*100)}`);
+  });
+  // Einnahmen
+  const{data:ein}=await sb.from('einnahmen').select('datum,betrag,bezeichnung');
+  (ein||[]).forEach(e=>{
+    allFPs.add(`${e.datum||''}|${Math.round(Number(e.betrag)*100)}`);
+  });
+  existingFingerprints=allFPs;
+
+  // Zeilen aufbauen mit Status
+  rows=parsed.map((p,i)=>{
+    const lightFP=`${p.datum}|${Math.round(p.betrag*100)}`;
+    const isDup=allFPs.has(lightFP);
+    // Erinnerte Aktion für diesen Empfänger?
+    const remembered=memory[p.empfaenger.toLowerCase().substring(0,30)];
+    return{
+      ...p,
+      id:i,
+      status: isDup?'dup':'new',
+      catId: remembered?.catId||'',
+      action: isDup?'ignore': (remembered?.action||(p.fixkostenMatch?'fixkosten':(p.isAusgabe&&/geldautomat|bargeld|abhebung|auszahlung|\bga\b/i.test((p.empfaenger||'')+' '+(p.verwendungszweck||'')))?'bargeld':p.isAusgabe?'ausgabe':'einnahme')),
+    };
+  });
+
+  renderPreview();
+  document.getElementById('card-upload').style.display='none';
+  document.getElementById('card-preview').style.display='block';
+  setStep(2);
+}
+
+/* ── PREVIEW RENDER ─────────────────────────────────────── */
+function renderPreview(){
+  const tbody=document.getElementById('preview-body');
+  const catOpts=cats.filter(c=>c.aktiv!==false).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+
+  tbody.innerHTML=rows.map(r=>{
+    const isDup=r.status==='dup';
+    const isIgn=r.action==='ignore';
+    const rowCls=isDup&&r.action==='ignore'?'dup':isIgn?'ignored':'';
+    const statusBadge=isDup
+      ?`<span class="dup-badge">Duplikat</span>`
+      :isIgn?`<span class="ign-badge">Ignoriert</span>`
+      :`<span class="new-badge">Neu</span>`;
+    const betragCol=r.isAusgabe
+      ?`<span style="color:var(--amber);">−\u00a0€\u00a0${fmtN(r.betrag)}</span>`
+      :`<span style="color:var(--green);">+\u00a0€\u00a0${fmtN(r.betrag)}</span>`;
+    const fixOpts=fixkosten.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('');
+    const stOpts=spartoepfe.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+    const sfOpts=sinkingFunds.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+    // Für fixkosten: vorausgefüllt mit erkanntem Match
+    const fixPresel = r.fixkostenMatch?.id||'';
+    const catCol=r.action==='ausgabe'
+      ?`<select class="cat-sel" id="cat-${r.id}" onchange="setCat(${r.id},this.value)"><option value="">— Kategorie —</option>${catOpts}</select>`
+      :r.action==='fixkosten'
+      ?`<select class="cat-sel" id="cat-${r.id}" onchange="setCat(${r.id},this.value)"><option value="">— Fixkosten —</option>${fixOpts}</select>`
+      :r.action==='spartopf'
+      ?`<select class="cat-sel" id="cat-${r.id}" onchange="setCat(${r.id},this.value)"><option value="">— Spartopf —</option>${stOpts}</select>`
+      :r.action==='sinking'
+      ?`<select class="cat-sel" id="cat-${r.id}" onchange="setCat(${r.id},this.value)"><option value="">— Sinking Fund —</option>${sfOpts}</select>`
+      :`<span style="color:var(--muted);font-size:12px;">—</span>`;
+    return`<tr class="${rowCls}" id="row-${r.id}">
+      <td class="status-cell">${statusBadge}</td>
+      <td style="white-space:nowrap;color:var(--muted);">${esc(r.datum.split('-').reverse().join('.'))}</td>
+      <td style="max-width:260px;">
+        <div style="font-size:13px;">${esc(r.empfaenger||'—')}</div>
+        <div style="font-size:11px;color:var(--muted2);">${esc(r.verwendungszweck||'')}</div>
+      </td>
+      <td style="white-space:nowrap;">${betragCol}</td>
+      <td class="row-action">
+        <select class="action-sel" id="action-${r.id}" onchange="setAction(${r.id},this.value)">
+          <option value="ausgabe"${r.action==='ausgabe'?' selected':''}>Ausgabe</option>
+          <option value="einnahme"${r.action==='einnahme'?' selected':''}>Einnahme</option>
+          <option value="fixkosten"${r.action==='fixkosten'?' selected':''}>📋 Fixkosten abhaken</option>
+          <option value="spartopf"${r.action==='spartopf'?' selected':''}>🪙 Spartopf</option>
+          <option value="sinking"${r.action==='sinking'?' selected':''}>🎯 Sinking Fund</option>
+          <option value="bargeld"${r.action==='bargeld'?' selected':''}>💵 Bargeld (Abhebung)</option>
+          <option value="ignore"${r.action==='ignore'?' selected':''}>Ignorieren</option>
+        </select>
+      </td>
+      <td>${catCol}</td>
+      <td>
+        <input class="ci" id="desc-${r.id}" value="${esc(r.beschreibung)}" maxlength="60"
+          style="font-size:12px;padding:4px 8px;min-width:120px;"
+          oninput="setDesc(${r.id},this.value)">
+      </td>
+      <td style="text-align:center;">
+        ${r.fixkostenMatch
+          ? `<span style="font-size:10px;background:rgba(61,217,197,0.12);color:var(--cyan);border-radius:8px;padding:2px 7px;white-space:nowrap;" title="Fixkosten-Match: ${esc(r.fixkostenMatch.name)}">📋 ${esc(r.fixkostenMatch.name)}</span>`
+          : '<span style="color:var(--muted2);font-size:11px;">—</span>'}
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Kategorie-Select vorausfüllen
+  rows.forEach(r=>{
+    const val = r.action==='fixkosten' ? (r.catId||r.fixkostenMatch?.id||'') : r.catId;
+    if(val){const s=document.getElementById('cat-'+r.id);if(s)s.value=val;}
+    // catId auch setzen wenn noch nicht gesetzt
+    if(r.action==='fixkosten' && !r.catId && r.fixkostenMatch?.id) r.catId=r.fixkostenMatch.id;
+  });
+
+  updateStats();
+}
+
+function setAction(id, action){
+  id=Number(id);
+  const r=rows.find(x=>x.id===id);
+  if(!r)return;
+  r.action=action;
+  // Erinnerung speichern
+  const key=r.empfaenger.toLowerCase().substring(0,30);
+  memory[key]={...(memory[key]||{}),action};
+  localStorage.setItem('import_memory',JSON.stringify(memory));
+  // Cat-Zelle aktualisieren — direkt über die Row finden (robust auch wenn vorher 'ignore')
+  const rowEl=document.getElementById('row-'+id);
+  const catCell=rowEl?.cells[5]; // Spalte 5 = Kategorie (0=Status,1=Datum,2=Empf,3=Betrag,4=Aktion,5=Kat)
+  if(catCell){
+    const catOpts=cats.filter(c=>c.aktiv!==false).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+    const stOpts=spartoepfe.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+    const sfOpts=sinkingFunds.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+    const fixOpts2=fixkosten.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('');
+    catCell.innerHTML=action==='ausgabe'
+      ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Kategorie —</option>${catOpts}</select>`
+      :action==='fixkosten'
+      ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Fixkosten —</option>${fixOpts2}</select>`
+      :action==='spartopf'
+      ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Spartopf —</option>${stOpts}</select>`
+      :action==='sinking'
+      ?`<select class="cat-sel" id="cat-${id}" onchange="setCat(${id},this.value)"><option value="">— Sinking Fund —</option>${sfOpts}</select>`
+      :`<span style="color:var(--muted);font-size:12px;">—</span>`;
+    const fillId = action==='fixkosten' ? (r.catId||r.fixkostenMatch?.id||'') : r.catId;
+    if(fillId){const s=document.getElementById('cat-'+id);if(s)s.value=fillId;}
+    if(action==='fixkosten'&&!r.catId&&r.fixkostenMatch?.id) r.catId=r.fixkostenMatch.id;
+  }
+  // Row styling
+  const row=document.getElementById('row-'+id);
+  if(row) row.className=action==='ignore'?'ignored':r.status==='dup'&&action!=='ignore'?'':'';  
+  // Status badge
+  const sb=row?.querySelector('.status-cell');
+  if(sb) sb.innerHTML=action==='ignore'?'<span class="ign-badge">Ignoriert</span>':'<span class="new-badge">Neu</span>';
+  updateStats();
+}
+
+function setCat(id, catId){
+  id=Number(id);
+  const r=rows.find(x=>x.id===id);
+  if(!r)return;
+  r.catId=catId;
+  const key=r.empfaenger.toLowerCase().substring(0,30);
+  memory[key]={...(memory[key]||{}),catId};
+  localStorage.setItem('import_memory',JSON.stringify(memory));
+  updateStats();
+}
+
+function setDesc(id, desc){
+  id=Number(id);
+  const r=rows.find(x=>x.id===id);
+  if(r) r.beschreibung=desc.substring(0,60);
+}
+function setFixMark(id,checked){
+  id=Number(id);
+  const r=rows.find(x=>x.id===id);
+  if(r)r.markFixStatus=checked;
+}
+
+
+function ignoreAllDups(){
+  rows.forEach(r=>{if(r.status==='dup'){r.action='ignore';const s=document.getElementById('action-'+r.id);if(s)s.value='ignore';setAction(r.id,'ignore');}});
+}
+
+function updateStats(){
+  const total=rows.length;
+  const dup=rows.filter(r=>r.status==='dup').length;
+  const ignored=rows.filter(r=>r.action==='ignore').length;
+  const toImport=rows.filter(r=>r.action!=='ignore').length;
+  const noCat=rows.filter(r=>(r.action==='ausgabe'||r.action==='fixkosten'||r.action==='spartopf'||r.action==='sinking')&&!r.catId).length;
+
+  document.getElementById('stats-bar').innerHTML=`
+    <div class="stat-item"><div class="stat-dot" style="background:var(--text);"></div>${total} Buchungen gesamt</div>
+    <div class="stat-item"><div class="stat-dot" style="background:var(--red);"></div>${dup} Duplikate</div>
+    <div class="stat-item"><div class="stat-dot" style="background:var(--green);"></div>${toImport} werden importiert</div>
+    <div class="stat-item"><div class="stat-dot" style="background:var(--muted);"></div>${ignored} ignoriert</div>
+    ${noCat>0?`<div class="stat-item" style="color:var(--amber);">⚠ ${noCat} ohne Kategorie</div>`:''}`;
+
+  const btn=document.getElementById('import-btn');
+  const cnt=document.getElementById('import-count');
+  btn.disabled=toImport===0;
+  cnt.textContent=toImport>0?`${toImport} Buchungen werden importiert`:'Nichts zum Importieren ausgewählt';
+}
+
+/* ── IMPORT ─────────────────────────────────────────────── */
+// Vorzeichen für Spartopf/Sinking: Geld geht vom Girokonto weg (Ausgabe) = Einzahlung (+),
+// Geld kommt aufs Girokonto zurück (Rücküberweisung vom Tagesgeld) = Entnahme (−)
+function signedAmt(r){return r.isAusgabe?r.betrag:-r.betrag;}
+async function doImport(){
+  const toImport=rows.filter(r=>r.action!=='ignore');
+  if(!toImport.length)return;
+
+  // Validierung: alle Ausgaben haben Kategorie?
+  const missing=toImport.filter(r=>(r.action==='ausgabe'||r.action==='fixkosten'||r.action==='spartopf'||r.action==='sinking')&&!r.catId);
+  if(missing.length){
+    alert(`${missing.length} Ausgabe(n) haben noch keine Kategorie zugewiesen. Bitte ergänze sie zuerst.`);
+    return;
+  }
+
+  document.getElementById('import-btn').disabled=true;
+  const pw=document.getElementById('progress-wrap');
+  const pf=document.getElementById('progress-fill');
+  const pt=document.getElementById('progress-text');
+  pw.style.display='block';
+  setStep(3);
+
+  let done=0, errors=0;
+
+  for(const r of toImport){
+    try{
+      if(r.action==='ausgabe'){
+        await sb.from('ausgaben').insert({
+          beschreibung:r.beschreibung,
+          betrag:r.betrag,
+          kategorie_id:r.catId,
+          erstellt_von:userName()+' (Import)',
+          created_at:r.datum+'T12:00:00'
+        });
+      } else if(r.action==='einnahme'){
+        const d=new Date(r.datum+'T12:00:00');
+        await sb.from('einnahmen').insert({
+          bezeichnung:r.beschreibung,
+          betrag:r.betrag,
+          kategorie:'Import',
+          datum:r.datum,
+          monat:d.getMonth()+1,
+          jahr:d.getFullYear()
+        });
+      } else if(r.action==='fixkosten'){
+        // Nur fixkosten_status abhaken — landet NICHT in variablen Ausgaben
+        const periode = await calcCurrentPeriod(r.datum);
+        const{data:existing}=await sb.from('fixkosten_status')
+          .select('*').eq('fixkosten_id',r.catId).eq('periode_von',periode.from).maybeSingle();
+        if(existing){
+          await sb.from('fixkosten_status').update({
+            abgehakt:true, abgehakt_am:new Date().toISOString(), abgehakt_von:userName()+' (Import)'
+          }).eq('id',existing.id);
+        } else {
+          await sb.from('fixkosten_status').insert({
+            fixkosten_id:r.catId,
+            periode_von:periode.from,
+            abgehakt:true,
+            abgehakt_am:new Date().toISOString(),
+            abgehakt_von:userName()+' (Import)'
+          });
+        }
+      } else if(r.action==='spartopf'){
+        await sb.from('spartopf_buchungen').insert({
+          spartopf_id:r.catId,
+          betrag:signedAmt(r),
+          bezeichnung:r.beschreibung,
+          datum:r.datum,
+          erstellt_von:userName()+' (Import)'
+        });
+      } else if(r.action==='sinking'){
+        await sb.from('sinking_fund_buchungen').insert({
+          fund_id:r.catId,
+          betrag:signedAmt(r),
+          bezeichnung:r.beschreibung,
+          datum:r.datum,
+          erstellt_von:userName()+' (Import)'
+        });
+        // angespart in sinking_funds aktualisieren
+        const{data:sfRow}=await sb.from('sinking_funds').select('angespart').eq('id',r.catId).single();
+        if(sfRow){
+          const newVal=Math.max(0,Math.round((Number(sfRow.angespart)+signedAmt(r))*100)/100);
+          await sb.from('sinking_funds').update({angespart:newVal}).eq('id',r.catId);
+        }
+      } else if(r.action==='bargeld'){
+        // Abhebung vom Konto = Bargeld kommt dazu (+). Einzahlung aufs Konto = Bargeld geht raus (−).
+        await sb.from('bargeld').insert({
+          bezeichnung:r.beschreibung||'Bargeld',
+          betrag:r.isAusgabe?r.betrag:-r.betrag,
+          datum:r.datum,
+          erstellt_von:userName()+' (Import)'
+        });
+      }
+      done++;
+    }catch(e){errors++;}
+
+    pf.style.width=Math.round((done+errors)/toImport.length*100)+'%';
+    pt.textContent=`${done+errors} von ${toImport.length} importiert…`;
+  }
+
+  pw.style.display='none';
+  // Fixkosten-Status wird jetzt direkt im doImport-Loop behandelt (action==='fixkosten')
+
+  const rb=document.getElementById('result-box');
+  const rt=document.getElementById('result-text');
+  rb.style.display='block';
+  const fixMsg = toImport.filter(r=>r.action==='fixkosten').length > 0 ? ` · ${toImport.filter(r=>r.action==='fixkosten').length} Fixkosten abgehakt` : '';
+  rt.innerHTML=`<strong style="color:var(--green);">${done}</strong> Buchungen erfolgreich importiert${fixMsg}.`
+    +(errors>0?` <span style="color:var(--red);">${errors} Fehler.</span>`:'')
+    +`<br>Sie sind jetzt in Budget und Statistik sichtbar.`;
+  if(done>0) await pushNotif('📥 CSV Import: '+done+' Buchungen importiert','import');
+
+  setSyncOk();
+}
+
+function resetFile(){
+  rows=[];
+  document.getElementById('card-upload').style.display='block';
+  document.getElementById('card-preview').style.display='none';
+  document.getElementById('result-box').style.display='none';
+  document.getElementById('file-name').textContent='Volksbank CSV · Semikolon-getrennt';
+  document.getElementById('file-input').value='';
+  setStep(1);
+}
+
+function setStep(n){
+  [1,2,3].forEach(i=>{
+    const el=document.getElementById('step-'+i);
+    if(!el)return;
+    el.className='step'+(i<n?' done':i===n?' active':'');
+  });
+}
+
+/* ── AUTH ───────────────────────────────────────────────── */
+async function doLogout(){await sb.auth.signOut();location.href='index.html';}
+
+async function loadCats(){
+  const[rc,rf,rs,rk]=await Promise.all([
+    sb.from('kategorien').select('*').order('created_at'),
+    sb.from('fixkosten').select('*').order('created_at'),
+    sb.from('spartoepfe').select('*').order('created_at'),
+    sb.from('sinking_funds').select('*').order('created_at'),
+  ]);
+  cats=rc.data||[];
+  fixkosten=rf.data||[];
+  spartoepfe=rs.data||[];
+  sinkingFunds=rk.data||[];
+}
+
+function onLogin(user){
+  currentUser=user;
+  const nb=document.getElementById('nav-user');if(nb)nb.textContent='👤 '+getDisplayName(user);
+  const sbu=document.getElementById('sb-user');if(sbu)sbu.textContent='👤 '+getDisplayName(user);
+  setSidebarPage('import');
+  loadCats();
+  setSyncOk();
+  setStep(1);
+
+  loadNotifications();
+  subscribeNotifications();
+}
+
+document.addEventListener('DOMContentLoaded',async()=>{
+  const res=await sb.auth.getSession();
+  if(res.data?.session?.user)onLogin(res.data.session.user);
+  else location.href='index.html';
+});
+
+// ── NOTIFICATION SYSTEM ────────────────────────────────────────
+const NOTIF_SEEN_KEY='kassenz_notif_seen_';
+let notifData=[];
+
+function notifSeenKey(){return NOTIF_SEEN_KEY+(currentUser?.id||'x');}
+function getSeenIds(){try{return new Set(JSON.parse(localStorage.getItem(notifSeenKey())||'[]'));}catch{return new Set();}}
+function markSeen(ids){const s=getSeenIds();ids.forEach(id=>s.add(id));localStorage.setItem(notifSeenKey(),JSON.stringify([...s].slice(-100)));}
+function myName(){return currentUser?.user_metadata?.display_name||currentUser?.email?.split('@')[0]||'?';}
+
+async function loadNotifications(){
+  const{data}=await sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(10);
+  notifData=data||[];
+  renderNotifBell();
+}
+
+function renderNotifBell(){
+  const seen=getSeenIds();
+  const unread=notifData.filter(n=>!seen.has(n.id)&&n.autor!==myName()).length;
+  const c=document.getElementById('notif-count');
+  if(c){c.textContent=unread||'';c.classList.toggle('show',unread>0);}
+}
+
+function toggleNotifPanel(){
+  let p=document.getElementById('notif-panel');
+  if(!p){
+    p=document.createElement('div');p.className='notif-panel';p.id='notif-panel';
+    document.body.appendChild(p);
+    document.addEventListener('click',e=>{
+      if(!p.contains(e.target)&&!document.getElementById('notif-bell')?.contains(e.target))p.classList.remove('open');
+    },{capture:true});
+  }
+  const open=p.classList.toggle('open');
+  if(open){renderNotifPanel(p);markSeen(notifData.map(n=>n.id));renderNotifBell();}
+}
+
+const NOTIF_ICONS={ausgabe:'💸',einnahme:'💚',bargeld:'💵',fixkosten:'📋',spartopf:'🪙',sinking:'🎯',kalender:'📅',chat:'💬',import:'📥',einstellung:'⚙️',info:'ℹ️'};
+
+function renderNotifPanel(p){
+  const seen=getSeenIds();
+  p.innerHTML='<div class="notif-header"><span class="notif-header-title">🔔 Benachrichtigungen</span><button class="notif-clear" onclick="clearNotifications()">Alle löschen</button></div><div class="notif-list" id="notif-list"></div>';
+  const list=p.querySelector('#notif-list');
+  if(!notifData.length){list.innerHTML='<div class="notif-empty">Noch keine Benachrichtigungen.</div>';return;}
+  notifData.forEach(n=>{
+    const wasUnseen=!seen.has(n.id)&&n.autor!==myName();
+    const d=new Date(n.created_at);
+    const t=d.toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const item=document.createElement('div');
+    item.className='notif-item'+(wasUnseen?' unread':'');
+    item.innerHTML='<div class="notif-icon">'+(NOTIF_ICONS[n.typ]||'ℹ️')+'</div><div class="notif-body"><div class="notif-msg">'+esc(n.nachricht)+'</div><div class="notif-meta">'+esc(n.autor)+' · '+t+'</div></div>';
+    list.appendChild(item);
+  });
+}
+
+async function clearNotifications(){
+  await sb.from('notifications').delete().neq('id','00000000-0000-0000-0000-000000000000');
+  notifData=[];
+  const p=document.getElementById('notif-panel');if(p)renderNotifPanel(p);
+  renderNotifBell();
+}
+
+function subscribeNotifications(){
+  // Eindeutiger Kanalname pro Tab verhindert Duplikate
+  const chanName='notif-live-'+Math.random().toString(36).slice(2,7);
+  sb.channel(chanName)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},payload=>{
+      notifData.unshift(payload.new);
+      if(notifData.length>10)notifData=notifData.slice(0,10);
+      renderNotifBell();
+      const p=document.getElementById('notif-panel');if(p?.classList.contains('open'))renderNotifPanel(p);
+      if(payload.new.autor!==myName())showNotifToast(payload.new);
+    })
+    .on('postgres_changes',{event:'DELETE',schema:'public',table:'notifications'},()=>loadNotifications())
+    .subscribe();
+}
+
+function showNotifToast(n){
+  if(!document.getElementById('notif-toast-style')){
+    const s=document.createElement('style');s.id='notif-toast-style';
+    s.textContent='@keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes slideOut{from{opacity:1}to{opacity:0;transform:translateY(10px)}}';
+    document.head.appendChild(s);
+  }
+  const toast=document.createElement('div');
+  toast.style.cssText='position:fixed;bottom:20px;right:16px;background:var(--s1);border:1px solid var(--border2);border-left:3px solid var(--purple);border-radius:10px;padding:12px 16px;max-width:280px;box-shadow:0 4px 20px rgba(0,0,0,0.5);z-index:999;animation:slideIn .3s ease;font-size:13px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;';
+  toast.innerHTML='<span style="font-size:16px;">'+(NOTIF_ICONS[n.typ]||'ℹ️')+'</span><div><div style="color:var(--text);line-height:1.4;">'+esc(n.nachricht)+'</div><div style="color:var(--muted);font-size:11px;margin-top:3px;">'+esc(n.autor)+'</div></div>';
+  toast.onclick=()=>toast.remove();
+  document.body.appendChild(toast);
+  setTimeout(()=>{toast.style.animation='slideOut .4s ease forwards';setTimeout(()=>toast.remove(),400);},4500);
+}
+
+// Aktuelle Periode für Fixkosten-Status
+async function calcCurrentPeriod(refDateISO=null){
+  // refDateISO: ISO-Datum der Buchung (YYYY-MM-DD) — falls null → heute
+  try{
+    const{data}=await sb.from('app_settings').select('value').eq('key','budget_start_day').single();
+    const sd=parseInt(data?.value||'1');
+    const ref=refDateISO?new Date(refDateISO+'T12:00:00'):new Date();
+    const day=ref.getDate();
+    let bm=ref.getMonth(),by=ref.getFullYear();
+    if(day<sd){bm--;if(bm<0){bm=11;by--;}}
+    const from=by+'-'+String(bm+1).padStart(2,'0')+'-'+String(sd).padStart(2,'0');
+    return{from};
+  }catch(e){
+    const ref=refDateISO?new Date(refDateISO+'T12:00:00'):new Date();
+    return{from:ref.getFullYear()+'-'+String(ref.getMonth()+1).padStart(2,'0')+'-01'};
+  }
+}
+
+async function pushNotif(nachricht,typ='info'){
+  try{
+    const{error}=await sb.from('notifications').insert({nachricht,autor:myName(),typ});
+    if(error)console.warn('pushNotif error:',error.message);
+  }catch(e){console.warn('pushNotif failed:',e);}
+}
+</script>
+</body>
+</html>

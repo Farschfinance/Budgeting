@@ -291,6 +291,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <div class="stab" onclick="showTab('bargeld',this)">Bargeld</div>
     <div class="stab" onclick="showTab('fixkosten',this)">Fixkosten</div>
     <div class="stab" onclick="showTab('woche',this);loadWoche();">📅 Woche</div>
+    <div class="stab" onclick="showTab('kontostand',this);loadKontostand();">🏦 Kontostand</div>
   </div>
 
   <div id="sp-ausgaben" class="sp on">
@@ -310,6 +311,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
         <select class="cs" id="e-cat" style="min-width:130px;"></select>
         <input class="ci" id="e-date" type="date" style="flex:1;min-width:130px;">
       </div>
+      <label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13px;color:var(--muted);cursor:pointer;">
+        <input type="checkbox" id="e-bar" style="width:16px;height:16px;accent-color:var(--cyan);"> 💵 bar bezahlt (mindert den Bargeld-Bestand, zählt trotzdem ins Kategorie-Budget)
+      </label>
       <div id="e-err" class="ferr">Bitte alle Felder ausfüllen.</div>
       <button class="btn-red" onclick="bookExp()">− Ausgabe buchen</button>
     </div>
@@ -420,6 +424,31 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   </div>
 
   <!-- WOCHENAUSWERTUNG -->
+  <div id="sp-kontostand" class="sp">
+    <div class="card">
+      <div class="section-hdr"><div class="lbl" style="margin:0;">🏦 Kontostand-Abgleich (Gemeinschaftskonto)</div></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Trage den echten Kontostand an einem Stichtag ein. Die App rechnet daraus, wie viel jetzt auf dem Konto sein müsste.</div>
+      <div class="ir">
+        <input class="ci" id="ks-datum" type="date" style="flex:1;min-width:130px;" title="Stichtag">
+        <input class="ci" id="ks-stand" type="number" step="0.01" placeholder="Kontostand am Stichtag €" style="flex:1;min-width:150px;">
+        <button class="btn" onclick="saveKontostand()">Speichern</button>
+      </div>
+      <div id="ks-err" class="ferr">Bitte Stichtag und Kontostand eingeben.</div>
+    </div>
+    <div class="card">
+      <div class="lbl">Erwarteter Kontostand heute</div>
+      <div class="num-lg" id="ks-expected" style="color:var(--cyan);">—</div>
+      <div id="ks-breakdown" style="margin-top:12px;font-size:13px;"></div>
+    </div>
+    <div class="card">
+      <div class="lbl">Abgleich mit der Bank</div>
+      <div class="ir">
+        <input class="ci" id="ks-real" type="number" step="0.01" placeholder="Echter Kontostand jetzt €" style="flex:1;min-width:160px;" oninput="renderKontostandDiff()">
+      </div>
+      <div id="ks-diff" style="margin-top:10px;font-size:14px;"></div>
+    </div>
+  </div>
+
   <div id="sp-woche" class="sp">
     <!-- Monat-Navigator -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
@@ -961,7 +990,7 @@ function renderAusgaben(){
     return`<div>
       <div class="crow">
         <div style="font-size:12px;color:var(--muted2);min-width:32px;">${esc(d)}</div>
-        <div style="flex:1;font-size:13px;">${esc(a.beschreibung)}</div>
+        <div style="flex:1;font-size:13px;">${a.bar?'💵 ':''}${esc(a.beschreibung)}</div>
         <div style="font-size:11px;color:var(--muted);background:var(--s3);padding:1px 8px;border-radius:10px;white-space:nowrap;">${esc(cat?cat.name:'—')}</div>
         <div style="font-size:13px;font-weight:500;color:var(--amber);white-space:nowrap;">−€ ${fmtN(a.betrag)}</div>
         <span class="by-badge">${esc(a.erstellt_von)}</span>
@@ -999,7 +1028,14 @@ async function delAusgabe(id,catId,amt){
   if(!confirm('Ausgabe löschen?'))return;
   const cat=cats.find(c=>c.id===catId);
   if(cat){const ns=Math.max(0,Math.round((Number(cat.spent)-amt)*100)/100);await sb.from('kategorien').update({spent:ns}).eq('id',catId);cat.spent=ns;}
+  const delA=currentAusgaben.find(x=>String(x.id)===String(id));
   await sb.from('ausgaben').delete().eq('id',id);
+  if(delA&&delA.bar){
+    const dd=String(delA.created_at||'').substring(0,10);
+    const{data:cr}=await sb.from('bargeld').select('id').eq('bezeichnung','💵 '+delA.beschreibung).eq('betrag',-Number(delA.betrag)).eq('datum',dd).limit(1);
+    if(cr&&cr[0])await sb.from('bargeld').delete().eq('id',cr[0].id);
+    loadCash();
+  }
   renderCats();updateOverview();loadAusgaben();setSyncOk();
 }
 async function bookExp(){
@@ -1011,11 +1047,88 @@ async function bookExp(){
   const cat=cats.find(c=>c.id===catId);if(!cat)return;
   const ns=Math.round((Number(cat.spent)+amt)*100)/100;
   await sb.from('kategorien').update({spent:ns}).eq('id',catId);
-  await sb.from('ausgaben').insert({beschreibung:desc,betrag:amt,kategorie_id:catId,erstellt_von:userName(),created_at:date+'T12:00:00'});
+  const isBar=!!document.getElementById('e-bar')?.checked;
+  const row={beschreibung:desc,betrag:amt,kategorie_id:catId,erstellt_von:userName(),created_at:date+'T12:00:00'};
+  if(isBar)row.bar=true;
+  const insRes=await sb.from('ausgaben').insert(row);
+  if(insRes.error){
+    console.error('bookExp:',insRes.error);
+    await sb.from('kategorien').update({spent:Number(cat.spent)}).eq('id',catId);
+    alert(isBar&&/bar/i.test(insRes.error.message||'')
+      ?'Für "bar bezahlt" fehlt noch die Datenbank-Spalte. Bitte zuerst das SQL "ausgaben_bar.sql" in Supabase ausführen.'
+      :'Fehler beim Buchen: '+(insRes.error.message||''));
+    return;
+  }
+  if(isBar){
+    await sb.from('bargeld').insert({bezeichnung:'💵 '+desc,betrag:-amt,datum:date,erstellt_von:userName()});
+    const bx=document.getElementById('e-bar');if(bx)bx.checked=false;
+    loadCash();
+  }
   cat.spent=ns;
   await pushNotif('💸 Ausgabe: '+desc+' ('+fmtEur(amt)+')','ausgabe');
   document.getElementById('e-desc').value='';document.getElementById('e-amt').value='';
   renderCats();updateOverview();loadAusgaben();setSyncOk();
+}
+
+// ── KONTOSTAND-ABGLEICH ──────────────────────────────────────
+let ksExpected=null;
+async function loadKontostand(){
+  const{data:set}=await sb.from('app_settings').select('value').eq('key','kontostand').maybeSingle();
+  let cfg=null;try{cfg=set?.value?JSON.parse(set.value):null;}catch(e){}
+  const bd=document.getElementById('ks-breakdown'),ex=document.getElementById('ks-expected');
+  if(!cfg||!cfg.stichtag){ex.textContent='—';bd.innerHTML='<span style="color:var(--muted);">Noch kein Stichtag gespeichert.</span>';ksExpected=null;renderKontostandDiff();return;}
+  document.getElementById('ks-datum').value=cfg.stichtag;
+  document.getElementById('ks-stand').value=cfg.stand;
+  const st=cfg.stichtag;
+  const[ein,aus,fxs,fix,bar,sp,sf]=await Promise.all([
+    sb.from('einnahmen').select('betrag').gt('datum',st),
+    sb.from('ausgaben').select('betrag,bar').gt('created_at',st+'T23:59:59'),
+    sb.from('fixkosten_status').select('fixkosten_id').eq('abgehakt',true).gt('abgehakt_am',st+'T23:59:59'),
+    sb.from('fixkosten').select('id,betrag'),
+    sb.from('bargeld').select('betrag').gt('datum',st),
+    sb.from('spartopf_buchungen').select('betrag').gt('datum',st),
+    sb.from('sinking_fund_buchungen').select('betrag').gt('datum',st)
+  ]);
+  const sum=a=>Math.round((a||[]).reduce((t,x)=>t+Number(x.betrag),0)*100)/100;
+  const E=sum(ein.data);
+  const A=sum((aus.data||[]).filter(x=>!x.bar));
+  const fxMap={};(fix.data||[]).forEach(f=>fxMap[f.id]=Number(f.betrag));
+  const F=Math.round((fxs.data||[]).reduce((t,x)=>t+(fxMap[x.fixkosten_id]||0),0)*100)/100;
+  const B=sum((bar.data||[]).filter(x=>Number(x.betrag)>0));
+  const SP=sum(sp.data),SF=sum(sf.data);
+  const exp=Math.round((Number(cfg.stand)+E-A-F-B-SP-SF)*100)/100;
+  ksExpected=exp;
+  ex.textContent=fmtEur(exp);
+  const line=(l,v,sign)=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);"><span>${l}</span><span style="color:${sign>0?'var(--green)':sign<0?'var(--amber)':'var(--text)'};">${sign>0?'+':sign<0?'−':''} ${fmtEur(Math.abs(v))}</span></div>`;
+  bd.innerHTML=line('Stand am '+st.split('-').reverse().join('.'),Number(cfg.stand),0)
+    +line('Einnahmen',E,1)
+    +line('Ausgaben (ohne bar bezahlte)',A,-1)
+    +line('Abgehakte Fixkosten',F,-1)
+    +line('Bargeld-Abhebungen',B,-1)
+    +line('Aufs Tagesgeld (Spartöpfe, netto)',SP,-1)
+    +line('Aufs Tagesgeld (Sinking Funds, netto)',SF,-1)
+    +'<div style="font-size:11px;color:var(--muted);margin-top:8px;">Nur Buchungen nach dem Stichtag zählen. Fixkosten zählen ab dem Zeitpunkt des Abhakens.</div>';
+  renderKontostandDiff();
+}
+function renderKontostandDiff(){
+  const el=document.getElementById('ks-diff');if(!el)return;
+  const raw=document.getElementById('ks-real')?.value;
+  if(raw===''||raw==null||ksExpected==null){el.innerHTML='';return;}
+  const diff=Math.round((parseFloat(raw)-ksExpected)*100)/100;
+  if(isNaN(diff)){el.innerHTML='';return;}
+  el.innerHTML=Math.abs(diff)<0.01
+    ?'<span style="color:var(--green);">✓ Stimmt auf den Cent.</span>'
+    :diff>0
+    ?`<span style="color:var(--cyan);">Auf dem Konto sind ${fmtEur(diff)} <b>mehr</b> als erwartet. Es fehlt wohl eine Einnahme oder eine Ausgabe wurde doppelt erfasst.</span>`
+    :`<span style="color:var(--amber);">Auf dem Konto sind ${fmtEur(-diff)} <b>weniger</b> als erwartet. Es fehlt wohl eine Ausgabe, oder Bargeld ohne Beleg.</span>`;
+}
+async function saveKontostand(){
+  const d=document.getElementById('ks-datum').value;
+  const v=parseFloat(document.getElementById('ks-stand').value);
+  if(!d||isNaN(v)){showErr('ks-err');return;}hideErr('ks-err');
+  const{error}=await sb.from('app_settings').upsert({key:'kontostand',value:JSON.stringify({stichtag:d,stand:v}),updated_at:new Date().toISOString()});
+  if(error){alert('Fehler beim Speichern: '+error.message);return;}
+  loadKontostand();
 }
 
 // ── FIXKOSTEN ────────────────────────────────────────────────
