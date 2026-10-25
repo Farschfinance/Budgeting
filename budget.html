@@ -409,7 +409,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
   </div>
 
   <div id="sp-fixkosten" class="sp">
-    <div class="card"><div class="lbl">Fixkosten gesamt / Monat</div><div class="num-lg" style="color:var(--pl);" id="fix-total">...</div></div>
+    <div class="card"><div class="lbl">Fixkosten &amp; Verpflichtungen gesamt / Monat</div><div class="num-lg" style="color:var(--pl);" id="fix-total">...</div><div id="fix-total-sub" style="font-size:12px;color:var(--muted);margin-top:4px;"></div></div>
     <div class="card">
       <div class="section-hdr">
         <div class="lbl" style="margin:0;">Alle Fixkosten</div>
@@ -592,6 +592,12 @@ function closeModal(id){document.getElementById(id).classList.remove('show');}
 function getDisplayName(u){return(u?.user_metadata?.display_name||u?.email?.split('@')[0]||'?');}
 function userName(){return currentUser?getDisplayName(currentUser):'unbekannt';}
 function todayISO(){return localISO(new Date());}
+// Prüft das Ergebnis eines UPDATE: Fehler ODER 0 geänderte Zeilen (fehlende Berechtigung) melden
+function updOk(res){
+  if(res.error){alert('Fehler beim Speichern: '+res.error.message);return false;}
+  if(!res.data||!res.data.length){alert('Nicht gespeichert: Die Datenbank erlaubt hier kein Ändern. Bitte das SQL "spartoepfe_update.sql" in Supabase ausführen.');return false;}
+  return true;
+}
 function fmtDate(iso){if(!iso)return'';const d=new Date(iso+'T12:00:00');return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
 function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
@@ -825,7 +831,7 @@ function updateOverview(){
   document.getElementById('v-bar').style.width=pct+'%';
   document.getElementById('v-bar').style.background=pct>90?'var(--red)':pct>70?'var(--amber)':'var(--green)';
   document.getElementById('v-pct').textContent=fmtN(pct)+'\u00a0% verbraucht';
-  document.getElementById('fix-total').textContent=fmtEur(fixItems.reduce((a,f)=>a+Number(f.betrag),0));
+  setFixTotal();
   // cash-saldo wird durch loadCash() aktuell gehalten (Gesamtsaldo über alle Perioden)
   const et=einnahmenItems.reduce((a,e)=>a+Number(e.betrag),0);
   const etEl=document.getElementById('ein-total');if(etEl)etEl.textContent=fmtEur(et);
@@ -944,7 +950,7 @@ async function saveCat(id){
   const budget=va(document.getElementById('ec-b-'+id).value,1,99999);
   const color=document.getElementById('ec-c-'+id).value;
   if(!name||!budget)return;
-  await sb.from('kategorien').update({name,budget,color}).eq('id',id);
+  if(!updOk(await sb.from('kategorien').update({name,budget,color}).eq('id',id).select()))return;
   const c=cats.find(x=>x.id===id);if(c){c.name=name;c.budget=budget;c.color=color;}
   renderCats();updateCatSel();updateOverview();setSyncOk();
 }
@@ -1026,7 +1032,8 @@ async function saveAusgabe(id,oldCatId,oldAmt){
   const newCatId=document.getElementById('ea-c-'+id)?.value;
   const dateVal=document.getElementById('ea-dt-'+id)?.value;
   if(!desc||!amt)return;
-  await sb.from('ausgaben').update({beschreibung:desc,betrag:amt,kategorie_id:newCatId,...(dateVal?{created_at:dateVal+'T12:00:00'}:{})}).eq('id',id);
+  const r1=await sb.from('ausgaben').update({beschreibung:desc,betrag:amt,kategorie_id:newCatId,...(dateVal?{created_at:dateVal+'T12:00:00'}:{})}).eq('id',id).select();
+  if(!updOk(r1))return;
   toggleEdit('ea-'+id);
   loadAusgaben();setSyncOk();
 }
@@ -1107,6 +1114,15 @@ async function shareBudget(){
   window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
 }
 
+let verpfExtra={raten:0,tg:0};
+function setFixTotal(){
+  const el=document.getElementById('fix-total');if(!el)return;
+  const fixSum=fixItems.reduce((a,f)=>a+Number(f.betrag),0);
+  el.textContent=fmtEur(fixSum+verpfExtra.raten+verpfExtra.tg);
+  const sub=document.getElementById('fix-total-sub');
+  if(sub)sub.textContent='Fixkosten '+fmtEur(fixSum)+' · Sinking Funds + Spartöpfe '+fmtEur(verpfExtra.raten)+' · Taschengeld '+fmtEur(verpfExtra.tg);
+}
+
 // ── VERPFLICHTUNGEN (Sinking Funds + Spartöpfe + Taschengeld) ─────
 function tgBetragFuer(datum,liste){
   let b=0;for(const x of liste){if(x.gueltig_ab<=datum)b=Number(x.betrag);}return b;
@@ -1140,7 +1156,8 @@ async function loadVerpflichtungen(){
       <span style="width:22px;text-align:center;color:${done?'var(--green)':rate>0?'var(--amber)':'var(--muted2)'};">${done?'✓':rate>0?'○':'·'}</span>
       <span style="flex:1;min-width:120px;font-size:13px;${rate>0?'':'color:var(--muted);'}">${esc(o.name)}</span>
       <span style="font-size:12px;color:var(--muted);">${rate>0?fmtEur(b)+' von':'Rate:'}</span>
-      <input class="ci" type="number" step="0.01" min="0" value="${rate>0?rate:''}" placeholder="€/Monat" style="width:90px;padding:5px 8px;" onchange="saveRate('${typ}','${esc(o.id)}',this.value)">
+      <input class="ci" type="number" step="0.01" min="0" value="${rate>0?rate:''}" placeholder="€/Monat" id="rate-${typ}-${esc(o.id)}" style="width:90px;padding:5px 8px;" onkeydown="if(event.key==='Enter')saveRate('${typ}','${esc(o.id)}')">
+      <button class="btn" style="padding:5px 12px;" onclick="saveRate('${typ}','${esc(o.id)}')">Speichern</button>
     </div>`;
   };
   html+=`<div class="card"><div class="lbl" style="margin-bottom:4px;">🎯 Sinking Funds · monatliche Rate</div>
@@ -1171,17 +1188,20 @@ async function loadVerpflichtungen(){
   }
   html+=`<div class="card"><div class="lbl" style="margin-bottom:4px;">👦 Taschengeld V. · jeden Freitag</div>${tgHtml}
     <div style="font-size:12px;color:var(--muted);margin-top:8px;">Summe in dieser Periode: <b style="color:var(--text);">${fmtEur(tgSum)}</b></div></div>`;
+  verpfExtra={raten:sumRaten,tg:tgSum};setFixTotal();
   const fixSum=fixItems.reduce((a,f)=>a+Number(f.betrag),0);
   html+=`<div class="card"><div class="lbl">Verpflichtungen gesamt · diese Periode</div>
     <div class="num-lg" style="color:var(--pl);">${fmtEur(fixSum+sumRaten+tgSum)}</div>
     <div style="font-size:12px;color:var(--muted);margin-top:6px;">Fixkosten ${fmtEur(fixSum)} · Sinking Funds und Spartöpfe ${fmtEur(sumRaten)} · Taschengeld ${fmtEur(tgSum)}</div></div>`;
   el.innerHTML=html;
 }
-async function saveRate(typ,id,val){
+async function saveRate(typ,id){
+  const val=document.getElementById('rate-'+typ+'-'+id)?.value;
   const v=Math.round((parseFloat(val)||0)*100)/100;
   const tbl=typ==='sinking'?'sinking_funds':'spartoepfe';
-  const{error}=await sb.from(tbl).update({monatlich:v}).eq('id',id);
-  if(error){alert(typ==='spartopf'?'Fehler beim Speichern. Wurde das SQL "taschengeld.sql" ausgeführt? ('+error.message+')':'Fehler: '+error.message);return;}
+  const{data,error}=await sb.from(tbl).update({monatlich:v}).eq('id',id).select();
+  if(error){alert('Fehler beim Speichern: '+error.message+(typ==='spartopf'?' (Wurde "taschengeld.sql" ausgeführt?)':''));return;}
+  if(!data||!data.length){alert('Nicht gespeichert: Die Datenbank erlaubt hier kein Ändern. Bitte das SQL "spartoepfe_update.sql" in Supabase ausführen.');return;}
   loadVerpflichtungen();
 }
 async function toggleTaschengeld(datum,on){
@@ -1346,8 +1366,8 @@ async function saveFix(id){
   const name=vs(document.getElementById('ef-n-'+id).value,40);
   const amt=va(document.getElementById('ef-a-'+id).value,0.01,99999);
   if(!name||!amt)return;
-  const{error:fe}=await sb.from('fixkosten').update({name,betrag:amt}).eq('id',id);
-  if(fe){setSyncErr();console.error('saveFix:',fe);return;}
+  const rfx=await sb.from('fixkosten').update({name,betrag:amt}).eq('id',id).select();
+  if(!updOk(rfx)){setSyncErr();return;}
   const f=fixItems.find(x=>x.id===id);if(f){f.name=name;f.betrag=amt;}
   renderFix();updateOverview();setSyncOk();
 }
@@ -1419,8 +1439,8 @@ async function saveCash(id){
   const datum=document.getElementById('ecash-dt-'+id).value||todayISO();
   if(isNaN(amt))return;
   const fa=Math.round(amt*100)/100;
-  const{error:ce}=await sb.from('bargeld').update({bezeichnung:bez,betrag:fa,datum}).eq('id',id);
-  if(ce){setSyncErr();console.error('saveCash:',ce);return;}
+  const rcs=await sb.from('bargeld').update({bezeichnung:bez,betrag:fa,datum}).eq('id',id).select();
+  if(!updOk(rcs)){setSyncErr();return;}
   loadCash();setSyncOk();
 }
 async function bookCash(sign){
@@ -1477,7 +1497,8 @@ async function saveEinnahme(id){
   const datum=document.getElementById('eein-dt-'+id)?.value||todayISO();
   if(!bez||!amt)return;
   const d=new Date(datum);
-  await sb.from('einnahmen').update({bezeichnung:bez,betrag:amt,kategorie:kat,datum,monat:d.getMonth()+1,jahr:d.getFullYear()}).eq('id',id);
+  const r2=await sb.from('einnahmen').update({bezeichnung:bez,betrag:amt,kategorie:kat,datum,monat:d.getMonth()+1,jahr:d.getFullYear()}).eq('id',id).select();
+  if(!updOk(r2))return;
   toggleEdit('eein-'+id);
   loadEinnahmen();setSyncOk();
 }

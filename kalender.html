@@ -316,6 +316,12 @@ function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.text
 function showErr(id){const e=document.getElementById(id);if(e)e.style.display='block';}
 function hideErr(id){const e=document.getElementById(id);if(e)e.style.display='none';}
 function toggleForm(id){const e=document.getElementById(id);if(e)e.classList.toggle('show');}
+// Prüft das Ergebnis eines UPDATE: Fehler ODER 0 geänderte Zeilen (fehlende Berechtigung) melden
+function updOk(res){
+  if(res.error){alert('Fehler beim Speichern: '+res.error.message);return false;}
+  if(!res.data||!res.data.length){alert('Nicht gespeichert: Die Datenbank erlaubt hier kein Ändern. Bitte das SQL "spartoepfe_update.sql" in Supabase ausführen.');return false;}
+  return true;
+}
 function toggleEdit(id){const e=document.getElementById(id);if(e)e.classList.toggle('show');}
 
 /* ── SIDEBAR ────────────────────────────────────────────── */
@@ -495,7 +501,7 @@ async function saveEvent(id){
   const betragRaw=parseFloat(document.getElementById('eev-am-'+id).value);
   const betrag=!isNaN(betragRaw)&&betragRaw>0?betragRaw:null;
   const notiz=validateStr(document.getElementById('eev-no-'+id).value||'',200)||null;
-  await sb.from('kalender').update({titel,typ,betrag,notiz}).eq('id',id);
+  if(!updOk(await sb.from('kalender').update({titel,typ,betrag,notiz}).eq('id',id).select()))return;
   await loadAndRender();
   if(selectedDate)renderDayEvents(selectedDate);setSyncOk();
 }

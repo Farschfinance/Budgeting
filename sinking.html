@@ -246,6 +246,12 @@ function toggleForm(id){document.getElementById(id).classList.toggle('show');}
 function setSyncOk(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Live';b.className='nav-sync ok';}}
 function setSyncErr(){const b=document.getElementById('sync-badge');if(b){b.textContent='● Offline';b.className='nav-sync err';}}
 
+// Prüft das Ergebnis eines UPDATE: Fehler ODER 0 geänderte Zeilen (fehlende Berechtigung) melden
+function updOk(res){
+  if(res.error){alert('Fehler beim Speichern: '+res.error.message);return false;}
+  if(!res.data||!res.data.length){alert('Nicht gespeichert: Die Datenbank erlaubt hier kein Ändern. Bitte das SQL "spartoepfe_update.sql" in Supabase ausführen.');return false;}
+  return true;
+}
 async function loadFunds(){
   try{
     const [{data:fd,error:fe},{data:bd},{data:fld}] = await Promise.all([
@@ -478,7 +484,7 @@ function buildHistorie(fundId){
       const val=bezInput.value.trim();
       bezInput.style.display='none';bezSpan.style.display='';
       if(val===b.bezeichnung)return;
-      await sb.from('sinking_fund_buchungen').update({bezeichnung:val}).eq('id',b.id);
+      if(!updOk(await sb.from('sinking_fund_buchungen').update({bezeichnung:val}).eq('id',b.id).select()))return;
       b.bezeichnung=val;bezSpan.textContent=val||'\u2014 umbenennen';
     };
     bezInput.onblur=saveBez;
@@ -691,7 +697,7 @@ async function saveFund(id){
   const mo=parseFloat(document.getElementById('esf-m-'+id).value)||0;
   const goal=parseFloat(document.getElementById('esf-g-'+id).value);
   if(!name||isNaN(goal))return;
-  await sb.from('sinking_funds').update({name,monatlich:Math.round(mo*100)/100,ziel:Math.round(goal*100)/100}).eq('id',id);
+  if(!updOk(await sb.from('sinking_funds').update({name,monatlich:Math.round(mo*100)/100,ziel:Math.round(goal*100)/100}).eq('id',id).select()))return;
   const f=funds.find(x=>x.id===id);
   if(f){f.name=name;f.monatlich=Math.round(mo*100)/100;f.ziel=Math.round(goal*100)/100;}
   renderFunds();setSyncOk();

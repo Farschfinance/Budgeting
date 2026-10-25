@@ -402,6 +402,12 @@ async function buchTopf(sign){
 }
 
 
+// Prüft das Ergebnis eines UPDATE: Fehler ODER 0 geänderte Zeilen (fehlende Berechtigung) melden
+function updOk(res){
+  if(res.error){alert('Fehler beim Speichern: '+res.error.message);return false;}
+  if(!res.data||!res.data.length){alert('Nicht gespeichert: Die Datenbank erlaubt hier kein Ändern. Bitte das SQL "spartoepfe_update.sql" in Supabase ausführen.');return false;}
+  return true;
+}
 function toggleEdit(id){const el=document.getElementById(id);if(el)el.classList.toggle('show');}
 
 async function saveBuchung(id){
@@ -411,7 +417,7 @@ async function saveBuchung(id){
   const datum=document.getElementById('ebuch-dt-'+id).value||todayISO();
   if(isNaN(amt))return;
   const fa=Math.round(amt*100)/100;
-  await sb.from('spartopf_buchungen').update({bezeichnung:bez,betrag:fa,datum}).eq('id',id);
+  if(!updOk(await sb.from('spartopf_buchungen').update({bezeichnung:bez,betrag:fa,datum}).eq('id',id).select()))return;
   await loadToepfe();setSyncOk();
 }
 

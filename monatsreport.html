@@ -62,94 +62,62 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 
 /* ── PRINT STYLES ── */
 @media print {
-  body{background:#fff !important;color:#1a1a2e !important;font-family:'DM Sans',Georgia,sans-serif !important;margin:0;padding:0;}
-  .nav,.no-print{display:none !important;}
+  html,body{background:#fff !important;color:#1a1a2e !important;margin:0;padding:0;}
+  .nav,.no-print,.sidebar,.sidebar-overlay{display:none !important;}
   .page{padding:0 !important;margin:0 !important;max-width:100% !important;}
   #report-preview{display:block !important;}
-  #report-preview.show{display:block !important;}
-  .report-page{
-    max-width:100% !important;margin:0 !important;padding:0 !important;
-    font-family:'DM Sans',Georgia,sans-serif;
-    color:#1a1a2e;background:#fff;
-  }
+  .report-page{max-width:100% !important;font-size:9.5px !important;}
   .report-page *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
-  @page{margin:12mm 10mm;size:A4 portrait;}
+  @page{margin:9mm 9mm;size:A4 portrait;}
 }
 
-/* ── REPORT STYLES (light, druckbar) ── */
-.report-page{
-  font-family:'DM Sans',Georgia,sans-serif;
-  color:#1a1a2e;
-  background:#fff;
-  padding:0;
-  max-width:780px;
-  margin:0 auto;
-}
-.rp-header{
-  display:flex;justify-content:space-between;align-items:flex-end;
-  border-bottom:3px solid #6c3fc5;
-  padding-bottom:10px;margin-bottom:18px;
-}
-.rp-logo{font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#6c3fc5;letter-spacing:2px;}
+/* ── REPORT STYLES (hell, 1 Seite A4) ── */
+.report-page{font-family:'DM Sans',Arial,sans-serif;color:#1a1a2e;background:#fff;max-width:780px;margin:0 auto;padding:18px 20px;border-radius:10px;font-size:11px;line-height:1.35;}
+.rp-header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #6c3fc5;padding-bottom:6px;margin-bottom:10px;}
+.rp-logo{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#6c3fc5;letter-spacing:2px;}
 .rp-logo span{color:#2ab8a4;}
-.rp-title{font-size:20px;font-weight:700;color:#1a1a2e;}
-.rp-subtitle{font-size:12px;color:#666;margin-top:2px;}
-.rp-meta{text-align:right;font-size:11px;color:#888;}
+.rp-title{font-size:18px;font-weight:700;}
+.rp-sub{font-size:10px;color:#666;}
+.rp-meta{text-align:right;font-size:9px;color:#888;}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px;}
+.kpi{background:#f4f0fc;border-radius:6px;padding:6px 8px;}
+.kpi-label{font-size:8px;color:#777;text-transform:uppercase;letter-spacing:.4px;}
+.kpi-val{font-size:14px;font-weight:700;}
+.kpi-note{font-size:8px;color:#888;}
+.pos{color:#1a8a5a;}.neg{color:#c0392b;}
+.grid2{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;margin-bottom:10px;}
+.grid-eq{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;}
+.rs-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6c3fc5;border-bottom:1px solid #e3daf5;padding-bottom:2px;margin-bottom:5px;}
+.tbl{width:100%;border-collapse:collapse;font-size:10px;}
+.tbl th{font-size:8px;color:#777;text-transform:uppercase;text-align:right;font-weight:600;padding:2px 4px;}
+.tbl th:first-child{text-align:left;}
+.tbl td{padding:2.5px 4px;border-bottom:1px solid #f1ecfa;text-align:right;white-space:nowrap;}
+.tbl td:first-child{text-align:left;white-space:normal;}
+.tbl tfoot td{font-weight:700;border-top:1.5px solid #d9cdf2;border-bottom:none;}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+.bar{height:4px;background:#ece6f8;border-radius:2px;overflow:hidden;margin-top:1px;}
+.bar i{display:block;height:100%;border-radius:2px;}
+.frow{padding:2.5px 0;border-bottom:1px solid #f1ecfa;}
+.frow:last-child{border-bottom:none;}
+.frow .l{display:flex;justify-content:space-between;gap:6px;font-size:10px;}
+.frow .l b{white-space:nowrap;}
+.frow small{color:#888;font-size:8px;}
+.weeks{display:flex;gap:4px;align-items:flex-end;height:46px;margin-top:2px;}
+.wk{flex:1;text-align:center;font-size:8px;color:#666;display:flex;flex-direction:column;justify-content:flex-end;height:100%;}
+.wk i{display:block;border-radius:2px 2px 0 0;min-height:2px;}
+.rp-footer{margin-top:8px;padding-top:4px;border-top:1px solid #e3daf5;display:flex;justify-content:space-between;font-size:8px;color:#aaa;}
+.note{font-size:8.5px;color:#888;margin-top:3px;}
 
-/* Section */
-.rs{margin-bottom:18px;}
-.rs-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6c3fc5;border-bottom:1px solid #e8e0f5;padding-bottom:4px;margin-bottom:10px;}
-
-/* KPI row */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
-.kpi{background:#f7f4fd;border-radius:8px;padding:10px 12px;}
-.kpi-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
-.kpi-val{font-size:17px;font-weight:700;color:#1a1a2e;}
-.kpi-val.pos{color:#1a8a5a;}
-.kpi-val.neg{color:#c0392b;}
-.kpi-val.neu{color:#6c3fc5;}
-
-/* Budget bars */
-.cat-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0ecfa;}
-.cat-row:last-child{border-bottom:none;}
-.cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.cat-name{font-size:12px;flex:1;color:#1a1a2e;}
-.cat-bar-wrap{flex:2;height:6px;background:#ede8f8;border-radius:3px;overflow:hidden;}
-.cat-bar{height:100%;border-radius:3px;}
-.cat-amt{font-size:11px;font-weight:600;min-width:90px;text-align:right;color:#1a1a2e;}
-.cat-left{font-size:10px;color:#888;min-width:70px;text-align:right;}
-
-/* Transactions table */
-.tbl{width:100%;border-collapse:collapse;font-size:11px;}
-.tbl th{background:#f7f4fd;padding:5px 8px;text-align:left;font-size:10px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
-.tbl td{padding:5px 8px;border-bottom:1px solid #f5f0fe;color:#1a1a2e;vertical-align:middle;}
-.tbl tr:last-child td{border-bottom:none;}
-.tbl .amt-neg{color:#c0392b;font-weight:600;white-space:nowrap;}
-.tbl .amt-pos{color:#1a8a5a;font-weight:600;white-space:nowrap;}
-.tbl .cat-tag{font-size:10px;background:#ede8f8;color:#6c3fc5;border-radius:10px;padding:1px 7px;white-space:nowrap;}
-
-/* Week section */
-.week-card{background:#fafaf9;border:1px solid #ede8f8;border-radius:8px;padding:8px 12px;margin-bottom:8px;}
-.week-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
-.week-label{font-size:11px;font-weight:700;color:#1a1a2e;}
-.week-total{font-size:13px;font-weight:700;color:#c0392b;}
-.week-bar{height:5px;background:#ede8f8;border-radius:3px;margin-bottom:5px;}
-.week-bar-fill{height:100%;border-radius:3px;}
-
-/* SF + Spartöpfe */
-.fund-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0ecfa;}
-.fund-row:last-child{border-bottom:none;}
-.fund-name{font-size:12px;flex:1;color:#1a1a2e;}
-.fund-bar-wrap{flex:2;height:5px;background:#ede8f8;border-radius:3px;overflow:hidden;}
-.fund-bar{height:100%;border-radius:3px;background:#2ab8a4;}
-.fund-amt{font-size:11px;font-weight:600;min-width:100px;text-align:right;color:#1a1a2e;}
-.fund-pct{font-size:10px;color:#888;min-width:38px;text-align:right;}
-
-/* Footer */
-.rp-footer{margin-top:20px;padding-top:8px;border-top:1px solid #ede8f8;display:flex;justify-content:space-between;font-size:10px;color:#aaa;}
-
-/* Two-col layout */
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media print{
+  html,body{background:#fff !important;color:#1a1a2e !important;margin:0 !important;padding:0 !important;min-height:0 !important;}
+  .nav,.sidebar,.sidebar-overlay,.no-print{display:none !important;}
+  .page{padding:0 !important;margin:0 !important;max-width:100% !important;}
+  #report-preview{display:block !important;}
+  .report-page{max-width:100% !important;margin:0 !important;padding:0 !important;border-radius:0 !important;}
+  .report-page,.report-page *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+  .rs,.kpi-row,.grid2,.grid-eq{break-inside:avoid;page-break-inside:avoid;}
+  @page{size:A4 portrait;margin:10mm 11mm;}
+}
 </style>
 </head>
 <body>
@@ -213,7 +181,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
       <div style="margin-top:18px;">
         <button class="btn" id="load-btn" onclick="loadReport()">Vorschau laden</button>
       </div>
-      <div style="margin-top:18px;" id="print-wrap" style="display:none;">
+      <div style="margin-top:18px;" id="print-wrap">
         <button class="btn-green" onclick="window.print()">⬇ Als PDF speichern</button>
       </div>
     </div>
@@ -288,84 +256,107 @@ async function buildPeriodOptions(){
 }
 
 // ── Report laden ─────────────────────────────────────────────────────
-async function loadReport(){
-  const sel=document.getElementById('period-sel');
-  const val=JSON.parse(sel.value);
-  const {from, to, label} = val;
+function addDays(iso,n){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return localISO(d);}
+function r2(x){return Math.round(x*100)/100;}
 
+async function loadReport(){
+  const val=JSON.parse(document.getElementById('period-sel').value);
+  const {from,to,label}=val;
   document.getElementById('status').innerHTML='<span class="spinner"></span> Daten werden geladen…';
   document.getElementById('load-btn').disabled=true;
   document.getElementById('report-preview').classList.remove('show');
-
   try{
-    const [rCats, rAus, rEin, rFix, rSF, rST, rSTBuch, rFixSt] = await Promise.all([
+    const{data:ks}=await sb.from('app_settings').select('value').eq('key','kontostand').maybeSingle();
+    let cfg=null;try{cfg=ks?.value?JSON.parse(ks.value):null;}catch(e){}
+    const st=cfg&&cfg.stichtag?cfg.stichtag:null;
+    const lo=st&&st<from?st:from;
+    const hi=st&&st>to?st:to;
+    const q=(t,col,sel)=>sb.from(t).select(sel||'*').gte(col,lo).lte(col,hi);
+    const [rCats,rFix,rSF,rST,rSTB,rSFB,rEin,rAus,rFxs,rBar]=await Promise.all([
       sb.from('kategorien').select('*').order('created_at'),
-      sb.from('ausgaben').select('*').gte('created_at',from+'T00:00:00').lte('created_at',to+'T23:59:59').order('created_at',{ascending:true}),
-      sb.from('einnahmen').select('*').gte('datum',from).lte('datum',to).order('datum',{ascending:true}),
       sb.from('fixkosten').select('*').order('created_at'),
       sb.from('sinking_funds').select('*').order('created_at'),
       sb.from('spartoepfe').select('*').order('created_at'),
-      sb.from('spartopf_buchungen').select('*').order('datum',{ascending:false}),
-      sb.from('fixkosten_status').select('*').gte('periode_von',from).lte('periode_von',to),
+      sb.from('spartopf_buchungen').select('*'),
+      sb.from('sinking_fund_buchungen').select('*'),
+      q('einnahmen','datum'),
+      sb.from('ausgaben').select('*').gte('created_at',lo+'T00:00:00').lte('created_at',hi+'T23:59:59'),
+      sb.from('fixkosten_status').select('*').eq('abgehakt',true),
+      q('bargeld','datum')
     ]);
+    const cats=rCats.data||[],fixkosten=rFix.data||[],funds=rSF.data||[],toepfe=rST.data||[];
+    const stB=rSTB.data||[],sfB=rSFB.data||[];
+    const einAll=rEin.data||[],ausAll=rAus.data||[],barAll=rBar.data||[];
+    const fixSt=(rFxs.data||[]);
+    const fixMap={};fixkosten.forEach(f=>fixMap[f.id]=Number(f.betrag));
+    const inP=d=>d>=from&&d<=to;
+    const dOf=x=>String(x).substring(0,10);
 
-    const cats=rCats.data||[];
-    const ausgaben=rAus.data||[];
-    const einnahmen=rEin.data||[];
-    const fixkosten=rFix.data||[];
-    const funds=rSF.data||[];
-    const spartoepfe=rST.data||[];
-    const stBuchungen=rSTBuch.data||[];
-    const fixStatus=rFixSt.data||[];
+    const ausP=ausAll.filter(a=>inP(dOf(a.created_at)));
+    const einP=einAll.filter(e=>inP(e.datum));
+    cats.forEach(c=>{c.spent=r2(ausP.filter(a=>a.kategorie_id===c.id).reduce((s,x)=>s+Number(x.betrag),0));});
+    const act=cats.filter(c=>c.aktiv!==false&&(Number(c.budget)>0||c.spent>0));
+    const totalBudget=r2(act.reduce((s,c)=>s+Number(c.budget),0));
+    const totalSpent=r2(act.reduce((s,c)=>s+c.spent,0));
+    const totalEin=r2(einP.reduce((s,e)=>s+Number(e.betrag),0));
+    // Fixkosten: abgehakt in dieser Periode (periode_von)
+    const fixDoneRows=fixSt.filter(x=>x.periode_von>=from&&x.periode_von<=to);
+    const fixDoneSum=r2(fixDoneRows.reduce((s,x)=>s+(fixMap[x.fixkosten_id]||0),0));
+    const fixGesamt=r2(fixkosten.reduce((s,f)=>s+Number(f.betrag),0));
+    // Sparen netto in Periode (Geld vom Girokonto aufs Tagesgeld)
+    const savP=r2(stB.filter(b=>inP(b.datum)).reduce((s,b)=>s+Number(b.betrag),0)+sfB.filter(b=>inP(b.datum)).reduce((s,b)=>s+Number(b.betrag),0));
+    const rest=r2(totalEin-totalSpent-fixDoneSum-savP);
 
-    // Spent per cat
-    cats.forEach(c=>{
-      c.spent=Math.round(ausgaben.filter(a=>a.kategorie_id===c.id).reduce((s,x)=>s+Number(x.betrag),0)*100)/100;
+    // Wochen
+    const days=Math.round((new Date(to+'T12:00:00')-new Date(from+'T12:00:00'))/86400000)+1;
+    const weekBudget=r2(totalBudget*7/days);
+    const weeks=[];
+    for(let s0=from,i=1;s0<=to;s0=addDays(s0,7),i++){
+      const e0=addDays(s0,6)>to?to:addDays(s0,6);
+      const tot=r2(ausP.filter(a=>{const d=dOf(a.created_at);return d>=s0&&d<=e0;}).reduce((s,x)=>s+Number(x.betrag),0));
+      weeks.push({label:'W'+i,from:s0,to:e0,total:tot});
+    }
+
+    // Kontoentwicklung
+    const ev=[];
+    einAll.forEach(e=>ev.push([e.datum,Number(e.betrag)]));
+    ausAll.filter(a=>!a.bar).forEach(a=>ev.push([dOf(a.created_at),-Number(a.betrag)]));
+    fixSt.forEach(x=>{if(x.abgehakt_am)ev.push([dOf(x.abgehakt_am),-(fixMap[x.fixkosten_id]||0)]);});
+    barAll.filter(b=>Number(b.betrag)>0).forEach(b=>ev.push([b.datum,-Number(b.betrag)]));
+    stB.forEach(b=>ev.push([b.datum,-Number(b.betrag)]));
+    sfB.forEach(b=>ev.push([b.datum,-Number(b.betrag)]));
+    const flow=(a,b)=>ev.filter(x=>x[0]>a&&x[0]<=b).reduce((s,x)=>s+x[1],0); // a<datum<=b
+    const today=localISO(new Date());
+    const endD=to>today?today:to;
+    let balAt;
+    if(st){
+      balAt=d=>r2(Number(cfg.stand)+(d>=st?flow(st,d):-flow(d,st)));
+    }else{
+      balAt=d=>r2(flow(addDays(from,-1),d));
+    }
+    const pts=[];
+    const startD=addDays(from,-1);
+    pts.push({d:startD,v:balAt(startD)});
+    for(let d=addDays(from,6);d<endD;d=addDays(d,7))pts.push({d,v:balAt(d)});
+    pts.push({d:endD,v:balAt(endD)});
+
+    // Sparstände zum Periodenende
+    const sfRows=funds.map(f=>{
+      const after=sfB.filter(b=>b.fund_id===f.id&&b.datum>to).reduce((s,b)=>s+Number(b.betrag),0);
+      const inPer=sfB.filter(b=>b.fund_id===f.id&&inP(b.datum)).reduce((s,b)=>s+Number(b.betrag),0);
+      return{name:f.name,stand:r2(Number(f.angespart||0)-after),ziel:Number(f.ziel)||0,delta:r2(inPer)};
+    });
+    const stRows=toepfe.map(t=>{
+      const own=stB.filter(b=>b.spartopf_id===t.id);
+      return{name:t.name,farbe:t.farbe,stand:r2(own.filter(b=>b.datum<=to).reduce((s,b)=>s+Number(b.betrag),0)),
+        ziel:Number(t.ziel)||0,delta:r2(own.filter(b=>inP(b.datum)).reduce((s,b)=>s+Number(b.betrag),0))};
     });
 
-    // Sums
-    const totalBudget=cats.filter(c=>c.aktiv!==false).reduce((s,c)=>s+Number(c.budget),0);
-    const totalSpent=cats.filter(c=>c.aktiv!==false).reduce((s,c)=>s+Number(c.spent),0);
-    const totalEin=Math.round(einnahmen.reduce((s,e)=>s+Number(e.betrag),0)*100)/100;
-    const bilanz=Math.round((totalEin-totalSpent)*100)/100;
-    const fixGesamt=fixkosten.reduce((s,f)=>s+Number(f.betrag),0);
-    const fixDone=fixkosten.filter(f=>fixStatus.find(s=>s.fixkosten_id===f.id&&s.abgehakt)).length;
-
-    // Wochenaufschlüsselung
-    const weekMap={};
-    ausgaben.forEach(a=>{
-      const d=new Date(a.created_at);
-      const day=d.getDay();
-      const diffMon=day===0?-6:1-day;
-      const mon=new Date(d);mon.setDate(d.getDate()+diffMon);mon.setHours(0,0,0,0);
-      const key=localISO(mon);
-      if(!weekMap[key]){
-        const sun=new Date(mon);sun.setDate(mon.getDate()+6);
-        const von=mon.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
-        const bis=sun.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
-        const jan4=new Date(mon.getFullYear(),0,4);
-        const kw=Math.ceil(((mon-jan4)/86400000+jan4.getDay()+1)/7);
-        weekMap[key]={label:'KW '+kw+' ('+von+'–'+bis+')',items:[],total:0};
-      }
-      weekMap[key].items.push(a);
-      weekMap[key].total=Math.round((weekMap[key].total+Number(a.betrag))*100)/100;
-    });
-    const weeks=Object.entries(weekMap).sort((a,b)=>a[0].localeCompare(b[0]));
-    const weekBudget=totalBudget/(weeks.length||4);
-
-    // Spartopf-Stände
-    const stMap={};
-    stBuchungen.forEach(b=>{
-      if(!stMap[b.spartopf_id])stMap[b.spartopf_id]=0;
-      stMap[b.spartopf_id]=Math.round((stMap[b.spartopf_id]+Number(b.betrag))*100)/100;
-    });
-
-    renderReport({label,from,to,cats,ausgaben,einnahmen,totalBudget,totalSpent,totalEin,bilanz,
-      fixkosten,fixGesamt,fixDone,fixStatus,weeks,weekBudget,funds,spartoepfe,stMap});
-
+    renderReport({label,from,to,days,act,totalBudget,totalSpent,totalEin,fixDoneSum,fixGesamt,
+      fixDone:fixDoneRows.length,fixN:fixkosten.length,savP,rest,weeks,weekBudget,pts,hasStand:!!st,
+      sfRows,stRows,nEin:einP.length,nAus:ausP.length});
     document.getElementById('status').textContent='';
     document.getElementById('report-preview').classList.add('show');
-    document.getElementById('print-wrap').style.display='';
   }catch(e){
     console.error(e);
     document.getElementById('status').textContent='Fehler beim Laden: '+e.message;
@@ -373,219 +364,84 @@ async function loadReport(){
   document.getElementById('load-btn').disabled=false;
 }
 
+function accountChart(pts,hasStand){
+  const W=300,H=92,pl=6,pr=6,pt=10,pb=14;
+  const vs=pts.map(p=>p.v);let mn=Math.min(...vs),mx=Math.max(...vs);
+  if(mx-mn<1){mx+=1;mn-=1;}
+  const x=i=>pl+(pts.length>1?i*(W-pl-pr)/(pts.length-1):0);
+  const y=v=>pt+(mx-v)*(H-pt-pb)/(mx-mn);
+  const line=pts.map((p,i)=>x(i).toFixed(1)+','+y(p.v).toFixed(1)).join(' ');
+  const area=pl+','+(H-pb)+' '+line+' '+x(pts.length-1).toFixed(1)+','+(H-pb);
+  const lab=(p,i)=>`<text x="${x(i).toFixed(1)}" y="${(y(p.v)-3).toFixed(1)}" font-size="7" text-anchor="${i===0?'start':i===pts.length-1?'end':'middle'}" fill="#444">${fmtN(p.v)}</text>`;
+  const dl=iso=>iso.split('-').reverse().slice(0,2).join('.');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">
+    <polygon points="${area}" fill="#6c3fc5" opacity=".10"/>
+    <polyline points="${line}" fill="none" stroke="#6c3fc5" stroke-width="1.6"/>
+    ${pts.map((p,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="2" fill="#6c3fc5"/>`).join('')}
+    ${lab(pts[0],0)}${lab(pts[pts.length-1],pts.length-1)}
+    <text x="${pl}" y="${H-3}" font-size="7" fill="#888">${dl(pts[0].d)}</text>
+    <text x="${W-pr}" y="${H-3}" font-size="7" text-anchor="end" fill="#888">${dl(pts[pts.length-1].d)}</text>
+  </svg>`;
+}
+
 function renderReport(d){
   const now=new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
-  const fmtD=iso=>{if(!iso)return'';const[y,m,day]=iso.split('-');return day+'.'+m+'.'+y;};
-  const pctUsed=d.totalBudget>0?Math.min(100,Math.round(d.totalSpent/d.totalBudget*1000)/10):0;
-  const activeCats=d.cats.filter(c=>c.aktiv!==false&&c.budget>0);
-
-  // ── KPI Section ──
-  const kpiHTML=`
-    <div class="kpi-row">
-      <div class="kpi">
-        <div class="kpi-label">Einnahmen</div>
-        <div class="kpi-val pos">${fmtEur(d.totalEin)}</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Ausgaben</div>
-        <div class="kpi-val neg">${fmtEur(d.totalSpent)}</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Budget genutzt</div>
-        <div class="kpi-val ${pctUsed>90?'neg':pctUsed>70?'':'pos'}">${fmtN(pctUsed)} %</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Bilanz</div>
-        <div class="kpi-val ${d.bilanz>=0?'pos':'neg'}">${fmtEur(d.bilanz)}</div>
-      </div>
-    </div>`;
-
-  // ── Budget-Kategorien ──
-  const catRows=activeCats.map(c=>{
-    const p=c.budget>0?Math.min(100,Math.round(c.spent/c.budget*1000)/10):0;
-    const col=p>90?'#c0392b':p>70?'#e67e22':c.color||'#6c3fc5';
-    const left=Math.max(0,c.budget-c.spent);
-    return`<div class="cat-row">
-      <div class="cat-dot" style="background:${esc(col)};"></div>
-      <div class="cat-name">${esc(c.name)}</div>
-      <div class="cat-bar-wrap"><div class="cat-bar" style="width:${p}%;background:${esc(col)};"></div></div>
-      <div class="cat-amt">${fmtEur(c.spent)} / ${fmtEur(c.budget)}</div>
-      <div class="cat-left" style="color:${left===0?'#c0392b':'#888'};">noch ${fmtEur(left)}</div>
-    </div>`;
+  const fmtD=iso=>{const[y,m,day]=iso.split('-');return day+'.'+m+'.'+y;};
+  const pctUsed=d.totalBudget>0?Math.round(d.totalSpent/d.totalBudget*1000)/10:0;
+  const catRows=d.act.map(c=>{
+    const p=Number(c.budget)>0?Math.min(100,c.spent/Number(c.budget)*100):0;
+    const col=c.spent>Number(c.budget)?'#c0392b':(c.color||'#6c3fc5');
+    const diff=r2(Number(c.budget)-c.spent);
+    return `<tr><td><span class="dot" style="background:${esc(col)}"></span>${esc(c.name)}<div class="bar"><i style="width:${p}%;background:${esc(col)}"></i></div></td>
+      <td>${fmtN(c.spent)}</td><td>${fmtN(c.budget)}</td><td class="${diff>=0?'pos':'neg'}">${diff>=0?'':'−'}${fmtN(Math.abs(diff))}</td></tr>`;
   }).join('');
-
-  // ── Wochenübersicht ──
-  const weekRows=d.weeks.map(([,w])=>{
-    const p=d.weekBudget>0?Math.min(100,Math.round(w.total/d.weekBudget*1000)/10):0;
-    const col=p>100?'#c0392b':p>80?'#e67e22':'#1a8a5a';
-    return`<div class="week-card">
-      <div class="week-hdr">
-        <span class="week-label">${esc(w.label)}</span>
-        <span class="week-total">−${fmtEur(w.total)}</span>
-      </div>
-      <div class="week-bar"><div class="week-bar-fill" style="width:${p}%;background:${col};"></div></div>
-      <div style="font-size:10px;color:#888;">${fmtN(p)} % von Wochenbudget ${fmtEur(d.weekBudget)}</div>
-    </div>`;
+  const totDiff=r2(d.totalBudget-d.totalSpent);
+  const maxW=Math.max(d.weekBudget,...d.weeks.map(w=>w.total),1);
+  const weekHTML=d.weeks.map(w=>{
+    const h=Math.max(2,Math.round(w.total/maxW*34));
+    const col=w.total>d.weekBudget?'#c0392b':'#1a8a5a';
+    return `<div class="wk"><span>${fmtN(w.total)}</span><i style="height:${h}px;background:${col}"></i><span>${w.label}</span></div>`;
   }).join('');
-
-  // ── Kategorien-Zusammenfassung (statt Einzelbuchungen) ──
-  const catSummaryRows=d.cats.filter(c=>c.aktiv!==false).map(c=>{
-    const cnt=d.ausgaben.filter(a=>a.kategorie_id===c.id).length;
-    const diff=Number(c.budget)-Number(c.spent);
-    const diffCol=diff>=0?'#1a8a5a':'#c0392b';
-    return`<tr>
-      <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${esc(c.color||'#6c3fc5')};margin-right:6px;vertical-align:middle;"></span>${esc(c.name)}</td>
-      <td style="text-align:right;" class="amt-neg">−${fmtEur(c.spent)}</td>
-      <td style="text-align:right;">€ ${fmtN(c.budget)}</td>
-      <td style="text-align:right;font-weight:600;color:${diffCol};">${diff>=0?'+':''}${fmtEur(diff)}</td>
-      <td style="color:#888;text-align:center;">${cnt}</td>
-    </tr>`;
-  }).join('');
-
-  // ── Einnahmen-Tabelle ──
-  const einRows=d.einnahmen.map(e=>{
-    return`<tr>
-      <td style="color:#888;">${esc(fmtD(e.datum))}</td>
-      <td>${esc(e.bezeichnung)}</td>
-      <td><span class="cat-tag" style="background:#e8f5ee;color:#1a8a5a;">${esc(e.kategorie)}</span></td>
-      <td class="amt-pos" style="text-align:right;">+${fmtEur(e.betrag)}</td>
-    </tr>`;
-  }).join('');
-
-  // ── Fixkosten ──
-  const fixRows=d.fixkosten.map(f=>{
-    const done=!!d.fixStatus.find(s=>s.fixkosten_id===f.id&&s.abgehakt);
-    return`<tr>
-      <td>${esc(f.name)}</td>
-      <td style="text-align:right;" class="amt-neg">−${fmtEur(f.betrag)}</td>
-      <td style="text-align:center;">${done?'<span style="color:#1a8a5a;font-weight:700;">✓</span>':'<span style="color:#aaa;">–</span>'}</td>
-    </tr>`;
-  }).join('');
-
-  // ── Sinking Funds ──
-  const sfRows=d.funds.map(f=>{
-    const p=f.ziel>0?Math.min(100,Math.round(f.angespart/f.ziel*1000)/10):0;
-    return`<div class="fund-row">
-      <div class="fund-name">${esc(f.name)}</div>
-      <div class="fund-bar-wrap"><div class="fund-bar" style="width:${p}%;"></div></div>
-      <div class="fund-amt">${fmtEur(f.angespart)} / ${fmtEur(f.ziel)}</div>
-      <div class="fund-pct">${fmtN(p)} %</div>
-    </div>`;
-  }).join('');
-
-  // ── Spartöpfe ──
-  const stRows=d.spartoepfe.map(t=>{
-    const stand=d.stMap[t.id]||0;
-    const p=t.ziel>0?Math.min(100,Math.round(stand/t.ziel*1000)/10):0;
-    return`<div class="fund-row">
-      <div class="fund-dot" style="width:8px;height:8px;border-radius:50%;background:${esc(t.farbe||'#9B5FD4')};flex-shrink:0;"></div>
-      <div class="fund-name">${esc(t.name)}</div>
-      <div class="fund-bar-wrap"><div class="fund-bar" style="width:${p}%;background:${esc(t.farbe||'#9B5FD4')};"></div></div>
-      <div class="fund-amt">${fmtEur(stand)}${t.ziel>0?' / '+fmtEur(t.ziel):''}</div>
-      ${t.ziel>0?`<div class="fund-pct">${fmtN(p)} %</div>`:'<div class="fund-pct"></div>'}
-    </div>`;
-  }).join('');
-
+  const fundRow=(r,col)=>{
+    const p=r.ziel>0?Math.min(100,r.stand/r.ziel*100):0;
+    return `<div class="frow"><div class="l"><span>${esc(r.name)}</span><b>${fmtEur(r.stand)}${r.ziel>0?' <small>/ '+fmtN(r.ziel)+'</small>':''}</b></div>
+      ${r.ziel>0?`<div class="bar"><i style="width:${p}%;background:${col}"></i></div>`:''}
+      ${r.delta!==0?`<small>${r.delta>0?'+':'−'}${fmtN(Math.abs(r.delta))} in dieser Periode</small>`:''}</div>`;
+  };
+  const sfTot=r2(d.sfRows.reduce((s,r)=>s+r.stand,0)),stTot=r2(d.stRows.reduce((s,r)=>s+r.stand,0));
+  const first=d.pts[0].v,last=d.pts[d.pts.length-1].v,chg=r2(last-first);
   document.getElementById('report-content').innerHTML=`
-    <!-- HEADER -->
     <div class="rp-header">
-      <div>
-        <div class="rp-logo">KASSEN<span>ABSTURZ</span></div>
-        <div style="font-size:10px;color:#888;margin-top:2px;">Haushaltsbuch</div>
-      </div>
-      <div style="text-align:center;">
-        <div class="rp-title">${esc(d.label)}</div>
-        <div class="rp-subtitle">${fmtD(d.from)} – ${fmtD(d.to)}</div>
-      </div>
-      <div class="rp-meta">
-        Erstellt: ${now}<br>
-        ${esc(getDisplayName(currentUser))}
-      </div>
+      <div><div class="rp-logo">KASSEN<span>ABSTURZ</span></div></div>
+      <div style="text-align:center;"><div class="rp-title">${esc(d.label)}</div><div class="rp-sub">${fmtD(d.from)} – ${fmtD(d.to)}</div></div>
+      <div class="rp-meta">Erstellt ${now}<br>${esc(getDisplayName(currentUser))}</div>
     </div>
-
-    <!-- KPIs -->
-    ${kpiHTML}
-
-    <!-- BUDGET + WOCHEN (nebeneinander) -->
-    <div class="two-col">
-      <div>
-        <div class="rs">
-          <div class="rs-title">Budget · Kategorien</div>
-          ${catRows||'<div style="color:#aaa;font-size:12px;">Keine Kategorien.</div>'}
-          <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:2px solid #ede8f8;">
-            <span style="font-size:11px;font-weight:700;color:#1a1a2e;">Gesamt</span>
-            <span style="font-size:12px;font-weight:700;color:#c0392b;">−${fmtEur(d.totalSpent)}</span>
-            <span style="font-size:11px;color:#1a8a5a;font-weight:600;">Budget: ${fmtEur(d.totalBudget)}</span>
-          </div>
-        </div>
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">Einnahmen</div><div class="kpi-val pos">${fmtEur(d.totalEin)}</div><div class="kpi-note">${d.nEin} Buchungen</div></div>
+      <div class="kpi"><div class="kpi-label">Variable Ausgaben</div><div class="kpi-val neg">${fmtEur(d.totalSpent)}</div><div class="kpi-note">${fmtN(pctUsed)} % von ${fmtEur(d.totalBudget)}</div></div>
+      <div class="kpi"><div class="kpi-label">Fixkosten</div><div class="kpi-val neg">${fmtEur(d.fixDoneSum)}</div><div class="kpi-note">${d.fixDone}/${d.fixN} abgehakt · Soll ${fmtEur(d.fixGesamt)}</div></div>
+      <div class="kpi"><div class="kpi-label">Gespart (netto)</div><div class="kpi-val" style="color:#2a7fb8;">${fmtEur(d.savP)}</div><div class="kpi-note">aufs Tagesgeld</div></div>
+      <div class="kpi"><div class="kpi-label">Übrig</div><div class="kpi-val ${d.rest>=0?'pos':'neg'}">${fmtEur(d.rest)}</div><div class="kpi-note">nach allem</div></div>
+    </div>
+    <div class="grid2">
+      <div class="rs"><div class="rs-title">Variable Ausgaben je Kategorie</div>
+        <table class="tbl"><thead><tr><th>Kategorie</th><th>Ausgegeben</th><th>Budget</th><th>Rest</th></tr></thead>
+        <tbody>${catRows||'<tr><td colspan="4" style="color:#aaa;">Keine Kategorien.</td></tr>'}</tbody>
+        <tfoot><tr><td>Gesamt</td><td>${fmtN(d.totalSpent)}</td><td>${fmtN(d.totalBudget)}</td><td class="${totDiff>=0?'pos':'neg'}">${totDiff>=0?'':'−'}${fmtN(Math.abs(totDiff))}</td></tr></tfoot></table>
       </div>
       <div>
-        <div class="rs">
-          <div class="rs-title">Wochenübersicht</div>
-          ${weekRows||'<div style="color:#aaa;font-size:12px;">Keine Ausgaben.</div>'}
+        <div class="rs" style="margin-bottom:10px;"><div class="rs-title">${d.hasStand?'Kontoentwicklung (berechnet)':'Netto-Verlauf (ohne Kontostand)'}</div>
+          ${accountChart(d.pts,d.hasStand)}
+          <div class="note">${d.hasStand?'Anfang':'Start'} ${fmtEur(first)} → Ende ${fmtEur(last)} (${chg>=0?'+':'−'}${fmtN(Math.abs(chg))})${d.hasStand?'':' · Kontostand im Budget-Tab „Kontostand“ eintragen für den echten Verlauf'}</div>
         </div>
-        <div class="rs">
-          <div class="rs-title">Fixkosten (${d.fixDone}/${d.fixkosten.length} abgehakt)</div>
-          ${d.fixkosten.length?`<table class="tbl">
-            <thead><tr><th>Bezeichnung</th><th style="text-align:right;">Betrag</th><th style="text-align:center;">✓</th></tr></thead>
-            <tbody>${fixRows}</tbody>
-            <tfoot><tr>
-              <td style="font-weight:700;font-size:11px;">Gesamt</td>
-              <td style="text-align:right;font-weight:700;color:#c0392b;" class="amt-neg">−${fmtEur(d.fixGesamt)}</td>
-              <td></td>
-            </tr></tfoot>
-          </table>`:'<div style="color:#aaa;font-size:12px;">Keine Fixkosten.</div>'}
-        </div>
+        <div class="rs"><div class="rs-title">Ausgaben je Woche · Wochenbudget ${fmtEur(d.weekBudget)}</div><div class="weeks">${weekHTML||'<span style="color:#aaa;">–</span>'}</div></div>
       </div>
     </div>
-
-    <!-- AUSGABEN gesamt je Kategorie -->
-    <div class="rs">
-      <div class="rs-title">Ausgaben · Zusammenfassung je Kategorie</div>
-      <table class="tbl">
-        <thead><tr><th>Kategorie</th><th style="text-align:right;">Ausgaben</th><th style="text-align:right;">Budget</th><th style="text-align:right;">Differenz</th><th>Buchungen</th></tr></thead>
-        <tbody>${catSummaryRows}</tbody>
-        <tfoot><tr>
-          <td style="font-weight:700;">Gesamt</td>
-          <td style="text-align:right;font-weight:700;" class="amt-neg">−${fmtEur(d.totalSpent)}</td>
-          <td style="text-align:right;font-weight:700;">€ ${fmtN(d.totalBudget)}</td>
-          <td style="text-align:right;font-weight:700;" class="${d.totalBudget-d.totalSpent>=0?'amt-pos':'amt-neg'}">${d.totalBudget-d.totalSpent>=0?'+':''}${fmtEur(d.totalBudget-d.totalSpent)}</td>
-          <td>${d.ausgaben.length}</td>
-        </tr></tfoot>
-      </table>
+    <div class="grid-eq">
+      <div class="rs"><div class="rs-title">Sinking Funds · Stand Periodenende (${fmtEur(sfTot)})</div>${d.sfRows.map(r=>fundRow(r,'#2ab8a4')).join('')||'<div style="color:#aaa;">Keine Sinking Funds.</div>'}</div>
+      <div class="rs"><div class="rs-title">Spartöpfe · Stand Periodenende (${fmtEur(stTot)})</div>${d.stRows.map(r=>fundRow(r,esc(r.farbe||'#9B5FD4'))).join('')||'<div style="color:#aaa;">Keine Spartöpfe.</div>'}</div>
     </div>
-
-    <!-- EINNAHMEN -->
-    <div class="rs">
-      <div class="rs-title">Einnahmen (${d.einnahmen.length})</div>
-      ${d.einnahmen.length?`<table class="tbl">
-        <thead><tr><th>Datum</th><th>Bezeichnung</th><th>Kategorie</th><th style="text-align:right;">Betrag</th></tr></thead>
-        <tbody>${einRows}</tbody>
-        <tfoot><tr>
-          <td colspan="3" style="font-weight:700;font-size:11px;">Gesamt</td>
-          <td style="text-align:right;font-weight:700;" class="amt-pos">+${fmtEur(d.totalEin)}</td>
-        </tr></tfoot>
-      </table>`:'<div style="color:#aaa;font-size:12px;">Keine Einnahmen erfasst.</div>'}
-    </div>
-
-    <!-- SINKING FUNDS + SPARTÖPFE -->
-    <div class="two-col">
-      <div class="rs">
-        <div class="rs-title">Sinking Funds</div>
-        ${d.funds.length?sfRows:'<div style="color:#aaa;font-size:12px;">Keine Sinking Funds.</div>'}
-      </div>
-      <div class="rs">
-        <div class="rs-title">Spartöpfe</div>
-        ${d.spartoepfe.length?stRows:'<div style="color:#aaa;font-size:12px;">Keine Spartöpfe.</div>'}
-      </div>
-    </div>
-
-    <!-- FOOTER -->
-    <div class="rp-footer">
-      <span>KassenAbsturZ · Monatsreport ${esc(d.label)}</span>
-      <span>Erstellt am ${now} von ${esc(getDisplayName(currentUser))}</span>
-    </div>
-  `;
+    <div class="rp-footer"><span>KassenAbsturZ · Monatsreport ${esc(d.label)}</span><span>${d.nAus} variable Buchungen · erstellt ${now}</span></div>`;
 }
 
 // ── AUTH ─────────────────────────────────────────────────────────────
